@@ -104,11 +104,11 @@ const Sidebar = () => {
       >
         {/* Logo and title */}
         <div className="p-6 flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-sm shrink-0">
-            <Music className="h-4 w-4 text-white" />
+          <div className="w-8 h-8 bg-transparent rounded-full flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
+            <img src="/F-Hole-Logo.png" alt="Arco Connect Logo" className="h-8 w-8 object-contain" />
           </div>
           {isOpen && (
-            <h1 className="text-lg font-medium text-white">Violin Connect</h1>
+            <h1 className="text-lg font-medium text-white">Arco Connect</h1>
           )}
         </div>
         
