@@ -1354,13 +1354,17 @@ interface PieceDetailDialogProps {
   onClose: () => void;
   piece: RepertoireItemData | null;
   students: Student[];
+  setActiveStudent: (studentId: string | null) => void;
+  setActiveTab: (tab: string) => void;
 }
 
 const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({ 
   isOpen, 
   onClose, 
   piece, 
-  students 
+  students, 
+  setActiveStudent, 
+  setActiveTab 
 }) => {
   if (!piece) return null;
   
@@ -1541,11 +1545,13 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
     endDate?: string;
     notes?: string;
     pieceTitle: string; // Store the actual title used by this student
+    pieceId: string; // Store the actual piece ID for reference
   }> = [];
   
   students.forEach(student => {
     // Check current repertoire
     student.currentRepertoire.forEach(p => {
+      // Use the improved matching function to determine if pieces are similar
       if (isPieceSimilar(p.title, piece.title, p.composer, piece.composer)) {
         pieceInstances.push({
           studentId: student.id,
@@ -1554,7 +1560,8 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
           startDate: p.startDate,
           endDate: undefined, // Current pieces don't have end dates
           notes: p.notes,
-          pieceTitle: p.title // Store the actual title used
+          pieceTitle: p.title, // Store the actual title used
+          pieceId: p.id // Store the piece ID
         });
       }
     });
@@ -1569,7 +1576,8 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
           startDate: p.startDate,
           endDate: p.endDate, // Add end date for completed pieces
           notes: p.notes,
-          pieceTitle: p.title // Store the actual title used
+          pieceTitle: p.title, // Store the actual title used
+          pieceId: p.id // Store the piece ID
         });
       }
     });
@@ -1802,32 +1810,69 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
                     
                     const titleDiffers = normalizePieceTitle(instance.pieceTitle) !== normalizePieceTitle(piece.title);
                     
+                    // Find the student from the list to ensure data consistency
+                    const student = students.find(s => s.id === instance.studentId);
+                    
+                    // Verify piece status to ensure consistency with student view
+                    let verifiedStatus = instance.status;
+                    let verifiedEndDate = instance.endDate;
+                    
+                    if (student) {
+                      // Check if piece is in current repertoire
+                      const currentPiece = student.currentRepertoire.find(p => p.id === instance.pieceId);
+                      if (currentPiece) {
+                        verifiedStatus = currentPiece.status;
+                        verifiedEndDate = undefined; // Current pieces don't have end dates
+                      }
+                      
+                      // Check if piece is in past repertoire
+                      const pastPiece = student.pastRepertoire?.find(p => p.id === instance.pieceId);
+                      if (pastPiece) {
+                        verifiedStatus = pastPiece.status;
+                        verifiedEndDate = pastPiece.endDate;
+                      }
+                    }
+                    
                     return (
                       <TableRow key={`${instance.studentId}-${index}`}>
                         <TableCell className="font-medium">
-                          {instance.studentName}
-                          {titleDiffers && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Info className="inline-block h-3.5 w-3.5 ml-1 text-muted-foreground cursor-help" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  In student's repertoire as:<br />
-                                  "{instance.pieceTitle}"
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
+                          <div className="flex items-center">
+                            <Button 
+                              variant="link" 
+                              className="p-0 h-auto font-medium text-sm"
+                              onClick={() => {
+                                // Navigate to the student's view and set the appropriate tab
+                                setActiveStudent(instance.studentId);
+                                setActiveTab(verifiedStatus === 'current' ? 'current' : 'completed');
+                                // Close the dialog
+                                onClose();
+                              }}
+                            >
+                              {instance.studentName}
+                            </Button>
+                            {titleDiffers && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="inline-block h-3.5 w-3.5 ml-1 text-muted-foreground cursor-help" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    In student's repertoire as:<br />
+                                    "{instance.pieceTitle}"
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={instance.status === 'current' ? 'outline' : 'default'}>
-                            {instance.status === 'current' ? 'In Progress' : 'Completed'}
+                          <Badge variant={verifiedStatus === 'current' ? 'outline' : 'default'}>
+                            {verifiedStatus === 'current' ? 'In Progress' : 'Completed'}
                           </Badge>
                         </TableCell>
                         <TableCell>{instance.startDate}</TableCell>
-                        <TableCell>{instance.endDate || '—'}</TableCell>
-                        <TableCell>{duration || 'Ongoing'}</TableCell>
+                        <TableCell>{verifiedEndDate || '—'}</TableCell>
+                        <TableCell>{verifiedStatus === 'completed' ? duration : 'Ongoing'}</TableCell>
                         <TableCell>
                           {instance.notes && (
                             <TooltipProvider>
@@ -2599,6 +2644,8 @@ const RepertoirePage = () => {
         onClose={() => setIsPieceDetailDialogOpen(false)}
         piece={selectedPiece}
         students={studentsList}
+        setActiveStudent={setActiveStudent}
+        setActiveTab={setActiveTab}
       />
     </>
   );
