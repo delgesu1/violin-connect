@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Music, MessageSquare, Calendar } from 'lucide-react';
+import { Music, MessageSquare, Calendar, BookText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export interface RepertoirePiece {
@@ -15,6 +15,15 @@ export interface RepertoirePiece {
   status: 'current' | 'completed' | 'planned';
 }
 
+export interface Lesson {
+  id: string;
+  date: string;
+  repertoire: RepertoirePiece[];
+  transcriptUrl?: string;
+  summary?: string;
+  notes?: string;
+}
+
 export interface Student {
   id: string;
   name: string;
@@ -23,6 +32,7 @@ export interface Student {
   pastRepertoire?: RepertoirePiece[];
   nextLesson?: string;
   unreadMessages?: number;
+  lessons?: Lesson[];
 }
 
 interface StudentCardProps {
@@ -65,12 +75,21 @@ const StudentCard: React.FC<StudentCardProps> = ({ student, className }) => {
         </CardContent>
         
         <CardFooter className="p-3 pt-0 border-t bg-muted/30 justify-between">
-          {student.nextLesson && (
-            <div className="flex items-center gap-1 text-xs">
-              <Calendar className="h-3.5 w-3.5" />
-              <span>{student.nextLesson}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            {student.nextLesson && (
+              <div className="flex items-center gap-1 text-xs">
+                <Calendar className="h-3.5 w-3.5" />
+                <span>{student.nextLesson}</span>
+              </div>
+            )}
+            
+            {student.lessons && student.lessons.length > 0 && (
+              <div className="flex items-center gap-1 text-xs">
+                <BookText className="h-3.5 w-3.5" />
+                <span>{student.lessons.length} lessons</span>
+              </div>
+            )}
+          </div>
           
           {student.unreadMessages && student.unreadMessages > 0 && (
             <Badge className="flex items-center gap-1">

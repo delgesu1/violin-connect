@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import PageHeader from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -14,14 +13,17 @@ import {
   Music,
   MessageSquare,
   FileText,
-  CheckCircle
+  CheckCircle,
+  BookText,
+  History
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { Student, RepertoirePiece } from '@/components/common/StudentCard';
+import { Student, RepertoirePiece, Lesson } from '@/components/common/StudentCard';
 import { Badge } from '@/components/ui/badge';
+import LessonHistory from '@/components/common/LessonHistory';
 
-// Mock student data
+// Mock student data with lessons
 const students: (Student & { level?: string; email?: string; phone?: string; startDate?: string; lastLesson?: string; })[] = [
   {
     id: '1',
@@ -34,6 +36,38 @@ const students: (Student & { level?: string; email?: string; phone?: string; sta
     pastRepertoire: [
       { id: '104', title: 'A Minor Scale', startDate: '2023-08-01', status: 'completed', composer: 'With emphasis on arpeggios' },
       { id: '105', title: 'Sonata No. 2', startDate: '2023-07-15', status: 'completed', composer: 'Bach' }
+    ],
+    lessons: [
+      {
+        id: 'l101',
+        date: '2023-10-15',
+        repertoire: [
+          { id: '101', title: 'B Major Scale', startDate: '2023-10-01', status: 'current', composer: 'With emphasis on thirds' },
+          { id: '102', title: 'Violin Concerto', startDate: '2023-09-15', status: 'current', composer: 'Korngold, 1st movement' }
+        ],
+        transcriptUrl: 'https://example.com/transcripts/emma-oct15',
+        summary: 'Worked on B Major scale with focus on intonation of thirds. Discussed fingering options for difficult passages in Korngold concerto. Assigned metronome practice at quarter note = 72 for the development section.'
+      },
+      {
+        id: 'l102',
+        date: '2023-10-08',
+        repertoire: [
+          { id: '101', title: 'B Major Scale', startDate: '2023-10-01', status: 'current', composer: 'With emphasis on thirds' },
+          { id: '103', title: 'Caprice No. 23', startDate: '2023-10-10', status: 'current', composer: 'Paganini' }
+        ],
+        transcriptUrl: 'https://example.com/transcripts/emma-oct08',
+        summary: 'Introduced Paganini Caprice No. 23. Discussed right-hand articulation and left-hand flexibility required. Continued work on B Major scale, focusing on consistent tone across string crossings.'
+      },
+      {
+        id: 'l103',
+        date: '2023-10-01',
+        repertoire: [
+          { id: '101', title: 'B Major Scale', startDate: '2023-10-01', status: 'current', composer: 'With emphasis on thirds' },
+          { id: '104', title: 'A Minor Scale', startDate: '2023-08-01', status: 'completed', composer: 'With emphasis on arpeggios' }
+        ],
+        transcriptUrl: 'https://example.com/transcripts/emma-oct01',
+        summary: 'Completed work on A Minor scale arpeggios. Introduced B Major scale with thirds. Discussed preparation for upcoming recital.'
+      }
     ],
     level: 'Advanced',
     email: 'emma.t@example.com',
@@ -154,6 +188,8 @@ const StudentPage = () => {
     )
   );
 
+  const [selectedTab, setSelectedTab] = useState('grid');
+  
   const currentStudent = selectedStudent ? students.find(s => s.id === selectedStudent) : null;
   
   return (
@@ -181,7 +217,12 @@ const StudentPage = () => {
         </div>
       </div>
       
-      <Tabs defaultValue="grid" className="animate-slide-up animate-stagger-2">
+      <Tabs 
+        defaultValue="grid" 
+        value={selectedTab}
+        onValueChange={setSelectedTab}
+        className="animate-slide-up animate-stagger-2"
+      >
         <TabsList className="mb-6">
           <TabsTrigger value="grid">
             <Users className="h-4 w-4 mr-2" />
@@ -198,6 +239,7 @@ const StudentPage = () => {
             </TabsTrigger>
           )}
         </TabsList>
+        
         
         <TabsContent value="grid" className="mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -274,6 +316,7 @@ const StudentPage = () => {
             </div>
           )}
         </TabsContent>
+        
         
         <TabsContent value="list" className="mt-0">
           <div className="rounded-md border overflow-hidden">
@@ -371,62 +414,93 @@ const StudentPage = () => {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium flex items-center gap-2">
-                          <Music className="h-5 w-5" />
-                          Current Repertoire
-                        </h3>
-                        <div className="space-y-3">
-                          {currentStudent.currentRepertoire.map(piece => (
-                            <div key={piece.id} className="p-3 border rounded-md bg-card">
-                              <div className="flex justify-between">
-                                <div>
-                                  <h4 className="font-medium">{piece.title}</h4>
-                                  {piece.composer && <p className="text-sm text-muted-foreground">{piece.composer}</p>}
-                                </div>
-                                <Badge variant="outline" className="text-xs">
-                                  Started {piece.startDate}
-                                </Badge>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                    <Tabs defaultValue="repertoire" className="mt-6">
+                      <TabsList className="mb-4">
+                        <TabsTrigger value="repertoire">
+                          <Music className="h-4 w-4 mr-2" />
+                          Repertoire
+                        </TabsTrigger>
+                        <TabsTrigger value="lessons">
+                          <History className="h-4 w-4 mr-2" />
+                          Lesson History
+                        </TabsTrigger>
+                      </TabsList>
                       
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium flex items-center gap-2">
-                          <CheckCircle className="h-5 w-5" />
-                          Past Repertoire
-                        </h3>
-                        <div className="space-y-3">
-                          {currentStudent.pastRepertoire && currentStudent.pastRepertoire.length > 0 ? (
-                            currentStudent.pastRepertoire.map(piece => (
-                              <div key={piece.id} className="p-3 border rounded-md bg-card">
-                                <div className="flex justify-between">
-                                  <div>
-                                    <h4 className="font-medium">{piece.title}</h4>
-                                    {piece.composer && <p className="text-sm text-muted-foreground">{piece.composer}</p>}
+                      <TabsContent value="repertoire" className="mt-0">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <div className="space-y-4">
+                            <h3 className="text-lg font-medium flex items-center gap-2">
+                              <Music className="h-5 w-5" />
+                              Current Repertoire
+                            </h3>
+                            <div className="space-y-3">
+                              {currentStudent.currentRepertoire.map(piece => (
+                                <div key={piece.id} className="p-3 border rounded-md bg-card">
+                                  <div className="flex justify-between">
+                                    <div>
+                                      <h4 className="font-medium">{piece.title}</h4>
+                                      {piece.composer && <p className="text-sm text-muted-foreground">{piece.composer}</p>}
+                                    </div>
+                                    <Badge variant="outline" className="text-xs">
+                                      Started {piece.startDate}
+                                    </Badge>
                                   </div>
-                                  <Badge variant="outline" className="text-xs">
-                                    Completed
-                                  </Badge>
                                 </div>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-center py-4 text-muted-foreground">
-                              No past repertoire available.
+                              ))}
                             </div>
-                          )}
+                          </div>
+                          
+                          <div className="space-y-4">
+                            <h3 className="text-lg font-medium flex items-center gap-2">
+                              <CheckCircle className="h-5 w-5" />
+                              Past Repertoire
+                            </h3>
+                            <div className="space-y-3">
+                              {currentStudent.pastRepertoire && currentStudent.pastRepertoire.length > 0 ? (
+                                currentStudent.pastRepertoire.map(piece => (
+                                  <div key={piece.id} className="p-3 border rounded-md bg-card">
+                                    <div className="flex justify-between">
+                                      <div>
+                                        <h4 className="font-medium">{piece.title}</h4>
+                                        {piece.composer && <p className="text-sm text-muted-foreground">{piece.composer}</p>}
+                                      </div>
+                                      <Badge variant="outline" className="text-xs">
+                                        Completed
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-center py-4 text-muted-foreground">
+                                  No past repertoire available.
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      </TabsContent>
+                      
+                      <TabsContent value="lessons" className="mt-0">
+                        {currentStudent.lessons && currentStudent.lessons.length > 0 ? (
+                          <LessonHistory lessons={currentStudent.lessons} />
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground border rounded-md">
+                            No lesson history available for this student.
+                          </div>
+                        )}
+                      </TabsContent>
+                    </Tabs>
                   </CardContent>
                 </Card>
                 
                 <div className="flex justify-end">
-                  <Button variant="outline" onClick={() => setSelectedStudent(null)}>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setSelectedStudent(null);
+                      setSelectedTab('grid');
+                    }}
+                  >
                     Back to Students
                   </Button>
                 </div>
