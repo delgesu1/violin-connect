@@ -23,7 +23,14 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, 
+  DropdownMenuGroup, 
+  DropdownMenuRadioGroup, 
+  DropdownMenuRadioItem, 
+  DropdownMenuSub, 
+  DropdownMenuSubContent, 
+  DropdownMenuSubTrigger, 
+  DropdownMenuPortal } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -1562,6 +1569,99 @@ const RepertoirePage = () => {
   const [studentsList, setStudentsList] = useState<Student[]>(students);
   const [activeTab, setActiveTab] = useState('current');
   const [viewMode, setViewMode] = useState<'list' | 'composer'>('list');
+  const [displayMode, setDisplayMode] = useState<'cards' | 'grid' | 'table'>('grid');
+  const [sortField, setSortField] = useState<'title' | 'composer' | 'difficulty' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
+  // Helper function to determine column count based on container width
+  const gridColumnCount = 3; // Default value, could be responsive
+  
+  // Format composer name to Last name, First initial(s)
+  const formatComposerName = (fullName: string): string => {
+    // Handle special cases like "J.S. Bach" or "W.A. Mozart"
+    if (fullName.includes('.')) {
+      const parts = fullName.split(' ');
+      // If we have initials and last name (like "J.S. Bach")
+      if (parts.length >= 2) {
+        const lastName = parts[parts.length - 1];
+        const initials = parts.slice(0, parts.length - 1).join(' ');
+        return `${lastName}, ${initials}`;
+      }
+      return fullName; // Fallback
+    }
+    
+    // Handle regular names like "Ludwig van Beethoven" or "Claude Debussy"
+    const parts = fullName.split(' ');
+    if (parts.length === 1) return fullName; // Single name case
+    
+    const lastName = parts[parts.length - 1];
+    const firstNames = parts.slice(0, parts.length - 1);
+    const initials = firstNames.map(name => name.charAt(0)).join('.') + '.';
+    
+    return `${lastName}, ${initials}`;
+  };
+  
+  // Handle sorting when a column header is clicked
+  const handleSort = (field: 'title' | 'composer' | 'difficulty') => {
+    if (sortField === field) {
+      // Toggle direction if clicking the same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, set it and default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+  
+  // Get sorted repertoire
+  const getSortedRepertoire = (items: RepertoireItemData[]): RepertoireItemData[] => {
+    if (!sortField) return items;
+    
+    return [...items].sort((a, b) => {
+      let valueA: string | undefined;
+      let valueB: string | undefined;
+      
+      if (sortField === 'title') {
+        valueA = a.title?.toLowerCase();
+        valueB = b.title?.toLowerCase();
+      } else if (sortField === 'composer') {
+        // Extract last name for sorting
+        const getLastName = (composer: string): string => {
+          // Handle special cases like "J.S. Bach" or "W.A. Mozart"
+          if (composer.includes('.')) {
+            const parts = composer.split(' ');
+            // If we have initials and last name (like "J.S. Bach")
+            if (parts.length >= 2) {
+              return parts[parts.length - 1].toLowerCase();
+            }
+          }
+          
+          // Handle regular names like "Ludwig van Beethoven" or "Claude Debussy"
+          const parts = composer.split(' ');
+          if (parts.length === 1) return composer.toLowerCase();
+          
+          return parts[parts.length - 1].toLowerCase();
+        };
+        
+        valueA = getLastName(a.composer);
+        valueB = getLastName(b.composer);
+      } else if (sortField === 'difficulty') {
+        // Map difficulty to a numeric value for sorting
+        const difficultyOrder = { beginner: 1, intermediate: 2, advanced: 3 };
+        valueA = a.difficulty ? String(difficultyOrder[a.difficulty] || 0) : '0';
+        valueB = b.difficulty ? String(difficultyOrder[b.difficulty] || 0) : '0';
+      }
+      
+      if (!valueA || !valueB) return 0;
+      
+      // Compare the values based on sort direction
+      if (sortDirection === 'asc') {
+        return valueA.localeCompare(valueB);
+      } else {
+        return valueB.localeCompare(valueA);
+      }
+    });
+  };
   
   // Filter repertoire based on active student, search query, and active tab
   const getFilteredRepertoire = (): RepertoireItemData[] => {
@@ -1771,32 +1871,31 @@ const RepertoirePage = () => {
   };
 
   const filteredRepertoire = getFilteredRepertoire();
-  const groupedRepertoire = groupByComposer(filteredRepertoire);
+  const sortedRepertoire = getSortedRepertoire(filteredRepertoire);
+  const groupedRepertoire = groupByComposer(sortedRepertoire);
   
   return (
     <>
-      <PageHeader 
-        title="Repertoire" 
-        description="Manage your students' repertoire"
-      >
-        <div className="flex gap-2">
-          <Button onClick={() => setIsAssignPieceDialogOpen(true)}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Assign to Student
-          </Button>
-          <Button variant="outline" onClick={() => setIsAddPieceDialogOpen(true)}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add New Piece
-          </Button>
-        </div>
-      </PageHeader>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-1">
-          <div className="space-y-4 sticky top-6">
-            <div className="rounded-lg border p-4 animate-slide-up animate-stagger-1">
-              <h3 className="font-medium mb-3">Repertoire Views</h3>
+      <div className="container max-w-screen-2xl">
+        <PageHeader 
+          title="Repertoire" 
+          description="Manage and track all repertoire pieces for students"
+          className="animate-slide-up"
+        >
+          <div className="flex space-x-2">
+            <Button onClick={() => setIsAddPieceDialogOpen(true)}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add Piece
+            </Button>
+          </div>
+        </PageHeader>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-6">
+          <div className="lg:col-span-1 animate-slide-up animate-stagger-1">
+            <div className="p-4 border rounded-lg bg-card">
               <div className="space-y-2">
+                <h3 className="text-md font-medium mb-3">Library</h3>
+                
                 <Button 
                   variant={activeStudent === null ? "default" : "outline"} 
                   className="w-full justify-start" 
@@ -1824,182 +1923,522 @@ const RepertoirePage = () => {
               </div>
             </div>
           </div>
-        </div>
         
-        <div className="lg:col-span-3">
-          <div className="flex items-center gap-3 mb-6 animate-slide-up animate-stagger-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search repertoire..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+          <div className="lg:col-span-3">
+            <div className="flex items-center gap-3 mb-6 animate-slide-up animate-stagger-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search repertoire..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              
+              {/* View Controls */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    {displayMode === 'cards' ? (
+                      <List className="h-4 w-4" />
+                    ) : displayMode === 'grid' ? (
+                      <Grid className="h-4 w-4" />
+                    ) : (
+                      <ListFilter className="h-4 w-4" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuGroup>
+                    <DropdownMenuRadioGroup value={displayMode} onValueChange={(value) => setDisplayMode(value as 'cards' | 'grid' | 'table')}>
+                      <DropdownMenuRadioItem value="cards">
+                        <List className="mr-2 h-4 w-4" /> Card View
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="grid">
+                        <Grid className="mr-2 h-4 w-4" /> Grid View
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="table">
+                        <ListFilter className="mr-2 h-4 w-4" /> Table View
+                      </DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuGroup>
+                  
+                  {!activeStudent && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuRadioGroup value={viewMode} onValueChange={(value) => setViewMode(value as 'list' | 'composer')}>
+                          <DropdownMenuRadioItem value="list">
+                            <List className="mr-2 h-4 w-4" /> List View
+                          </DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="composer">
+                            <BookText className="mr-2 h-4 w-4" /> Group by Composer
+                          </DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuGroup>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              <Button variant="outline" size="icon">
+                <Filter className="h-4 w-4" />
+              </Button>
             </div>
             
-            {/* View Mode Toggle - Only visible for Master Repertoire */}
-            {!activeStudent && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      onClick={() => setViewMode(viewMode === 'list' ? 'composer' : 'list')}
-                      className="mr-1"
-                    >
-                      {viewMode === 'list' ? 
-                        <BookText className="h-4 w-4" /> : 
-                        <List className="h-4 w-4" />
-                      }
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {viewMode === 'list' ? 'Switch to Composer View' : 'Switch to List View'}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-            
-            <Button variant="outline" size="icon">
-              <Filter className="h-4 w-4" />
-            </Button>
-          </div>
-          
-          {/* Only show tabs for student view, not for master repertoire */}
-          {activeStudent ? (
-            <Tabs 
-              value={activeTab} 
-              onValueChange={setActiveTab} 
-              className="animate-slide-up animate-stagger-3"
-            >
-              <TabsList className="mb-4">
-                <TabsTrigger value="current">Current</TabsTrigger>
-                <TabsTrigger value="completed">Completed</TabsTrigger>
-                <TabsTrigger value="all">All</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value={activeTab} className="space-y-4 mt-0">
-                {filteredRepertoire.length > 0 ? (
-                  filteredRepertoire.map(item => (
-                    <div key={item.id} className="flex items-center">
-                      <div 
-                        className="flex-1 cursor-pointer" 
-                        onClick={() => handleOpenPieceDetail(item)}
-                      >
-                        <RepertoireItem item={item} className="flex-1" />
+            {/* Only show tabs for student view, not for master repertoire */}
+            {activeStudent ? (
+              <Tabs 
+                value={activeTab} 
+                onValueChange={setActiveTab} 
+                className="animate-slide-up animate-stagger-3"
+              >
+                <TabsList className="mb-4">
+                  <TabsTrigger value="current">Current</TabsTrigger>
+                  <TabsTrigger value="completed">Completed</TabsTrigger>
+                  <TabsTrigger value="all">All</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value={activeTab} className="mt-0">
+                  {filteredRepertoire.length > 0 ? (
+                    displayMode === 'table' ? (
+                      <div className="rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[40px]"></TableHead>
+                              <TableHead>Piece</TableHead>
+                              <TableHead>Composer</TableHead>
+                              <TableHead>Started</TableHead>
+                              <TableHead>{activeTab === 'completed' ? 'Completed' : 'Difficulty'}</TableHead>
+                              <TableHead className="w-[60px]"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredRepertoire.map(item => (
+                              <TableRow 
+                                key={item.id} 
+                                className="cursor-pointer hover:bg-muted/50"
+                                onClick={() => handleOpenPieceDetail(item)}
+                              >
+                                <TableCell>
+                                  <div 
+                                    className={cn(
+                                      "rounded-full p-1.5",
+                                      item.status === 'current' ? 'bg-primary/10 text-primary' : 
+                                      item.status === 'completed' ? 'bg-green-500/10 text-green-500' : 
+                                      'bg-muted text-muted-foreground'
+                                    )}
+                                  >
+                                    {item.status === 'completed' ? (
+                                      <CheckCircle className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <Music className="h-3.5 w-3.5" />
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                  {item.title}
+                                  {item.notes && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Info className="h-3.5 w-3.5 inline ml-2 text-muted-foreground" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p className="max-w-xs">{item.notes}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                </TableCell>
+                                <TableCell>{item.composer}</TableCell>
+                                <TableCell>{item.startedDate}</TableCell>
+                                <TableCell>
+                                  {activeTab === 'completed' && item.endDate ? (
+                                    item.endDate
+                                  ) : item.difficulty ? (
+                                    <Badge variant="outline">{item.difficulty}</Badge>
+                                  ) : null}
+                                </TableCell>
+                                <TableCell>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                                        <PlusCircle className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => handleToggleStatus(item.id, item.studentId)}>
+                                        {item.status === 'current' ? (
+                                          <>
+                                            <CircleCheck className="mr-2 h-4 w-4" />
+                                            Mark as Completed
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Clock className="mr-2 h-4 w-4" />
+                                            Mark as Current
+                                          </>
+                                        )}
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
-                      <div className="flex flex-col gap-2 ml-2">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <PlusCircle className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleToggleStatus(item.id, item.studentId)}>
-                              {item.status === 'current' ? (
-                                <>
-                                  <CircleCheck className="mr-2 h-4 w-4" />
-                                  Mark as Completed
-                                </>
-                              ) : (
-                                <>
-                                  <Clock className="mr-2 h-4 w-4" />
-                                  Mark as Current
-                                </>
-                              )}
-                            </DropdownMenuItem>
-                            {!item.studentId && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setIsAssignPieceDialogOpen(true)}>
-                                  <Plus className="mr-2 h-4 w-4" />
-                                  Assign to Student
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                    ) : displayMode === 'grid' ? (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {filteredRepertoire.map(item => (
+                          <RepertoireItem 
+                            key={item.id} 
+                            item={item} 
+                            layout="grid"
+                            onClick={() => handleOpenPieceDetail(item)}
+                            formatComposerName={!activeStudent ? formatComposerName : undefined}
+                          />
+                        ))}
                       </div>
-                    </div>
-                  ))
-                ) : (
-                  <Card className="p-6 text-center text-muted-foreground">
-                    <p>No repertoire found. Try changing your search or filters.</p>
-                  </Card>
-                )}
-              </TabsContent>
-            </Tabs>
-          ) : (
-            /* Master Repertoire View without tabs or status filtering */
-            <div className="space-y-4 animate-slide-up animate-stagger-3">
-              {/* Composer View */}
-              {viewMode === 'composer' && Object.keys(groupedRepertoire).length > 0 ? (
-                <Accordion type="multiple" className="space-y-4">
-                  {Object.entries(groupedRepertoire).map(([composer, pieces]) => (
-                    <AccordionItem key={composer} value={composer} className="border rounded-lg overflow-hidden">
-                      <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50">
-                        <div className="flex items-center gap-2">
-                          <Music className="h-4 w-4 text-primary" />
-                          <span className="font-medium">{composer}</span>
-                          <Badge variant="outline" className="ml-2">{pieces.length}</Badge>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="px-4 pt-2 pb-4 space-y-3">
-                        {pieces.map(item => (
+                    ) : (
+                      <div className="space-y-4">
+                        {filteredRepertoire.map(item => (
                           <div key={item.id} className="flex items-center">
                             <div 
                               className="flex-1 cursor-pointer" 
                               onClick={() => handleOpenPieceDetail(item)}
                             >
-                              <RepertoireItem item={item} className="flex-1" />
+                              <RepertoireItem 
+                                item={item} 
+                                className="flex-1"
+                                onClick={() => handleOpenPieceDetail(item)}
+                                formatComposerName={!activeStudent ? formatComposerName : undefined}
+                              />
                             </div>
                             <div className="flex flex-col gap-2 ml-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setIsAssignPieceDialogOpen(true)}
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <PlusCircle className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleToggleStatus(item.id, item.studentId)}>
+                                    {item.status === 'current' ? (
+                                      <>
+                                        <CircleCheck className="mr-2 h-4 w-4" />
+                                        Mark as Completed
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Clock className="mr-2 h-4 w-4" />
+                                        Mark as Current
+                                      </>
+                                    )}
+                                  </DropdownMenuItem>
+                                  {!item.studentId && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={() => setIsAssignPieceDialogOpen(true)}>
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Assign to Student
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </div>
                         ))}
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              ) : filteredRepertoire.length > 0 ? (
-                /* List View */
-                filteredRepertoire.map(item => (
-                  <div key={item.id} className="flex items-center">
-                    <div 
-                      className="flex-1 cursor-pointer" 
-                      onClick={() => handleOpenPieceDetail(item)}
-                    >
-                      <RepertoireItem item={item} className="flex-1" />
+                      </div>
+                    )
+                  ) : (
+                    <Card className="p-6 text-center text-muted-foreground">
+                      <p>No repertoire found. Try changing your search or filters.</p>
+                    </Card>
+                  )}
+                </TabsContent>
+              </Tabs>
+            ) : (
+              /* Master Repertoire View without tabs or status filtering */
+              <div className="animate-slide-up animate-stagger-3">
+                {/* Composer View */}
+                {viewMode === 'composer' && Object.keys(groupedRepertoire).length > 0 ? (
+                  <Accordion type="multiple" className="space-y-4">
+                    {Object.entries(groupedRepertoire).map(([composer, pieces]) => (
+                      <AccordionItem key={composer} value={composer} className="border rounded-lg overflow-hidden">
+                        <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50">
+                          <div className="flex items-center gap-2">
+                            <Music className="h-4 w-4 text-primary" />
+                            <span className="font-medium">{composer}</span>
+                            <Badge variant="outline" className="ml-2">{pieces.length}</Badge>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4 pt-2 pb-4">
+                          {displayMode === 'table' ? (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead 
+                                    className="cursor-pointer hover:bg-muted/50"
+                                    onClick={() => handleSort('title')}
+                                  >
+                                    Piece
+                                    {sortField === 'title' && (
+                                      <span className="ml-1">
+                                        {sortDirection === 'asc' ? <ChevronUp className="inline h-3.5 w-3.5" /> : <ChevronDown className="inline h-3.5 w-3.5" />}
+                                      </span>
+                                    )}
+                                  </TableHead>
+                                  <TableHead 
+                                    className="cursor-pointer hover:bg-muted/50"
+                                    onClick={() => handleSort('difficulty')}
+                                  >
+                                    Difficulty
+                                    {sortField === 'difficulty' && (
+                                      <span className="ml-1">
+                                        {sortDirection === 'asc' ? <ChevronUp className="inline h-3.5 w-3.5" /> : <ChevronDown className="inline h-3.5 w-3.5" />}
+                                      </span>
+                                    )}
+                                  </TableHead>
+                                  <TableHead className="w-[60px]"></TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {pieces.map(item => (
+                                  <TableRow 
+                                    key={item.id} 
+                                    className="cursor-pointer hover:bg-muted/50"
+                                    onClick={() => handleOpenPieceDetail(item)}
+                                  >
+                                    <TableCell className="font-medium">
+                                      {item.title}
+                                      {item.notes && (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Info className="h-3.5 w-3.5 inline ml-2 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p className="max-w-xs">{item.notes}</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      {item.difficulty && (
+                                        <Badge variant="outline">{item.difficulty}</Badge>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedPiece(item);
+                                          setIsAssignPieceDialogOpen(true);
+                                        }}
+                                      >
+                                        <Plus className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          ) : displayMode === 'grid' ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-2">
+                              {pieces.map(item => (
+                                <RepertoireItem 
+                                  key={item.id} 
+                                  item={item} 
+                                  layout="grid"
+                                  onClick={() => handleOpenPieceDetail(item)}
+                                  formatComposerName={!activeStudent ? formatComposerName : undefined}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {pieces.map(item => (
+                                <div key={item.id} className="flex items-center">
+                                  <div 
+                                    className="flex-1 cursor-pointer" 
+                                    onClick={() => handleOpenPieceDetail(item)}
+                                  >
+                                    <RepertoireItem 
+                                      item={item} 
+                                      className="flex-1" 
+                                      onClick={() => handleOpenPieceDetail(item)}
+                                      formatComposerName={!activeStudent ? formatComposerName : undefined}
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-2 ml-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        setSelectedPiece(item);
+                                        setIsAssignPieceDialogOpen(true);
+                                      }}
+                                    >
+                                      <Plus className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                ) : filteredRepertoire.length > 0 ? (
+                  displayMode === 'table' ? (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead 
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleSort('title')}
+                            >
+                              Piece
+                              {sortField === 'title' && (
+                                <span className="ml-1">
+                                  {sortDirection === 'asc' ? <ChevronUp className="inline h-3.5 w-3.5" /> : <ChevronDown className="inline h-3.5 w-3.5" />}
+                                </span>
+                              )}
+                            </TableHead>
+                            <TableHead 
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleSort('composer')}
+                            >
+                              Composer
+                              {sortField === 'composer' && (
+                                <span className="ml-1">
+                                  {sortDirection === 'asc' ? <ChevronUp className="inline h-3.5 w-3.5" /> : <ChevronDown className="inline h-3.5 w-3.5" />}
+                                </span>
+                              )}
+                            </TableHead>
+                            <TableHead 
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleSort('difficulty')}
+                            >
+                              Difficulty
+                              {sortField === 'difficulty' && (
+                                <span className="ml-1">
+                                  {sortDirection === 'asc' ? <ChevronUp className="inline h-3.5 w-3.5" /> : <ChevronDown className="inline h-3.5 w-3.5" />}
+                                </span>
+                              )}
+                            </TableHead>
+                            <TableHead className="w-[60px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sortedRepertoire.map(item => (
+                            <TableRow 
+                              key={item.id} 
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleOpenPieceDetail(item)}
+                            >
+                              <TableCell className="font-medium">
+                                {item.title}
+                                {item.notes && (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Info className="h-3.5 w-3.5 inline ml-2 text-muted-foreground" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p className="max-w-xs">{item.notes}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                              </TableCell>
+                              <TableCell>{formatComposerName(item.composer)}</TableCell>
+                              <TableCell>
+                                {item.difficulty && (
+                                  <Badge variant="outline">{item.difficulty}</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedPiece(item);
+                                    setIsAssignPieceDialogOpen(true);
+                                  }}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
-                    <div className="flex flex-col gap-2 ml-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setIsAssignPieceDialogOpen(true)}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                  ) : displayMode === 'grid' ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {filteredRepertoire.map(item => (
+                        <RepertoireItem 
+                          key={item.id} 
+                          item={item} 
+                          layout="grid"
+                          onClick={() => handleOpenPieceDetail(item)}
+                          formatComposerName={!activeStudent ? formatComposerName : undefined}
+                        />
+                      ))}
                     </div>
-                  </div>
-                ))
-              ) : (
-                <Card className="p-6 text-center text-muted-foreground">
-                  <p>No repertoire found. Try changing your search or filters.</p>
-                </Card>
-              )}
-            </div>
-          )}
+                  ) : (
+                    /* List View */
+                    <div className="space-y-4">
+                      {filteredRepertoire.map(item => (
+                        <div key={item.id} className="flex items-center">
+                          <div 
+                            className="flex-1 cursor-pointer" 
+                            onClick={() => handleOpenPieceDetail(item)}
+                          >
+                            <RepertoireItem 
+                              item={item} 
+                              className="flex-1" 
+                              onClick={() => handleOpenPieceDetail(item)}
+                              formatComposerName={!activeStudent ? formatComposerName : undefined}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2 ml-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setSelectedPiece(item);
+                                setIsAssignPieceDialogOpen(true);
+                              }}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  <Card className="p-6 text-center text-muted-foreground">
+                    <p>No repertoire found. Try changing your search or filters.</p>
+                  </Card>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
       
