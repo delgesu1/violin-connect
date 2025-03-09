@@ -1,112 +1,65 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import PageHeader from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { 
-  PlusCircle, 
-  Music, 
-  Search,
-  Filter,
-  Check,
-  CircleCheck,
-  Clock,
-  XCircle,
-  Plus,
-  Users,
-  Calendar,
-  Info,
-  BookText,
-  List,
-  FileText,
-  Upload,
-  X,
-  Download,
-  ExternalLink,
-  Trash2
-} from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Calendar, CheckCircle, Clock, Filter, LucideIcon, Menu, Music, PlusCircle, 
+         ListFilter, Grid, User, Search, ChevronRight, ChevronLeft, Download, 
+         ExternalLink, Trash, Trash2, Upload, BookMarked, Bookmark, File as FileIcon, 
+         Paperclip, X, Youtube, LinkIcon, Plus, Eye, Share, RotateCw, FileArchive, 
+         FileText, ChevronDown, ChevronUp, Users, Info, BookText, List, Check as CircleCheck } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableFooter } from '@/components/ui/table';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { Checkbox } from '@/components/ui/checkbox';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Student, RepertoirePiece } from '@/components/common/StudentCard';
 import RepertoireItem, { RepertoireItemData } from '@/components/common/RepertoireItem';
-import StudentCard, { Student, RepertoirePiece } from '@/components/common/StudentCard';
-import { Card } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
+import { ID_PREFIXES, createPrefixedId, createStudentPieceId } from '@/lib/id-utils';
 
 // Mock data
 const students: Student[] = [
   {
-    id: '1',
+    id: createPrefixedId(ID_PREFIXES.STUDENT, '1'),
     name: 'Emma Thompson',
     currentRepertoire: [
-      { id: '1-101', title: 'Partita No. 2 in D minor, BWV 1004', composer: 'J.S. Bach', startDate: '2023-10-01', status: 'current', notes: 'Working on Chaconne section' },
-      { id: '1-102', title: 'Violin Concerto in E minor, Op. 64', composer: 'F. Mendelssohn', startDate: '2023-11-15', status: 'current', notes: 'Preparing for spring competition' },
-      { id: '1-103', title: 'Tzigane', composer: 'M. Ravel', startDate: '2024-01-10', status: 'current' }
+      { id: createStudentPieceId('1', '1'), title: 'Partita No. 2 in D minor, BWV 1004', composer: 'J.S. Bach', startDate: '2023-10-01', status: 'current', notes: 'Working on Chaconne section' },
+      { id: createStudentPieceId('1', '9'), title: 'Violin Concerto in E minor, Op. 64', composer: 'F. Mendelssohn', startDate: '2023-11-15', status: 'current', notes: 'Preparing for spring competition' },
+      { id: createStudentPieceId('1', '19'), title: 'Tzigane', composer: 'M. Ravel', startDate: '2024-01-10', status: 'current' }
     ],
     pastRepertoire: [
-      { id: '1-104', title: 'Violin Sonata No. 5 in F major (Spring)', composer: 'L.V. Beethoven', startDate: '2023-05-10', endDate: '2023-09-15', status: 'completed', notes: 'Performed at summer recital' },
-      { id: '1-105', title: 'The Four Seasons - Spring', composer: 'A. Vivaldi', startDate: '2023-01-15', endDate: '2023-04-20', status: 'completed' },
-      { id: '1-106', title: 'Meditation from Thaïs', composer: 'J. Massenet', startDate: '2022-11-05', endDate: '2023-02-10', status: 'completed' },
-      { id: '1-107', title: 'Introduction and Rondo Capriccioso', composer: 'C. Saint-Saëns', startDate: '2022-08-15', endDate: '2022-12-20', status: 'completed', notes: 'Performed with university orchestra' }
+      { id: createStudentPieceId('1', '6'), title: 'Violin Sonata No. 5 in F major (Spring)', composer: 'L.V. Beethoven', startDate: '2023-05-10', endDate: '2023-09-15', status: 'completed', notes: 'Performed at summer recital' },
+      { id: createStudentPieceId('1', '15'), title: 'The Four Seasons - Spring', composer: 'A. Vivaldi', startDate: '2023-01-15', endDate: '2023-04-20', status: 'completed' },
+      { id: createStudentPieceId('1', '16'), title: 'Meditation from Thaïs', composer: 'J. Massenet', startDate: '2022-11-05', endDate: '2023-02-10', status: 'completed' },
+      { id: createStudentPieceId('1', '7'), title: 'Introduction and Rondo Capriccioso', composer: 'C. Saint-Saëns', startDate: '2022-08-15', endDate: '2022-12-20', status: 'completed', notes: 'Performed with university orchestra' }
     ],
     nextLesson: 'Today, 4:00 PM',
   },
   {
-    id: '2',
+    id: createPrefixedId(ID_PREFIXES.STUDENT, '2'),
     name: 'James Wilson',
     currentRepertoire: [
-      { id: '2-201', title: 'Caprice No. 24 in A minor', composer: 'N. Paganini', startDate: '2023-09-10', status: 'current', notes: 'Focus on variation techniques' },
-      { id: '2-202', title: 'Violin Concerto in D major, Op. 77', composer: 'J. Brahms', startDate: '2023-10-05', status: 'current' }
+      { id: createStudentPieceId('2', '4'), title: 'Caprice No. 24 in A minor', composer: 'N. Paganini', startDate: '2023-09-10', status: 'current', notes: 'Focus on variation techniques' },
+      { id: createStudentPieceId('2', '11'), title: 'Violin Concerto in D major, Op. 77', composer: 'J. Brahms', startDate: '2023-10-05', status: 'current' }
     ],
     pastRepertoire: [
-      { id: '2-203', title: 'Introduction and Rondo Capriccioso', composer: 'C. Saint-Saëns', startDate: '2023-03-15', endDate: '2023-08-20', status: 'completed' },
-      { id: '2-204', title: 'Violin Concerto in D major, Op. 35', composer: 'P.I. Tchaikovsky', startDate: '2022-10-10', endDate: '2023-02-25', status: 'completed', notes: 'Performed with youth symphony' },
-      { id: '2-205', title: 'Partita No. 3 in E major, BWV 1006', composer: 'J.S. Bach', startDate: '2022-06-15', endDate: '2022-11-30', status: 'completed' }
+      { id: createStudentPieceId('2', '7'), title: 'Introduction and Rondo Capriccioso', composer: 'C. Saint-Saëns', startDate: '2023-03-15', endDate: '2023-08-20', status: 'completed' },
+      { id: createStudentPieceId('2', '3'), title: 'Violin Concerto in D major, Op. 35', composer: 'P.I. Tchaikovsky', startDate: '2022-10-10', endDate: '2023-02-25', status: 'completed', notes: 'Performed with youth symphony' },
+      { id: createStudentPieceId('2', '33'), title: 'Partita No. 3 in E major, BWV 1006', composer: 'J.S. Bach', startDate: '2022-06-15', endDate: '2022-11-30', status: 'completed' }
     ],
     nextLesson: 'Tomorrow, 3:30 PM',
   },
@@ -173,21 +126,21 @@ const students: Student[] = [
 const masterRepertoire: RepertoireItemData[] = [
   // Bach
   {
-    id: '1',
+    id: createPrefixedId(ID_PREFIXES.PIECE, '1'),
     title: 'Partita No. 2 in D minor, BWV 1004',
     composer: 'J.S. Bach',
     startedDate: '2023-10-15',
     difficulty: 'advanced'
   },
   {
-    id: '2',
+    id: createPrefixedId(ID_PREFIXES.PIECE, '2'),
     title: 'Sonata No. 1 in G minor, BWV 1001',
     composer: 'J.S. Bach',
     startedDate: '2023-07-10',
     difficulty: 'advanced'
   },
   {
-    id: '10',
+    id: createPrefixedId(ID_PREFIXES.PIECE, '10'),
     title: 'Violin Concerto in A minor, BWV 1041',
     composer: 'J.S. Bach',
     startedDate: '2023-11-01',
@@ -539,10 +492,10 @@ interface LinkResource {
 
 // Mock file data with accurate filenames matching the correct pieces
 const mockFileAttachments: Record<string, FileAttachment[]> = {
-  // Bach Partita No. 2 in D minor, BWV 1004 (ID: 1)
-  '1': [ 
+  // Bach Partita No. 2 in D minor, BWV 1004 (ID: p-1)
+  [createPrefixedId(ID_PREFIXES.PIECE, '1')]: [ 
     {
-      id: 'file1',
+      id: createPrefixedId(ID_PREFIXES.FILE, '1'),
       name: 'Bach_Partita_No2_Dmajor_BWV1004_Urtext.pdf',
       type: 'application/pdf',
       size: 3214567,
@@ -551,7 +504,7 @@ const mockFileAttachments: Record<string, FileAttachment[]> = {
       uploadedBy: 'You'
     },
     {
-      id: 'file2',
+      id: createPrefixedId(ID_PREFIXES.FILE, '2'),
       name: 'Bach_Partita2_Chaconne_Fingerings.pdf',
       type: 'application/pdf',
       size: 2128433,
@@ -560,7 +513,7 @@ const mockFileAttachments: Record<string, FileAttachment[]> = {
       uploadedBy: 'You'
     },
     {
-      id: 'file3',
+      id: createPrefixedId(ID_PREFIXES.FILE, '3'),
       name: 'Bach_Partita2_Practice_Notes.pdf',
       type: 'application/pdf',
       size: 1057624,
@@ -570,10 +523,10 @@ const mockFileAttachments: Record<string, FileAttachment[]> = {
     }
   ],
   
-  // Bach Sonata No. 1 in G minor, BWV 1001 (ID: 2)
-  '2': [
+  // Bach Sonata No. 1 in G minor, BWV 1001 (ID: p-2)
+  [createPrefixedId(ID_PREFIXES.PIECE, '2')]: [
     {
-      id: 'file27',
+      id: createPrefixedId(ID_PREFIXES.FILE, '27'),
       name: 'Bach_Sonata1_Gminor_BWV1001_Urtext.pdf',
       type: 'application/pdf',
       size: 2876543,
@@ -582,7 +535,7 @@ const mockFileAttachments: Record<string, FileAttachment[]> = {
       uploadedBy: 'You'
     },
     {
-      id: 'file28',
+      id: createPrefixedId(ID_PREFIXES.FILE, '28'),
       name: 'Bach_Sonata1_Performance_Notes.pdf',
       type: 'application/pdf',
       size: 1365478,
@@ -592,10 +545,10 @@ const mockFileAttachments: Record<string, FileAttachment[]> = {
     }
   ],
   
-  // Tchaikovsky Violin Concerto in D major, Op. 35 (ID: 3)
-  '3': [ 
+  // Tchaikovsky Violin Concerto in D major, Op. 35 (ID: p-3)
+  [createPrefixedId(ID_PREFIXES.PIECE, '3')]: [ 
     {
-      id: 'file4',
+      id: createPrefixedId(ID_PREFIXES.FILE, '4'),
       name: 'Tchaikovsky_ViolinConcerto_Dmajor_Op35_Score.pdf',
       type: 'application/pdf',
       size: 4251984,
@@ -1076,10 +1029,10 @@ const mockFileAttachments: Record<string, FileAttachment[]> = {
 
 // Mock link resources for various pieces
 const mockLinkResources: Record<string, LinkResource[]> = {
-  // Bach Partita No. 2 in D minor, BWV 1004 (ID: 1)
-  '1': [
+  // Bach Partita No. 2 in D minor, BWV 1004 (ID: p-1)
+  [createPrefixedId(ID_PREFIXES.PIECE, '1')]: [
     {
-      id: 'link1-1',
+      id: createPrefixedId(ID_PREFIXES.LINK, '1-1'),
       title: 'Hilary Hahn performs Bach Partita No. 2 - Chaconne',
       url: 'https://www.youtube.com/watch?v=QqA3qQMKueA',
       type: 'youtube',
@@ -1088,7 +1041,7 @@ const mockLinkResources: Record<string, LinkResource[]> = {
       addedDate: '2023-10-05'
     },
     {
-      id: 'link1-2',
+      id: createPrefixedId(ID_PREFIXES.LINK, '1-2'),
       title: 'Historical Context of Bach\'s Partita No. 2',
       url: 'https://www.violinist.com/blog/laurie/20159/17019/',
       type: 'article',
@@ -1106,10 +1059,10 @@ const mockLinkResources: Record<string, LinkResource[]> = {
     }
   ],
   
-  // Bach Sonata No. 1 in G minor, BWV 1001 (ID: 2)
-  '2': [
+  // Bach Sonata No. 1 in G minor, BWV 1001 (ID: p-2)
+  [createPrefixedId(ID_PREFIXES.PIECE, '2')]: [
     {
-      id: 'link2-1',
+      id: createPrefixedId(ID_PREFIXES.LINK, '2-1'),
       title: 'James Ehnes performs Bach Sonata No. 1 in G minor',
       url: 'https://www.youtube.com/watch?v=PZoaEmxrsZQ',
       type: 'youtube',
@@ -1118,7 +1071,7 @@ const mockLinkResources: Record<string, LinkResource[]> = {
       addedDate: '2023-08-10'
     },
     {
-      id: 'link2-2',
+      id: createPrefixedId(ID_PREFIXES.LINK, '2-2'),
       title: 'Analysis: Bach\'s Solo Violin Sonatas and Partitas',
       url: 'https://www.thestrad.com/playing/analysis-bachs-solo-violin-sonatas-and-partitas/7725.article',
       type: 'article',
@@ -1193,7 +1146,7 @@ const AddPieceDialog: React.FC<AddPieceDialogProps> = ({ isOpen, onClose, onAdd 
 
   const handleSubmit = () => {
     onAdd({
-      id: Date.now().toString(),
+      id: createPrefixedId(ID_PREFIXES.PIECE, Date.now().toString()),
       title,
       composer,
       difficulty,
@@ -1572,7 +1525,7 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
             const newFilename = `${composerFormatted}_${titleFormatted}_${baseName}.${extension}`;
             
             const newFile: FileAttachment = {
-              id: `file-${Date.now()}`,
+              id: createPrefixedId(ID_PREFIXES.FILE, `${Date.now()}`),
               name: newFilename,
               type: file.type,
               size: file.size,
@@ -1584,8 +1537,9 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
             // Add to uploaded files
             setUploadedFiles(prev => [...prev, newFile]);
             
-            // In a real app, we would update mockFileAttachments[piece.id] here
-            // mockFileAttachments[piece.id] = [...(mockFileAttachments[piece.id] || []), newFile];
+            // Update mockFileAttachments with the new file
+            const existingFiles = mockFileAttachments[piece.id] || [];
+            mockFileAttachments[piece.id] = [...existingFiles, newFile];
             
             // Remove from progress tracking
             setUploadProgress(prev => {
@@ -2191,9 +2145,9 @@ const RepertoirePage = () => {
     
     if (!piece) return;
     
-    // Create a new student repertoire piece
+    // Create a new student repertoire piece with proper ID structure
     const newStudentPiece: RepertoirePiece = {
-      id: `${studentId}-${pieceId}`,
+      id: createStudentPieceId(studentId, pieceId),
       title: piece.title,
       composer: piece.composer,
       startDate: new Date().toISOString().split('T')[0],

@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useParams } from 'react-router-dom';
+import { ID_PREFIXES, createPrefixedId, createStudentPieceId } from '@/lib/id-utils';
 
 // Mock student data with lessons
 const students: (Student & { level?: string; email?: string; phone?: string; startDate?: string; lastLesson?: string; avatarUrl?: string; })[] = [
@@ -56,7 +57,7 @@ const students: (Student & { level?: string; email?: string; phone?: string; sta
     ],
     lessons: [
       {
-        id: 'l101',
+        id: createPrefixedId(ID_PREFIXES.LESSON, '101'),
         date: '2023-10-15',
         repertoire: [
           { id: '101', title: 'B Major Scale', startDate: '2023-10-01', status: 'current', composer: 'With emphasis on thirds' },
@@ -66,7 +67,7 @@ const students: (Student & { level?: string; email?: string; phone?: string; sta
         summary: 'Worked on B Major scale with focus on intonation of thirds. Discussed fingering options for difficult passages in Korngold concerto. Assigned metronome practice at quarter note = 72 for the development section.'
       },
       {
-        id: 'l102',
+        id: createPrefixedId(ID_PREFIXES.LESSON, '102'),
         date: '2023-10-08',
         repertoire: [
           { id: '101', title: 'B Major Scale', startDate: '2023-10-01', status: 'current', composer: 'With emphasis on thirds' },
@@ -76,7 +77,7 @@ const students: (Student & { level?: string; email?: string; phone?: string; sta
         summary: 'Introduced Paganini Caprice No. 23. Discussed right-hand articulation and left-hand flexibility required. Continued work on B Major scale, focusing on consistent tone across string crossings.'
       },
       {
-        id: 'l103',
+        id: createPrefixedId(ID_PREFIXES.LESSON, '103'),
         date: '2023-10-01',
         repertoire: [
           { id: '101', title: 'B Major Scale', startDate: '2023-10-01', status: 'current', composer: 'With emphasis on thirds' },
