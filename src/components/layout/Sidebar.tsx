@@ -98,12 +98,12 @@ const Sidebar = () => {
       {/* Sidebar */}
       <div 
         className={cn(
-          "fixed lg:relative h-full bg-gray-900 text-gray-100 border-r border-gray-800 transition-all duration-300 z-40",
+          "fixed lg:relative h-screen bg-gray-900 text-gray-100 border-r border-gray-800 transition-all duration-300 z-40 flex flex-col",
           isOpen ? "translate-x-0 w-60" : "-translate-x-full lg:translate-x-0 lg:w-16",
         )}
       >
         {/* Logo and title */}
-        <div className="p-4 flex items-center gap-3">
+        <div className="p-6 flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-sm shrink-0">
             <Music className="h-4 w-4 text-white" />
           </div>
@@ -113,8 +113,8 @@ const Sidebar = () => {
         </div>
         
         {/* Navigation */}
-        <nav className="mt-2 px-2">
-          <ul className="space-y-1.5">
+        <nav className="mt-2 px-3 flex-1 overflow-y-auto">
+          <ul className="space-y-2.5">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;
               const Icon = item.icon;
@@ -124,7 +124,7 @@ const Sidebar = () => {
                   <Link
                     to={item.path}
                     className={cn(
-                      "flex items-center gap-3 py-2 px-3 rounded-md transition-colors relative",
+                      "flex items-center gap-3 py-2.5 px-3 rounded-md transition-colors relative",
                       isActive 
                         ? "bg-blue-600/20 text-blue-300 font-medium" 
                         : "text-gray-300 hover:text-white hover:bg-white/10"
@@ -155,7 +155,7 @@ const Sidebar = () => {
         </nav>
         
         {/* User profile at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
+        <div className="p-5 border-t border-gray-800 mt-auto">
           <div className={cn(
             "flex items-center transition-all",
             isOpen ? "gap-3" : "justify-center"
