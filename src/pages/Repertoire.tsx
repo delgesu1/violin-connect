@@ -18,25 +18,33 @@ const students: Student[] = [
   {
     id: '1',
     name: 'Emma Thompson',
-    currentPiece: 'Bach Partita No. 2',
+    currentRepertoire: [
+      { id: '101', title: 'Bach Partita No. 2', composer: 'J.S. Bach', startDate: '2023-10-01', status: 'current' }
+    ],
     nextLesson: 'Today, 4:00 PM',
   },
   {
     id: '2',
     name: 'James Wilson',
-    currentPiece: 'Paganini Caprice No. 24',
+    currentRepertoire: [
+      { id: '201', title: 'Paganini Caprice No. 24', composer: 'N. Paganini', startDate: '2023-09-10', status: 'current' }
+    ],
     nextLesson: 'Tomorrow, 3:30 PM',
   },
   {
     id: '3',
     name: 'Sophia Chen',
-    currentPiece: 'Tchaikovsky Violin Concerto',
+    currentRepertoire: [
+      { id: '301', title: 'Tchaikovsky Violin Concerto', composer: 'P.I. Tchaikovsky', startDate: '2023-09-05', status: 'current' }
+    ],
     nextLesson: 'Friday, 5:00 PM',
   },
   {
     id: '4',
     name: 'Michael Brown',
-    currentPiece: 'Mozart Violin Sonata K.304',
+    currentRepertoire: [
+      { id: '401', title: 'Mozart Violin Sonata K.304', composer: 'W.A. Mozart', startDate: '2023-09-20', status: 'current' }
+    ],
     nextLesson: 'Next Monday, 4:30 PM',
   }
 ];
