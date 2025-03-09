@@ -7,11 +7,20 @@ import { Badge } from '@/components/ui/badge';
 import { Music, MessageSquare, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+export interface RepertoirePiece {
+  id: string;
+  title: string;
+  composer?: string;
+  startDate: string;
+  status: 'current' | 'completed' | 'planned';
+}
+
 export interface Student {
   id: string;
   name: string;
   avatarUrl?: string;
-  currentPiece?: string;
+  currentRepertoire: RepertoirePiece[];
+  pastRepertoire?: RepertoirePiece[];
   nextLesson?: string;
   unreadMessages?: number;
 }
@@ -33,12 +42,24 @@ const StudentCard: React.FC<StudentCardProps> = ({ student, className }) => {
             </Avatar>
             <div>
               <h3 className="font-medium">{student.name}</h3>
-              {student.currentPiece && (
-                <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                  <Music className="h-3.5 w-3.5" />
-                  <span>{student.currentPiece}</span>
-                </div>
-              )}
+              <div className="space-y-1 mt-1">
+                {student.currentRepertoire && student.currentRepertoire.length > 0 ? (
+                  student.currentRepertoire.map((piece, index) => (
+                    <div key={piece.id} className="flex items-center gap-1 text-sm text-muted-foreground">
+                      {index === 0 && <Music className="h-3.5 w-3.5 shrink-0" />}
+                      {index !== 0 && <div className="w-3.5 h-3.5" />}
+                      <span className="truncate">
+                        {piece.composer ? `${piece.title} - ${piece.composer}` : piece.title}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Music className="h-3.5 w-3.5" />
+                    <span>No current pieces</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>

@@ -11,6 +11,8 @@ export interface RepertoireItemData {
   startedDate: string;
   status: 'current' | 'completed' | 'planned';
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  studentId?: string; // Added to track student association
+  notes?: string;
 }
 
 interface RepertoireItemProps {
@@ -61,6 +63,12 @@ const RepertoireItem: React.FC<RepertoireItemProps> = ({ item, className }) => {
           </div>
         </div>
       </div>
+      
+      {item.notes && (
+        <div className="mt-2 text-sm text-muted-foreground pl-9">
+          <p>{item.notes}</p>
+        </div>
+      )}
     </div>
   );
 };
