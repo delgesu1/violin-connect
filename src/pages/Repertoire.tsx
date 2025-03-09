@@ -1363,9 +1363,31 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
 }) => {
   if (!piece) return null;
   
-  // Get files directly from mockFileAttachments instead of using state
-  // This ensures we always get the correct files for the current piece
-  const files = mockFileAttachments[piece.id] || [];
+  // Find the master repertoire piece that matches this piece (for student-specific pieces)
+  const findMasterPieceId = (): string => {
+    // If no student ID, it's already a master piece
+    if (!piece.studentId) return piece.id;
+    
+    // If the piece has a masterPieceId property, use that
+    if ('masterPieceId' in piece && piece.masterPieceId) {
+      return piece.masterPieceId;
+    }
+    
+    // Otherwise try to find a matching piece in the master repertoire by title and composer
+    const masterPiece = masterRepertoire.find(mp => 
+      normalizePieceTitle(mp.title) === normalizePieceTitle(piece.title) && 
+      mp.composer.toLowerCase().includes(piece.composer.toLowerCase())
+    );
+    
+    return masterPiece?.id || piece.id;
+  };
+  
+  // Get files using the master piece ID for consistency
+  const masterPieceId = findMasterPieceId();
+  const files = mockFileAttachments[masterPieceId] || [];
+  
+  // Get links using the master piece ID as well
+  const links = mockLinkResources[masterPieceId] || [];
   
   // State for UI interactions
   const [isDragging, setIsDragging] = useState(false);
@@ -1976,91 +1998,71 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
           )}
         </div>
         
-        {/* Links section - New addition */}
+        {/* Links Section */}
         <div className="mt-6">
-          <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2">
               <ExternalLink className="h-5 w-5 text-primary" />
-              <h3 className="font-medium text-lg">Links</h3>
+              <h3 className="font-medium text-lg">Resources & Links</h3>
             </div>
+            <Button variant="outline" size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Link
+            </Button>
           </div>
           
-          {mockLinkResources[piece.id] && mockLinkResources[piece.id].length > 0 ? (
+          {links.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {mockLinkResources[piece.id].map((link) => (
+              {links.map((link) => (
                 <a 
                   key={link.id} 
                   href={link.url} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="flex flex-col h-full border rounded-lg overflow-hidden hover:border-primary transition-all duration-200 hover:shadow-sm"
+                  className="group"
                 >
-                  {link.type === 'youtube' && (
-                    <div className="relative aspect-video overflow-hidden group rounded-t-lg">
-                      {/* Standardized elegant graphic instead of external images */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
-                        <div className="absolute inset-0 opacity-20">
-                          <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
-                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="white" strokeWidth="0.5" />
-                            <path d="M8 8L16 16M16 8L8 16" stroke="white" strokeWidth="0.5" opacity="0.5" />
-                          </svg>
-                        </div>
-                        
-                        {/* Video title as subtle text overlay */}
-                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
-                          <p className="text-[10px] text-white opacity-90 font-medium truncate">{link.title}</p>
-                        </div>
-                        
-                        {/* Play button */}
-                        <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-200">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-red-600 ml-0.5">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        </div>
+                  <div className="border rounded-lg hover:border-primary/50 overflow-hidden transition-all duration-200 h-full flex flex-col">
+                    <div className="aspect-video bg-muted relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <ExternalLink className="text-white h-5 w-5" />
                       </div>
+                      {link.thumbnailUrl ? (
+                        <img 
+                          src={link.thumbnailUrl} 
+                          alt={link.title} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center">
+                          {link.type === 'youtube' ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-12 w-12 text-red-600 fill-current">
+                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            </svg>
+                          ) : (
+                            <FileText className="h-12 w-12 text-primary/30" />
+                          )}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  
-                  {link.type === 'article' && (
-                    <div className="relative aspect-[3/1] overflow-hidden rounded-t-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center border-b">
-                      <div className="text-blue-500 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-                        </svg>
+                    <div className="p-3 flex-1 flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                          {link.title}
+                        </h4>
+                        <p className="text-xs text-muted-foreground">{link.type}</p>
                       </div>
-                    </div>
-                  )}
-                  
-                  <div className="p-2 flex-1 flex flex-col">
-                    <h4 className="font-medium line-clamp-1 text-xs">{link.title}</h4>
-                    
-                    {link.description && (
-                      <p className="text-muted-foreground text-[10px] line-clamp-1 mb-1">
-                        {link.description}
-                      </p>
-                    )}
-                    
-                    <div className="flex items-center mt-auto pt-1 text-[10px]">
-                      <Badge variant="outline" className={cn(
-                        "mr-1.5 px-1 py-0 text-[9px]",
-                        link.type === 'youtube' ? "bg-red-50 text-red-500 border-red-200" : 
-                        link.type === 'article' ? "bg-blue-50 text-blue-500 border-blue-200" : 
-                        "bg-gray-50 text-gray-500 border-gray-200"
-                      )}>
-                        {link.type === 'youtube' ? 'Video' : 
-                         link.type === 'article' ? 'Article' : 'Resource'}
-                      </Badge>
                     </div>
                   </div>
                 </a>
               ))}
             </div>
           ) : (
-            <div className="text-center p-3 bg-muted/20 rounded-md">
-              <p className="text-sm">No links available for this piece.</p>
-              <Button variant="link" size="sm" className="mt-1 h-7 text-xs">
-                <PlusCircle className="h-3 w-3 mr-1" /> Add a link
-              </Button>
+            <div className="text-center p-8 border border-dashed rounded-lg bg-muted/10">
+              <ExternalLink className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-muted-foreground">No resources linked yet</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Add links to videos, articles, and other resources
+              </p>
             </div>
           )}
         </div>
@@ -2197,7 +2199,8 @@ const RepertoirePage = () => {
       title: piece.title,
       composer: piece.composer,
       startDate: new Date().toISOString().split('T')[0],
-      status: 'current'
+      status: 'current',
+      masterPieceId: pieceId // Add reference to the master piece ID
     };
     
     // Update the students list
