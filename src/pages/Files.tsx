@@ -13,7 +13,7 @@ import {
   FileText,
   FileImage,
   FileAudio,
-  FilePdf,
+  File, // Replace FilePdf with File
   MoreVertical,
   Download,
   Share,
@@ -135,7 +135,7 @@ const files: FileData[] = [
 const FileIcon = ({ type }: { type: FileData['type'] }) => {
   switch (type) {
     case 'pdf':
-      return <FilePdf className="h-5 w-5 text-red-500" />;
+      return <File className="h-5 w-5 text-red-500" />; // Replace FilePdf with File
     case 'image':
       return <FileImage className="h-5 w-5 text-blue-500" />;
     case 'audio':
