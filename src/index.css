@@ -1,7 +1,9 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Import custom animations */
+@import './styles/animations.css';
 
 @layer base {
   :root {
@@ -16,6 +18,7 @@
 
     --primary: 205 100% 50%;
     --primary-foreground: 210 40% 98%;
+    --primary-rgb: 0, 122, 255; /* RGB value for primary color - used in animations */
 
     --secondary: 220 14% 96%;
     --secondary-foreground: 220 20% 16%;
@@ -57,6 +60,7 @@
 
     --primary: 205 100% 50%;
     --primary-foreground: 210 20% 98%;
+    --primary-rgb: 10, 132, 255; /* RGB value for primary color in dark mode */
 
     --secondary: 220 14% 20%;
     --secondary-foreground: 210 20% 98%;
@@ -85,28 +89,10 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 
-  /* Global animations */
-  .animate-appear {
-    @apply opacity-0 animate-fade-in;
-    animation-fill-mode: forwards;
-  }
-
-  .animate-slide-up {
-    @apply transform translate-y-4 opacity-0 animate-slide-in;
-    animation-fill-mode: forwards;
-  }
-  
-  .animate-stagger-1 {
-    animation-delay: 0.1s;
-  }
-  
-  .animate-stagger-2 {
-    animation-delay: 0.15s;
-  }
-  
-  .animate-stagger-3 {
-    animation-delay: 0.2s;
-  }
+  /* 
+    Note: The animation classes in this file are now replaced by the 
+    more comprehensive set in styles/animations.css
+  */
   
   /* Card styles */
   .card-hover {
