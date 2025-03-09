@@ -1364,77 +1364,93 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
 }) => {
   if (!piece) return null;
   
-  // For debugging
-  console.log("Opening piece detail:", piece);
-  
-  // Special case mapping for known student pieces to their master repertoire equivalents
-  const knownPieceMapping: Record<string, string> = {
-    // Olivia Martinez's Bach Partita maps to the master Bach Partita
-    '5-502': '1'
-  };
-  
-  // Modified approach to get files and links for consistent access
-  // This function finds the master repertoire piece ID for any student piece
+  // Modified approach to properly match any student piece with its master repertoire counterpart
+  // to ensure consistent display of files and resources
   const getMasterPieceId = (): string => {
-    // First check special case mappings
-    if (knownPieceMapping[piece.id]) {
-      console.log("Found in known piece mapping:", knownPieceMapping[piece.id]);
-      return knownPieceMapping[piece.id];
-    }
-    
-    // Then check if this is already a master repertoire piece by ID
+    // If this is already from the master repertoire, just use its ID
     if (masterRepertoire.some(m => m.id === piece.id)) {
-      console.log("Found direct master ID match:", piece.id);
       return piece.id;
     }
     
-    // If not found by ID, try to match by title and composer
+    // Try to find a matching piece in the master repertoire
+    // First, look for an exact title and composer match
+    const exactMatch = masterRepertoire.find(m => 
+      m.title === piece.title && 
+      m.composer === piece.composer
+    );
+    
+    if (exactMatch) {
+      return exactMatch.id;
+    }
+    
+    // Next, try with normalized titles and similar composer matching
+    const normalizedPieceTitle = normalizePieceTitle(piece.title);
+    const normalizedPieceComposer = piece.composer?.toLowerCase().replace(/\./g, '').trim();
+    
     for (const masterPiece of masterRepertoire) {
-      if (isPieceSimilar(masterPiece.title, piece.title, masterPiece.composer, piece.composer)) {
-        console.log("Found similar piece in master repertoire:", masterPiece.id);
+      const normalizedMasterTitle = normalizePieceTitle(masterPiece.title);
+      const normalizedMasterComposer = masterPiece.composer?.toLowerCase().replace(/\./g, '').trim();
+      
+      // Check for matching titles and composers after normalization
+      const titleMatches = normalizedPieceTitle === normalizedMasterTitle;
+      const composerMatches = normalizedPieceComposer === normalizedMasterComposer ||
+                            (normalizedPieceComposer && normalizedMasterComposer && 
+                             (normalizedPieceComposer.includes(normalizedMasterComposer) || 
+                              normalizedMasterComposer.includes(normalizedPieceComposer)));
+      
+      if (titleMatches && composerMatches) {
+        return masterPiece.id;
+      }
+      
+      // Check for catalog numbers (BWV, K, Op. etc.) in titles
+      const catalogRegex = /\b(bwv|k\.|op\.|opus|sz\.)\s*\d+/i;
+      const pieceCatalog = normalizedPieceTitle.match(catalogRegex);
+      const masterCatalog = normalizedMasterTitle.match(catalogRegex);
+      
+      if (pieceCatalog && masterCatalog && 
+          pieceCatalog[0].toLowerCase() === masterCatalog[0].toLowerCase() &&
+          composerMatches) {
         return masterPiece.id;
       }
     }
     
-    // If still not found, search for a specific pattern used in student piece IDs: 'student-id'-'piece-id'
-    // For example, if the piece ID is "5-502" we should check if "502" matches any master piece IDs
-    const potentialMasterIdMatch = piece.id.split('-').pop();
-    if (potentialMasterIdMatch) {
-      // Check if any master piece has an ID that ends with this segment
-      const masterPieceWithMatchingId = masterRepertoire.find(
-        m => m.id === potentialMasterIdMatch || 
-             m.id.endsWith(`-${potentialMasterIdMatch}`)
-      );
-      
-      if (masterPieceWithMatchingId) {
-        console.log("Found by ID pattern match:", masterPieceWithMatchingId.id);
-        return masterPieceWithMatchingId.id;
+    // Try with broader matching criteria
+    for (const masterPiece of masterRepertoire) {
+      // Use the existing isPieceSimilar function which has good matching logic
+      if (isPieceSimilar(masterPiece.title, piece.title, masterPiece.composer, piece.composer)) {
+        return masterPiece.id;
       }
     }
     
-    // Final attempt: Look for any piece with a very similar title
+    // If still not found, let's try a more aggressive matching approach
     for (const masterPiece of masterRepertoire) {
-      const normalizedPieceTitle = normalizePieceTitle(piece.title);
       const normalizedMasterTitle = normalizePieceTitle(masterPiece.title);
       
-      if (normalizedPieceTitle.includes(normalizedMasterTitle) || 
-          normalizedMasterTitle.includes(normalizedPieceTitle)) {
-        console.log("Found by title substring match:", masterPiece.id);
+      // Check if titles are significant substrings of each other (e.g., "Violin Concerto No. 5" vs "Concerto No. 5")
+      const titleOverlap = normalizedPieceTitle.includes(normalizedMasterTitle) || 
+                          normalizedMasterTitle.includes(normalizedPieceTitle);
+      
+      // Also check composer initials
+      const pieceComposerInitials = normalizedPieceComposer?.split(' ').map(word => word[0]).join('');
+      const masterComposerInitials = normalizedMasterComposer?.split(' ').map(word => word[0]).join('');
+      const composerInitialsMatch = pieceComposerInitials === masterComposerInitials;
+      
+      if (titleOverlap && (composerInitialsMatch || composerMatches)) {
         return masterPiece.id;
       }
     }
     
-    // If no matching piece is found, use the original ID
-    console.log("No match found, using original ID:", piece.id);
+    // If we can't find a match, return the original ID
+    // Note: In a production app, we might want to log this for future improvement
     return piece.id;
   };
   
   // Find the master ID for consistent access to resources
   const masterPieceId = getMasterPieceId();
-  console.log("Using masterPieceId:", masterPieceId);
   
   // Get files and links using the master piece ID for consistency
   const files = mockFileAttachments[masterPieceId] || [];
+  const links = mockLinkResources[masterPieceId] || [];
   
   // State for UI interactions
   const [isDragging, setIsDragging] = useState(false);
@@ -1847,9 +1863,9 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
               </div>
             </div>
             
-            {mockLinkResources[masterPieceId] && mockLinkResources[masterPieceId].length > 0 ? (
+            {links.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {mockLinkResources[masterPieceId].map((link) => (
+                {links.map((link) => (
                   <a 
                     key={link.id} 
                     href={link.url} 
