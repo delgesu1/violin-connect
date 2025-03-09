@@ -1429,6 +1429,7 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
     // If still not found, let's try a more aggressive matching approach
     for (const masterPiece of masterRepertoire) {
       const normalizedMasterTitle = normalizePieceTitle(masterPiece.title);
+      const normalizedMasterComposer = masterPiece.composer?.toLowerCase().replace(/\./g, '').trim();
       
       // Check if titles are significant substrings of each other (e.g., "Violin Concerto No. 5" vs "Concerto No. 5")
       const titleOverlap = normalizedPieceTitle.includes(normalizedMasterTitle) || 
@@ -1438,6 +1439,12 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
       const pieceComposerInitials = normalizedPieceComposer?.split(' ').map(word => word[0]).join('');
       const masterComposerInitials = normalizedMasterComposer?.split(' ').map(word => word[0]).join('');
       const composerInitialsMatch = pieceComposerInitials === masterComposerInitials;
+      
+      // Check if composer names are similar
+      const composerMatches = normalizedPieceComposer === normalizedMasterComposer ||
+                            (normalizedPieceComposer && normalizedMasterComposer && 
+                             (normalizedPieceComposer.includes(normalizedMasterComposer) || 
+                              normalizedMasterComposer.includes(normalizedPieceComposer)));
       
       if (titleOverlap && (composerInitialsMatch || composerMatches)) {
         return masterPiece.id;
@@ -1548,11 +1555,90 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
     pieceId: string; // Store the actual piece ID for reference
   }> = [];
   
+  // For debugging - log the current piece we're working with
+  console.log("Current piece in detail view:", piece.title, piece.composer, piece.id);
+  
+  // A more rigorous comparison to avoid false positives
+  const isExactMatch = (pieceA: { title: string; composer?: string }, pieceB: { title: string; composer?: string }): boolean => {
+    // Normalize titles and composer names for comparison
+    const titleA = normalizePieceTitle(pieceA.title);
+    const titleB = normalizePieceTitle(pieceB.title);
+    
+    // Extract catalog numbers (like Op. 53, BWV 1004, etc.)
+    const catalogRegex = /\b(op\.\s*\d+|bwv\s*\d+|k\.\s*\d+|sz\.\s*\d+)/i;
+    const catalogA = titleA.match(catalogRegex);
+    const catalogB = titleB.match(catalogRegex);
+    
+    // If both have catalog numbers, they should match
+    if (catalogA && catalogB) {
+      if (catalogA[0].toLowerCase() !== catalogB[0].toLowerCase()) {
+        return false;
+      }
+    }
+    
+    // Check if the main piece names are similar
+    const mainTitleA = titleA.replace(catalogRegex, '').trim();
+    const mainTitleB = titleB.replace(catalogRegex, '').trim();
+    
+    // Check for exact match in main title (like "Violin Concerto in A minor")
+    if (mainTitleA === mainTitleB) {
+      // Compare composers if available
+      if (pieceA.composer && pieceB.composer) {
+        const composerA = pieceA.composer.toLowerCase().replace(/\./g, '').trim();
+        const composerB = pieceB.composer.toLowerCase().replace(/\./g, '').trim();
+        
+        // Either exact composer match or one contains the other
+        return composerA === composerB || 
+               composerA.includes(composerB) || 
+               composerB.includes(composerA);
+      }
+      return true; // Titles match exactly, no composer to check
+    }
+    
+    // Stricter matching criteria for key-specific pieces
+    if (mainTitleA.includes(mainTitleB) || mainTitleB.includes(mainTitleA)) {
+      // For pieces with keys like "in A minor", ensure the keys match
+      const keyRegex = /\b(in\s+[A-G](?:\s*(?:sharp|flat|♯|♭))?\s+(?:major|minor))\b/i;
+      const keyA = titleA.match(keyRegex);
+      const keyB = titleB.match(keyRegex);
+      
+      if (keyA && keyB) {
+        // Keys must match
+        if (keyA[0].toLowerCase() !== keyB[0].toLowerCase()) {
+          return false;
+        }
+      }
+      
+      // Compare composers
+      if (pieceA.composer && pieceB.composer) {
+        const composerA = pieceA.composer.toLowerCase().replace(/\./g, '').trim();
+        const composerB = pieceB.composer.toLowerCase().replace(/\./g, '').trim();
+        
+        return composerA === composerB || 
+               composerA.includes(composerB) || 
+               composerB.includes(composerA);
+      }
+      return true;
+    }
+    
+    return false;
+  };
+  
   students.forEach(student => {
-    // Check current repertoire
+    // For debugging - log each student we're checking
+    console.log(`Checking student: ${student.name} (${student.id})`);
+    
+    // Flag to track if this student has the piece to prevent duplicate entries
+    let studentHasPiece = false;
+    
+    // Check current repertoire with strict matching
     student.currentRepertoire.forEach(p => {
-      // Use the improved matching function to determine if pieces are similar
-      if (isPieceSimilar(p.title, piece.title, p.composer, piece.composer)) {
+      // Log piece comparison for debugging
+      console.log(`  Comparing with student piece: "${p.title}" by ${p.composer || 'Unknown'} (${p.id})`);
+      
+      // Use stricter matching to avoid false positives
+      if (isExactMatch(p, piece)) {
+        console.log("   ✓ MATCH FOUND - Current repertoire");
         pieceInstances.push({
           studentId: student.id,
           studentName: student.name,
@@ -1563,12 +1649,19 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
           pieceTitle: p.title, // Store the actual title used
           pieceId: p.id // Store the piece ID
         });
+        studentHasPiece = true;
+      } else {
+        console.log("   ✗ No match");
       }
     });
     
-    // Check past repertoire
+    // Check past repertoire with strict matching
     student.pastRepertoire?.forEach(p => {
-      if (isPieceSimilar(p.title, piece.title, p.composer, piece.composer)) {
+      // Log piece comparison for debugging
+      console.log(`  Comparing with past piece: "${p.title}" by ${p.composer || 'Unknown'} (${p.id})`);
+      
+      if (isExactMatch(p, piece)) {
+        console.log("   ✓ MATCH FOUND - Past repertoire");
         pieceInstances.push({
           studentId: student.id,
           studentName: student.name,
@@ -1579,6 +1672,9 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
           pieceTitle: p.title, // Store the actual title used
           pieceId: p.id // Store the piece ID
         });
+        studentHasPiece = true;
+      } else {
+        console.log("   ✗ No match");
       }
     });
   });
