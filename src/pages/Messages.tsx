@@ -17,6 +17,7 @@ const students: Student[] = [
   {
     id: '1',
     name: 'Emma Thompson',
+    avatarUrl: '/src/images/girl1.jpg',
     currentRepertoire: [
       { id: '101', title: 'Bach Partita No. 2', composer: 'J.S. Bach', startDate: '2023-10-01', status: 'current' }
     ],
@@ -26,6 +27,7 @@ const students: Student[] = [
   {
     id: '2',
     name: 'James Wilson',
+    avatarUrl: '/src/images/boy1.jpg',
     currentRepertoire: [
       { id: '201', title: 'Paganini Caprice No. 24', composer: 'N. Paganini', startDate: '2023-09-10', status: 'current' }
     ],
@@ -34,6 +36,7 @@ const students: Student[] = [
   {
     id: '3',
     name: 'Sophia Chen',
+    avatarUrl: '/src/images/girl2.jpg',
     currentRepertoire: [
       { id: '301', title: 'Tchaikovsky Violin Concerto', composer: 'P.I. Tchaikovsky', startDate: '2023-09-05', status: 'current' }
     ],
@@ -43,6 +46,7 @@ const students: Student[] = [
   {
     id: '4',
     name: 'Michael Brown',
+    avatarUrl: '/src/images/boy2.jpg',
     currentRepertoire: [
       { id: '401', title: 'Mozart Violin Sonata K.304', composer: 'W.A. Mozart', startDate: '2023-09-20', status: 'current' }
     ],

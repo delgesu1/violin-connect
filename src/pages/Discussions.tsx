@@ -63,6 +63,7 @@ const discussions: DiscussionData[] = [
     author: {
       id: '1',
       name: 'Emma Thompson',
+      avatarUrl: '/src/images/girl1.jpg'
     },
     createdAt: '2 days ago',
     commentCount: 8,
@@ -77,6 +78,7 @@ const discussions: DiscussionData[] = [
     author: {
       id: '3',
       name: 'Sophia Chen',
+      avatarUrl: '/src/images/girl2.jpg'
     },
     createdAt: '3 days ago',
     commentCount: 15,
@@ -90,6 +92,7 @@ const discussions: DiscussionData[] = [
     author: {
       id: '2',
       name: 'James Wilson',
+      avatarUrl: '/src/images/boy1.jpg'
     },
     createdAt: '1 week ago',
     commentCount: 22,
@@ -103,6 +106,7 @@ const discussions: DiscussionData[] = [
     author: {
       id: '4',
       name: 'Michael Brown',
+      avatarUrl: '/src/images/boy2.jpg'
     },
     createdAt: '1 week ago',
     commentCount: 27,
@@ -127,8 +131,9 @@ const discussions: DiscussionData[] = [
     id: '6',
     title: 'Best shoulder rest for small-framed players?',
     author: {
-      id: '3',
-      name: 'Sophia Chen',
+      id: '5',
+      name: 'Olivia Garcia',
+      avatarUrl: '/src/images/girl3.jpg'
     },
     createdAt: '3 weeks ago',
     commentCount: 12,

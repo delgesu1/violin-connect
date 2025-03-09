@@ -40,10 +40,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useParams } from 'react-router-dom';
 
 // Mock student data with lessons
-const students: (Student & { level?: string; email?: string; phone?: string; startDate?: string; lastLesson?: string; })[] = [
+const students: (Student & { level?: string; email?: string; phone?: string; startDate?: string; lastLesson?: string; avatarUrl?: string; })[] = [
   {
     id: '1',
     name: 'Emma Thompson',
+    avatarUrl: '/src/images/girl1.jpg',
     currentRepertoire: [
       { id: '101', title: 'B Major Scale', startDate: '2023-10-01', status: 'current', composer: 'With emphasis on thirds' },
       { id: '102', title: 'Violin Concerto', startDate: '2023-09-15', status: 'current', composer: 'Korngold, 1st movement' },
@@ -95,6 +96,7 @@ const students: (Student & { level?: string; email?: string; phone?: string; sta
   {
     id: '2',
     name: 'James Wilson',
+    avatarUrl: '/src/images/boy1.jpg',
     currentRepertoire: [
       { id: '201', title: 'C Minor Scale', startDate: '2023-10-05', status: 'current', composer: 'Focus on intonation' },
       { id: '202', title: 'Caprice No. 24', startDate: '2023-09-10', status: 'current', composer: 'Paganini' },
@@ -114,6 +116,7 @@ const students: (Student & { level?: string; email?: string; phone?: string; sta
   {
     id: '3',
     name: 'Sophia Chen',
+    avatarUrl: '/src/images/girl2.jpg',
     currentRepertoire: [
       { id: '301', title: 'G Minor Scale', startDate: '2023-09-28', status: 'current', composer: 'With rhythmic variations' },
       { id: '302', title: 'Violin Concerto', startDate: '2023-09-05', status: 'current', composer: 'Tchaikovsky, 2nd movement' },
@@ -133,6 +136,7 @@ const students: (Student & { level?: string; email?: string; phone?: string; sta
   {
     id: '4',
     name: 'Michael Brown',
+    avatarUrl: '/src/images/boy2.jpg',
     currentRepertoire: [
       { id: '401', title: 'D Minor Scale', startDate: '2023-10-03', status: 'current', composer: 'With varied bowing' },
       { id: '402', title: 'Violin Sonata K.304', startDate: '2023-09-20', status: 'current', composer: 'Mozart' },
@@ -152,6 +156,7 @@ const students: (Student & { level?: string; email?: string; phone?: string; sta
   {
     id: '5',
     name: 'Olivia Garcia',
+    avatarUrl: '/src/images/girl3.jpg',
     currentRepertoire: [
       { id: '501', title: 'A Major Scale', startDate: '2023-10-06', status: 'current', composer: 'Two octaves' },
       { id: '502', title: 'Violin Concerto No. 1', startDate: '2023-09-18', status: 'current', composer: 'Bruch' },
@@ -171,6 +176,7 @@ const students: (Student & { level?: string; email?: string; phone?: string; sta
   {
     id: '6',
     name: 'William Taylor',
+    avatarUrl: '/src/images/boy3.jpg',
     currentRepertoire: [
       { id: '601', title: 'D Major Scale', startDate: '2023-10-08', status: 'current', composer: 'One octave' },
       { id: '602', title: 'Spring', startDate: '2023-09-25', status: 'current', composer: 'Vivaldi, from Four Seasons' },

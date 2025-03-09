@@ -45,6 +45,7 @@ const events: CalendarEventData[] = [
     student: {
       id: '1',
       name: 'Emma Thompson',
+      avatarUrl: '/src/images/girl1.jpg'
     },
     location: 'Studio A',
     repertoire: 'Bach Partita No. 2'
@@ -58,6 +59,7 @@ const events: CalendarEventData[] = [
     student: {
       id: '2',
       name: 'James Wilson',
+      avatarUrl: '/src/images/boy1.jpg'
     },
     location: 'Studio A',
     repertoire: 'Paganini Caprice No. 24'
@@ -79,6 +81,7 @@ const events: CalendarEventData[] = [
     student: {
       id: '3',
       name: 'Sophia Chen',
+      avatarUrl: '/src/images/girl2.jpg'
     },
     location: 'Studio A',
     repertoire: 'Tchaikovsky Violin Concerto'
