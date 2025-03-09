@@ -213,7 +213,7 @@ const StudentPage = () => {
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
-  const [filterValue, setFilterValue] = useState('');
+  const [filterValue, setFilterValue] = useState<string | null>(null);
   
   // Get the studentId from the URL parameter
   const { studentId } = useParams();
@@ -247,8 +247,8 @@ const StudentPage = () => {
         (piece.composer && piece.composer.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     
-    // Apply level filter
-    const matchesLevel = filterValue === null || student.level === filterValue;
+    // Apply level filter - if filterValue is null, show all students
+    const matchesLevel = filterValue === null || (student.level === filterValue);
     
     return matchesSearch && matchesLevel;
   });
@@ -259,6 +259,7 @@ const StudentPage = () => {
     setFilterValue(null);
     setActiveFilter('all');
     setSearchTerm('');
+    setShowSearchInput(false);
   };
   
   // Group students by their next lesson date
@@ -355,25 +356,25 @@ const StudentPage = () => {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuGroup>
                     <DropdownMenuItem 
-                      className={cn("cursor-pointer", !filterValue && "bg-muted")}
+                      className={cn("cursor-pointer", filterValue === null && "bg-muted font-medium")}
                       onClick={() => setFilterValue(null)}
                     >
                       All Levels
                     </DropdownMenuItem>
                     <DropdownMenuItem 
-                      className={cn("cursor-pointer", filterValue === "Beginner" && "bg-muted")}
+                      className={cn("cursor-pointer", filterValue === "Beginner" && "bg-muted font-medium")}
                       onClick={() => setFilterValue("Beginner")}
                     >
                       Beginner
                     </DropdownMenuItem>
                     <DropdownMenuItem 
-                      className={cn("cursor-pointer", filterValue === "Intermediate" && "bg-muted")}
+                      className={cn("cursor-pointer", filterValue === "Intermediate" && "bg-muted font-medium")}
                       onClick={() => setFilterValue("Intermediate")}
                     >
                       Intermediate
                     </DropdownMenuItem>
                     <DropdownMenuItem 
-                      className={cn("cursor-pointer", filterValue === "Advanced" && "bg-muted")}
+                      className={cn("cursor-pointer", filterValue === "Advanced" && "bg-muted font-medium")}
                       onClick={() => setFilterValue("Advanced")}
                     >
                       Advanced
