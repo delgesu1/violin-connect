@@ -5,15 +5,21 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Music, MessageSquare, Calendar, BookText, ChevronRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { RepertoireItemData } from '@/components/common/RepertoireItem';
+import { getPieceDetails } from '@/lib/utils/repertoire-utils';
 
 export interface RepertoirePiece {
-  id: string;
-  title: string;
-  composer?: string;
-  startDate: string;
-  endDate?: string;
+  id: string;           // Unique ID for this student-piece assignment 
+  masterPieceId?: string; // Reference to the master repertoire piece
+  startDate: string;    // When student started learning this piece
+  endDate?: string;     // When student completed this piece (if applicable)
   status: 'current' | 'completed' | 'planned';
-  notes?: string;
+  notes?: string;       // Student-specific notes about the piece
+  
+  // These fields will be kept for backward compatibility but marked as deprecated
+  // They should be retrieved from the master piece using the masterPieceId
+  title?: string;       // @deprecated - Use masterPieceId to lookup title
+  composer?: string;    // @deprecated - Use masterPieceId to lookup composer
 }
 
 export interface Lesson {
@@ -39,15 +45,28 @@ export interface Student {
 interface StudentCardProps {
   student: Student;
   className?: string;
+  masterRepertoire?: RepertoireItemData[];
 }
 
-const StudentCard: React.FC<StudentCardProps> = ({ student, className }) => {
+const StudentCard: React.FC<StudentCardProps> = ({ student, className, masterRepertoire = [] }) => {
   const navigate = useNavigate();
 
   const handleMessageBadgeClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     navigate(`/messages/${student.id}`);
+  };
+
+  // Helper function to get piece details, handling both old and new formats
+  const getDisplayText = (piece: RepertoirePiece): string => {
+    if (masterRepertoire.length > 0 && piece.masterPieceId) {
+      // Use the utility function if we have the master repertoire list
+      const details = getPieceDetails(piece, masterRepertoire);
+      return details.composer ? `${details.title} - ${details.composer}` : details.title;
+    }
+    
+    // Fallback to using the piece's own title/composer
+    return piece.composer ? `${piece.title} - ${piece.composer}` : (piece.title || 'Unknown Piece');
   };
 
   return (
@@ -94,7 +113,7 @@ const StudentCard: React.FC<StudentCardProps> = ({ student, className }) => {
                       {index === 0 && <Music className="h-3.5 w-3.5 shrink-0 text-primary/60" />}
                       {index !== 0 && <div className="w-3.5 h-3.5" />}
                       <span className="truncate">
-                        {piece.composer ? `${piece.title} - ${piece.composer}` : piece.title}
+                        {getDisplayText(piece)}
                       </span>
                     </div>
                   ))

@@ -1,35 +1,30 @@
-
 import React, { useState } from 'react';
 import PageHeader from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { 
-  Upload,
-  Search,
-  Filter,
-  FileText,
-  FileImage,
-  FileAudio,
-  File, // Replace FilePdf with File
-  MoreVertical,
+  Search, 
+  Upload, 
+  FileArchive,
+  BookText,
+  User,
+  Calendar,
+  Music,
+  MoreHorizontal,
+  ListFilter,
+  Grid,
+  List,
   Download,
   Share,
-  Trash,
-  Clock,
+  Link as LinkIcon,
+  File
 } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AttachmentEntityType, AttachmentType, mockAttachments, mockAttachmentAssociations } from '@/lib/attachment-utils';
+import AttachmentManager from '@/components/common/AttachmentManager';
 import { cn } from '@/lib/utils';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 // Mock file data
 interface FileData {
@@ -48,275 +43,251 @@ interface FileData {
   student?: string;
 }
 
-const files: FileData[] = [
-  {
-    id: '1',
-    name: 'Bach_Partita_Sheet_Music.pdf',
-    type: 'pdf',
-    size: '2.4 MB',
-    uploadedBy: {
-      id: '1',
-      name: 'Teacher',
-    },
-    uploadedAt: '2023-10-12',
-    lastModified: '2023-10-12',
-    tags: ['sheet music', 'bach', 'partita'],
-    student: 'Emma Thompson'
-  },
-  {
-    id: '2',
-    name: 'Paganini_Caprice_24_Recording.mp3',
-    type: 'audio',
-    size: '5.7 MB',
-    uploadedBy: {
-      id: '2',
-      name: 'James Wilson',
-    },
-    uploadedAt: '2023-10-10',
-    lastModified: '2023-10-10',
-    tags: ['recording', 'paganini', 'caprice'],
-  },
-  {
-    id: '3',
-    name: 'Violin_Posture_Technique.jpg',
-    type: 'image',
-    size: '1.2 MB',
-    uploadedBy: {
-      id: '1',
-      name: 'Teacher',
-    },
-    uploadedAt: '2023-10-08',
-    lastModified: '2023-10-08',
-    tags: ['technique', 'posture', 'tutorial'],
-  },
-  {
-    id: '4',
-    name: 'Practice_Schedule_Template.pdf',
-    type: 'pdf',
-    size: '0.8 MB',
-    uploadedBy: {
-      id: '1',
-      name: 'Teacher',
-    },
-    uploadedAt: '2023-10-05',
-    lastModified: '2023-10-05',
-    tags: ['schedule', 'practice', 'template'],
-  },
-  {
-    id: '5',
-    name: 'Tchaikovsky_Concerto_Notes.txt',
-    type: 'text',
-    size: '0.1 MB',
-    uploadedBy: {
-      id: '3',
-      name: 'Sophia Chen',
-    },
-    uploadedAt: '2023-10-03',
-    lastModified: '2023-10-03',
-    tags: ['notes', 'tchaikovsky', 'concerto'],
-    student: 'Sophia Chen'
-  },
-  {
-    id: '6',
-    name: 'Mozart_Sonata_K304_Recording.mp3',
-    type: 'audio',
-    size: '4.5 MB',
-    uploadedBy: {
-      id: '4',
-      name: 'Michael Brown',
-    },
-    uploadedAt: '2023-10-01',
-    lastModified: '2023-10-01',
-    tags: ['recording', 'mozart', 'sonata'],
-    student: 'Michael Brown'
-  }
-];
-
-const FileIcon = ({ type }: { type: FileData['type'] }) => {
-  switch (type) {
-    case 'pdf':
-      return <File className="h-5 w-5 text-red-500" />; // Replace FilePdf with File
-    case 'image':
-      return <FileImage className="h-5 w-5 text-blue-500" />;
-    case 'audio':
-      return <FileAudio className="h-5 w-5 text-purple-500" />;
-    case 'text':
-      return <FileText className="h-5 w-5 text-yellow-500" />;
-    default:
-      return <FileText className="h-5 w-5 text-gray-500" />;
-  }
+// Simple FileIcon component that renders an icon based on file type
+const FileIcon: React.FC<{ type?: string; className?: string }> = ({ type = 'other', className }) => {
+  return <File className={className} />;
 };
 
 const FilesPage = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<string>('all');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   
-  // Get unique tags from all files
-  const allTags = Array.from(new Set(files.flatMap(file => file.tags)));
+  // Map the entity types to tabs
+  const entityTypeTabs = [
+    { id: 'all', label: 'All Files', icon: FileArchive },
+    { id: AttachmentEntityType.PIECE, label: 'Repertoire', icon: BookText },
+    { id: AttachmentEntityType.STUDENT, label: 'Students', icon: User },
+    { id: AttachmentEntityType.LESSON, label: 'Lessons', icon: Calendar },
+    { id: AttachmentEntityType.PRACTICE, label: 'Practice', icon: Music }
+  ];
   
-  // Filter files based on search and tags
-  const filteredFiles = files.filter(file => {
-    const matchesSearch = file.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTags = selectedTags.length === 0 || 
-      selectedTags.some(tag => file.tags.includes(tag));
-    
-    return matchesSearch && matchesTags;
-  });
-
   // Toggle tag selection
   const toggleTag = (tag: string) => {
-    if (selectedTags.includes(tag)) {
-      setSelectedTags(selectedTags.filter(t => t !== tag));
-    } else {
-      setSelectedTags([...selectedTags, tag]);
-    }
+    setSelectedTags(prev =>
+      prev.includes(tag)
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
   };
   
+  // Get all available tags from the attachments
+  const allTags = Object.values(mockAttachments)
+    .flatMap(attachment => attachment.tags || [])
+    .filter((tag, index, self) => self.indexOf(tag) === index)
+    .sort();
+  
   return (
-    <>
-      <PageHeader 
-        title="Files" 
-        description="Upload and manage sheet music, recordings, and more"
-      >
-        <Button>
-          <Upload className="mr-2 h-4 w-4" />
-          Upload File
-        </Button>
-      </PageHeader>
+    <div className="container py-6">
+      <PageHeader
+        title="Files"
+        description="Manage and organize all your uploaded resources"
+        className="mb-6"
+      />
       
-      <div className="flex flex-col md:flex-row gap-6 mb-6">
-        <div className="relative flex-1 animate-slide-up animate-stagger-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search files..."
-            className="pl-8"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Sidebar */}
+        <div className="w-full md:w-64 space-y-6">
+          {/* Tabs */}
+          <Card>
+            <CardContent className="p-0">
+              <nav className="flex flex-col">
+                {entityTypeTabs.map(tab => (
+                  <button
+                    key={tab.id}
+                    className={cn(
+                      "flex items-center gap-2 py-2 px-3 text-sm font-medium transition-colors",
+                      activeTab === tab.id
+                        ? "bg-primary/5 text-primary border-r-2 border-primary"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                    onClick={() => setActiveTab(tab.id)}
+                  >
+                    {React.createElement(tab.icon, { className: "h-4 w-4" })}
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
+            </CardContent>
+          </Card>
+          
+          {/* Tags */}
+          <Card>
+            <CardContent className="p-3">
+              <h3 className="text-sm font-medium mb-2 px-2">Tags</h3>
+              <div className="flex flex-wrap gap-1">
+                {allTags.map(tag => (
+                  <Badge
+                    key={tag}
+                    variant={selectedTags.includes(tag) ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => toggleTag(tag)}
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+                {allTags.length === 0 && (
+                  <p className="text-sm text-muted-foreground px-2">No tags found</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Storage */}
+          <Card>
+            <CardContent className="p-3 space-y-2">
+              <h3 className="text-sm font-medium">Storage</h3>
+              <div className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Used</span>
+                  <span>2.4 GB</span>
+                </div>
+                <Progress value={30} />
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total</span>
+                  <span>8 GB</span>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" className="w-full">
+                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                Upload
+              </Button>
+            </CardContent>
+          </Card>
         </div>
         
-        <div className="flex gap-2 flex-wrap animate-slide-up animate-stagger-2">
-          {allTags.slice(0, 5).map(tag => (
-            <Badge
-              key={tag}
-              variant={selectedTags.includes(tag) ? "default" : "outline"}
-              className="cursor-pointer"
-              onClick={() => toggleTag(tag)}
-            >
-              {tag}
-            </Badge>
-          ))}
-          
-          <Button variant="outline" size="sm">
-            <Filter className="h-3.5 w-3.5 mr-1" />
-            More Filters
-          </Button>
+        {/* Main content */}
+        <div className="flex-1">
+          <Card>
+            <CardContent className="p-6">
+              {/* Search and view controls */}
+              <div className="flex justify-between mb-6">
+                <div className="relative w-full max-w-sm">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search files..."
+                    className="pl-8"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="icon">
+                    <ListFilter className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="icon">
+                    <Grid className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="icon">
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Dynamic content based on selected tab */}
+              {activeTab === 'all' ? (
+                <div className="space-y-6">
+                  {Object.entries(AttachmentEntityType).map(([key, entityType]) => (
+                    <div key={entityType} className="mb-6">
+                      <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+                        {(() => {
+                          const tabInfo = entityTypeTabs.find(tab => tab.id === entityType);
+                          if (tabInfo && tabInfo.icon) {
+                            return React.createElement(tabInfo.icon, { className: "h-5 w-5 text-primary" });
+                          }
+                          return null;
+                        })()}
+                        {entityTypeTabs.find(tab => tab.id === entityType)?.label || entityType}
+                      </h3>
+                      
+                      {/* List entities of this type */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {mockAttachmentAssociations
+                          .filter(assoc => assoc.entityType === entityType)
+                          .map(assoc => {
+                            const attachment = mockAttachments[assoc.attachmentId];
+                            if (!attachment) return null;
+                            
+                            // Filter by tags if any are selected
+                            if (selectedTags.length > 0 && 
+                                (!attachment.tags || !selectedTags.some(tag => attachment.tags?.includes(tag)))) {
+                              return null;
+                            }
+                            
+                            return (
+                              <Card key={`${assoc.entityType}-${assoc.entityId}-${assoc.attachmentId}`} className="overflow-hidden hover:shadow-md transition-shadow">
+                                <CardContent className="p-0">
+                                  <div className="p-4">
+                                    <div className="flex items-start gap-3">
+                                      {attachment.type === AttachmentType.FILE ? (
+                                        <FileIcon className="h-10 w-10 text-primary/70" />
+                                      ) : (
+                                        <LinkIcon className="h-10 w-10 text-blue-500/70" />
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="font-medium truncate">{attachment.name}</h4>
+                                        <p className="text-sm text-muted-foreground">
+                                          {attachment.type === AttachmentType.FILE ? (
+                                            <>
+                                              {attachment.fileType.split('/')[1]?.toUpperCase()} • 
+                                              {attachment.size < 1024 * 1024 
+                                                ? `${Math.round(attachment.size / 1024)} KB` 
+                                                : `${(attachment.size / (1024 * 1024)).toFixed(1)} MB`}
+                                            </>
+                                          ) : (
+                                            <>{attachment.linkType}</>
+                                          )}
+                                        </p>
+                                      </div>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                    
+                                    {attachment.tags && attachment.tags.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-2">
+                                        {attachment.tags.map(tag => (
+                                          <Badge key={tag} variant="outline" className="text-xs px-1.5 py-0">
+                                            {tag}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  <div className="px-4 py-2 bg-muted/30 border-t flex justify-between items-center">
+                                    <span className="text-xs text-muted-foreground">
+                                      Added {new Date(attachment.createdAt).toLocaleDateString()}
+                                    </span>
+                                    
+                                    <div className="flex gap-1">
+                                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                                        <Download className="h-3 w-3" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                                        <Share className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <AttachmentManager 
+                  entityType={activeTab === 'all' ? AttachmentEntityType.PIECE : activeTab as AttachmentEntityType}
+                  entityId="*" // Special value to show all entities of this type
+                  showAssociations={true}
+                  title={entityTypeTabs.find(tab => tab.id === activeTab)?.label || 'Files'}
+                />
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
-      
-      <Tabs defaultValue="all" className="animate-slide-up animate-stagger-3">
-        <TabsList className="mb-6">
-          <TabsTrigger value="all">All Files</TabsTrigger>
-          <TabsTrigger value="shared">Shared</TabsTrigger>
-          <TabsTrigger value="recent">Recent</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="all" className="mt-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredFiles.map(file => (
-              <Card key={file.id} className="card-hover overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-md bg-muted p-2 flex items-center justify-center">
-                          <FileIcon type={file.type} />
-                        </div>
-                        <div>
-                          <h3 className="font-medium line-clamp-1">{file.name}</h3>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                            <span>{file.size}</span>
-                            <span>•</span>
-                            <span>{file.type.toUpperCase()}</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem>
-                            <Download className="h-4 w-4 mr-2" />
-                            Download
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Share className="h-4 w-4 mr-2" />
-                            Share
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive">
-                            <Trash className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    
-                    <div className="mt-3 flex flex-wrap gap-1">
-                      {file.tags.map(tag => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="p-3 border-t bg-muted/30 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={file.uploadedBy.avatarUrl || "/placeholder.svg"} alt={file.uploadedBy.name} />
-                        <AvatarFallback>{file.uploadedBy.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <span className="text-xs">{file.uploadedBy.name}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      <span>{file.uploadedAt}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          
-          {filteredFiles.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No files match your search criteria.</p>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="shared" className="mt-0">
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Files shared with you will appear here.</p>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="recent" className="mt-0">
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Your recently accessed files will appear here.</p>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </>
+    </div>
   );
 };
 

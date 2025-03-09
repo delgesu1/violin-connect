@@ -1,14 +1,35 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlusCircle, Calendar, Music, MessageSquare, Users } from 'lucide-react';
+import { PlusCircle, Calendar, Music, MessageSquare, Users, ArrowRight, BookText, ChevronRight, BarChart2, Clock, CheckCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import StudentCard, { Student } from '@/components/common/StudentCard';
 import CalendarEvent, { CalendarEventData } from '@/components/common/CalendarEvent';
+import { RepertoireItemData } from '@/components/common/RepertoireItem';
 
-// Mock data
+// Mock data for master repertoire (simplified version)
+const masterRepertoire: RepertoireItemData[] = [
+  {
+    id: 'p-1',
+    title: 'Partita No. 2 in D minor, BWV 1004',
+    composer: 'J.S. Bach',
+    startedDate: '2023-10-15',
+    difficulty: 'advanced'
+  },
+  {
+    id: 'p-9',
+    title: 'Violin Concerto in E minor, Op. 64',
+    composer: 'F. Mendelssohn',
+    startedDate: '2023-04-20',
+    difficulty: 'advanced'
+  },
+  // Add more pieces as needed
+];
+
+// Mock student data
 const students: Student[] = [
   {
     id: '1',
@@ -203,6 +224,7 @@ const Dashboard = () => {
                 key={student.id} 
                 student={student} 
                 className=""
+                masterRepertoire={masterRepertoire}
               />
             ))}
             

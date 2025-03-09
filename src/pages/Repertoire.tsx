@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import PageHeader from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,7 +29,23 @@ import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Student, RepertoirePiece } from '@/components/common/StudentCard';
 import RepertoireItem, { RepertoireItemData } from '@/components/common/RepertoireItem';
-import { ID_PREFIXES, createPrefixedId, createStudentPieceId } from '@/lib/id-utils';
+import { ID_PREFIXES, createPrefixedId, createStudentPieceId, getIdWithoutPrefix } from '@/lib/id-utils';
+import { getMasterPieceById, getPieceDetails } from '@/lib/utils/repertoire-utils';
+import {
+  getLegacyFileAttachments, 
+  getLegacyLinkResources, 
+  AttachmentEntityType,
+  AttachmentType,
+  mockAttachments,
+  mockAttachmentAssociations,
+  createAttachmentId,
+  createAttachmentAssociation,
+  addFileAttachment,
+  deleteFileAttachment
+} from '@/lib/attachment-utils';
+import AttachmentManager from '@/components/common/AttachmentManager';
+import { FileUpload, SelectedFile } from '@/components/ui/file-upload';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 // Mock data
 const students: Student[] = [
@@ -37,15 +53,58 @@ const students: Student[] = [
     id: createPrefixedId(ID_PREFIXES.STUDENT, '1'),
     name: 'Emma Thompson',
     currentRepertoire: [
-      { id: createStudentPieceId('1', '1'), title: 'Partita No. 2 in D minor, BWV 1004', composer: 'J.S. Bach', startDate: '2023-10-01', status: 'current', notes: 'Working on Chaconne section' },
-      { id: createStudentPieceId('1', '9'), title: 'Violin Concerto in E minor, Op. 64', composer: 'F. Mendelssohn', startDate: '2023-11-15', status: 'current', notes: 'Preparing for spring competition' },
-      { id: createStudentPieceId('1', '19'), title: 'Tzigane', composer: 'M. Ravel', startDate: '2024-01-10', status: 'current' }
+      { 
+        id: createStudentPieceId('1', '1'), 
+        masterPieceId: createPrefixedId(ID_PREFIXES.PIECE, '1'),
+        startDate: '2023-10-01', 
+        status: 'current', 
+        notes: 'Working on Chaconne section' 
+      },
+      { 
+        id: createStudentPieceId('1', '9'), 
+        masterPieceId: createPrefixedId(ID_PREFIXES.PIECE, '9'),
+        startDate: '2023-11-15', 
+        status: 'current', 
+        notes: 'Preparing for spring competition' 
+      },
+      { 
+        id: createStudentPieceId('1', '19'), 
+        masterPieceId: createPrefixedId(ID_PREFIXES.PIECE, '19'),
+        startDate: '2024-01-10', 
+        status: 'current' 
+      }
     ],
     pastRepertoire: [
-      { id: createStudentPieceId('1', '6'), title: 'Violin Sonata No. 5 in F major (Spring)', composer: 'L.V. Beethoven', startDate: '2023-05-10', endDate: '2023-09-15', status: 'completed', notes: 'Performed at summer recital' },
-      { id: createStudentPieceId('1', '15'), title: 'The Four Seasons - Spring', composer: 'A. Vivaldi', startDate: '2023-01-15', endDate: '2023-04-20', status: 'completed' },
-      { id: createStudentPieceId('1', '16'), title: 'Meditation from Thaïs', composer: 'J. Massenet', startDate: '2022-11-05', endDate: '2023-02-10', status: 'completed' },
-      { id: createStudentPieceId('1', '7'), title: 'Introduction and Rondo Capriccioso', composer: 'C. Saint-Saëns', startDate: '2022-08-15', endDate: '2022-12-20', status: 'completed', notes: 'Performed with university orchestra' }
+      { 
+        id: createStudentPieceId('1', '6'), 
+        masterPieceId: createPrefixedId(ID_PREFIXES.PIECE, '6'),
+        startDate: '2023-05-10', 
+        endDate: '2023-09-15', 
+        status: 'completed', 
+        notes: 'Performed at summer recital' 
+      },
+      { 
+        id: createStudentPieceId('1', '15'), 
+        masterPieceId: createPrefixedId(ID_PREFIXES.PIECE, '15'),
+        startDate: '2023-01-15', 
+        endDate: '2023-04-20', 
+        status: 'completed' 
+      },
+      { 
+        id: createStudentPieceId('1', '16'), 
+        masterPieceId: createPrefixedId(ID_PREFIXES.PIECE, '16'),
+        startDate: '2022-11-05', 
+        endDate: '2023-02-10', 
+        status: 'completed' 
+      },
+      { 
+        id: createStudentPieceId('1', '7'), 
+        masterPieceId: createPrefixedId(ID_PREFIXES.PIECE, '7'),
+        startDate: '2022-08-15', 
+        endDate: '2022-12-20', 
+        status: 'completed', 
+        notes: 'Performed with university orchestra' 
+      }
     ],
     nextLesson: 'Today, 4:00 PM',
   },
@@ -490,647 +549,10 @@ interface LinkResource {
   addedDate: string;
 }
 
-// Mock file data with accurate filenames matching the correct pieces
-const mockFileAttachments: Record<string, FileAttachment[]> = {
-  // Bach Partita No. 2 in D minor, BWV 1004 (ID: p-1)
-  [createPrefixedId(ID_PREFIXES.PIECE, '1')]: [ 
-    {
-      id: createPrefixedId(ID_PREFIXES.FILE, '1'),
-      name: 'Bach_Partita_No2_Dmajor_BWV1004_Urtext.pdf',
-      type: 'application/pdf',
-      size: 3214567,
-      url: '#',
-      uploadDate: '2023-09-15',
-      uploadedBy: 'You'
-    },
-    {
-      id: createPrefixedId(ID_PREFIXES.FILE, '2'),
-      name: 'Bach_Partita2_Chaconne_Fingerings.pdf',
-      type: 'application/pdf',
-      size: 2128433,
-      url: '#',
-      uploadDate: '2023-10-02',
-      uploadedBy: 'You'
-    },
-    {
-      id: createPrefixedId(ID_PREFIXES.FILE, '3'),
-      name: 'Bach_Partita2_Practice_Notes.pdf',
-      type: 'application/pdf',
-      size: 1057624,
-      url: '#',
-      uploadDate: '2023-11-10',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Bach Sonata No. 1 in G minor, BWV 1001 (ID: p-2)
-  [createPrefixedId(ID_PREFIXES.PIECE, '2')]: [
-    {
-      id: createPrefixedId(ID_PREFIXES.FILE, '27'),
-      name: 'Bach_Sonata1_Gminor_BWV1001_Urtext.pdf',
-      type: 'application/pdf',
-      size: 2876543,
-      url: '#',
-      uploadDate: '2023-07-05',
-      uploadedBy: 'You'
-    },
-    {
-      id: createPrefixedId(ID_PREFIXES.FILE, '28'),
-      name: 'Bach_Sonata1_Performance_Notes.pdf',
-      type: 'application/pdf',
-      size: 1365478,
-      url: '#',
-      uploadDate: '2023-07-12',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Tchaikovsky Violin Concerto in D major, Op. 35 (ID: p-3)
-  [createPrefixedId(ID_PREFIXES.PIECE, '3')]: [ 
-    {
-      id: createPrefixedId(ID_PREFIXES.FILE, '4'),
-      name: 'Tchaikovsky_ViolinConcerto_Dmajor_Op35_Score.pdf',
-      type: 'application/pdf',
-      size: 4251984,
-      url: '#',
-      uploadDate: '2023-07-22',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file5',
-      name: 'Tchaikovsky_ViolinConcerto_PianoReduction.pdf',
-      type: 'application/pdf',
-      size: 3782145,
-      url: '#',
-      uploadDate: '2023-07-22',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file6',
-      name: 'Tchaikovsky_ViolinConcerto_1stMvt_Cadenza.pdf',
-      type: 'application/pdf',
-      size: 1245632,
-      url: '#',
-      uploadDate: '2023-08-15',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Paganini Caprice No. 24 in A minor (ID: 4)
-  '4': [ 
-    {
-      id: 'file7',
-      name: 'Paganini_Caprice24_Aminor_Urtext.pdf',
-      type: 'application/pdf',
-      size: 2831234,
-      url: '#',
-      uploadDate: '2023-09-15',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file8',
-      name: 'Paganini_Caprice24_Advanced_Fingerings.pdf',
-      type: 'application/pdf',
-      size: 1258433,
-      url: '#',
-      uploadDate: '2023-10-02',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file9',
-      name: 'Paganini_Caprice24_Practice_Techniques.pdf',
-      type: 'application/pdf',
-      size: 1624578,
-      url: '#',
-      uploadDate: '2023-10-18',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Mozart Violin Sonata K.304 in E minor (ID: 5)
-  '5': [ 
-    {
-      id: 'file10',
-      name: 'Mozart_ViolinSonata_K304_Eminor_Score.pdf',
-      type: 'application/pdf',
-      size: 3521984,
-      url: '#',
-      uploadDate: '2023-08-22',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file11',
-      name: 'Mozart_ViolinSonata_K304_PianoScore.pdf',
-      type: 'application/pdf',
-      size: 2893456,
-      url: '#',
-      uploadDate: '2023-08-22',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Beethoven Spring Sonata No. 5 in F major (ID: 6)
-  '6': [ 
-    {
-      id: 'file12',
-      name: 'Beethoven_SpringSonata_No5_Fmajor_Score.pdf',
-      type: 'application/pdf',
-      size: 3124853,
-      url: '#',
-      uploadDate: '2023-05-08',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file13',
-      name: 'Beethoven_SpringSonata_InterpretationNotes.pdf',
-      type: 'application/pdf',
-      size: 1452369,
-      url: '#',
-      uploadDate: '2023-05-20',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Saint-Saëns Introduction and Rondo Capriccioso (ID: 7)
-  '7': [ 
-    {
-      id: 'file14',
-      name: 'SaintSaens_IntroRondoCapriccioso_Score.pdf',
-      type: 'application/pdf',
-      size: 3245178,
-      url: '#',
-      uploadDate: '2023-03-10',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file15',
-      name: 'SaintSaens_IntroRondoCapriccioso_OrchestraParts.pdf',
-      type: 'application/pdf',
-      size: 5123478,
-      url: '#',
-      uploadDate: '2023-03-10',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file16',
-      name: 'SaintSaens_IntroRondoCapriccioso_Recording.mp3',
-      type: 'audio/mpeg',
-      size: 8234567,
-      url: '#',
-      uploadDate: '2023-04-02',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Saint-Saëns Violin Concerto No. 3 in B minor, Op. 61 (ID: 8)
-  '8': [
-    {
-      id: 'file29',
-      name: 'SaintSaens_ViolinConcerto3_Bminor_Score.pdf',
-      type: 'application/pdf',
-      size: 3876543,
-      url: '#',
-      uploadDate: '2023-06-10',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file30',
-      name: 'SaintSaens_ViolinConcerto3_PianoReduction.pdf',
-      type: 'application/pdf',
-      size: 2987654,
-      url: '#',
-      uploadDate: '2023-06-10',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Mendelssohn Violin Concerto in E minor, Op. 64 (ID: 9)
-  '9': [ 
-    {
-      id: 'file17',
-      name: 'Mendelssohn_ViolinConcerto_Eminor_Score.pdf',
-      type: 'application/pdf',
-      size: 4215673,
-      url: '#',
-      uploadDate: '2023-04-18',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file18',
-      name: 'Mendelssohn_ViolinConcerto_PianoReduction.pdf',
-      type: 'application/pdf',
-      size: 3452187,
-      url: '#',
-      uploadDate: '2023-04-18',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file19',
-      name: 'Mendelssohn_ViolinConcerto_Cadenza_Analysis.pdf',
-      type: 'application/pdf',
-      size: 1574236,
-      url: '#',
-      uploadDate: '2023-05-05',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Bach Violin Concerto in A minor, BWV 1041 (ID: 10)
-  '10': [
-    {
-      id: 'file31',
-      name: 'Bach_ViolinConcerto_Aminor_BWV1041_Score.pdf',
-      type: 'application/pdf',
-      size: 2765432,
-      url: '#',
-      uploadDate: '2023-10-25',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file32',
-      name: 'Bach_ViolinConcerto_Aminor_PianoReduction.pdf',
-      type: 'application/pdf',
-      size: 2345678,
-      url: '#',
-      uploadDate: '2023-10-25',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Brahms Violin Concerto in D major, Op. 77 (ID: 11)
-  '11': [
-    {
-      id: 'file33',
-      name: 'Brahms_ViolinConcerto_Dmajor_Op77_Score.pdf',
-      type: 'application/pdf',
-      size: 4567823,
-      url: '#',
-      uploadDate: '2023-05-25',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file34',
-      name: 'Brahms_ViolinConcerto_PianoReduction.pdf',
-      type: 'application/pdf',
-      size: 3654321,
-      url: '#',
-      uploadDate: '2023-05-25',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file35',
-      name: 'Brahms_ViolinConcerto_JoachimCadenza.pdf',
-      type: 'application/pdf',
-      size: 1645789,
-      url: '#',
-      uploadDate: '2023-06-10',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Sarasate Zigeunerweisen, Op. 20 (ID: 12)
-  '12': [
-    {
-      id: 'file36',
-      name: 'Sarasate_Zigeunerweisen_Op20_Score.pdf',
-      type: 'application/pdf',
-      size: 2876543,
-      url: '#',
-      uploadDate: '2023-08-10',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file37',
-      name: 'Sarasate_Zigeunerweisen_PianoReduction.pdf',
-      type: 'application/pdf',
-      size: 2345678,
-      url: '#',
-      uploadDate: '2023-08-10',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Bruch Violin Concerto No. 1 in G minor, Op. 26 (ID: 13)
-  '13': [
-    {
-      id: 'file38',
-      name: 'Bruch_ViolinConcerto1_Gminor_Op26_Score.pdf',
-      type: 'application/pdf',
-      size: 3752816,
-      url: '#',
-      uploadDate: '2023-08-25',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file39',
-      name: 'Bruch_ViolinConcerto1_PianoReduction.pdf',
-      type: 'application/pdf',
-      size: 2987654,
-      url: '#',
-      uploadDate: '2023-08-25',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Beethoven Violin Sonata No. 9 (Kreutzer) (ID: 14)
-  '14': [
-    {
-      id: 'file40',
-      name: 'Beethoven_KreutzerSonata_No9_Score.pdf',
-      type: 'application/pdf',
-      size: 3546782,
-      url: '#',
-      uploadDate: '2023-01-10',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file41',
-      name: 'Beethoven_KreutzerSonata_Analysis.pdf',
-      type: 'application/pdf',
-      size: 1872634,
-      url: '#',
-      uploadDate: '2023-01-20',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Vivaldi Four Seasons - Spring (ID: 15)
-  '15': [ 
-    {
-      id: 'file20',
-      name: 'Vivaldi_FourSeasons_Spring_Score.pdf',
-      type: 'application/pdf',
-      size: 2874123,
-      url: '#',
-      uploadDate: '2023-02-08',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file21',
-      name: 'Vivaldi_FourSeasons_Spring_SoloPartMarked.pdf',
-      type: 'application/pdf',
-      size: 1563248,
-      url: '#',
-      uploadDate: '2023-02-15',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Massenet Meditation from Thaïs (ID: 16)
-  '16': [
-    {
-      id: 'file42',
-      name: 'Massenet_Meditation_Thais_Score.pdf',
-      type: 'application/pdf',
-      size: 1987634,
-      url: '#',
-      uploadDate: '2023-02-28',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file43',
-      name: 'Massenet_Meditation_PianoReduction.pdf',
-      type: 'application/pdf',
-      size: 1543278,
-      url: '#',
-      uploadDate: '2023-02-28',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Lalo Symphonie Espagnole (ID: 17)
-  '17': [
-    {
-      id: 'file44',
-      name: 'Lalo_SymphonieEspagnole_Score.pdf',
-      type: 'application/pdf',
-      size: 4751862,
-      url: '#',
-      uploadDate: '2023-09-28',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file45',
-      name: 'Lalo_SymphonieEspagnole_PianoReduction.pdf',
-      type: 'application/pdf',
-      size: 3678245,
-      url: '#',
-      uploadDate: '2023-09-28',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file46',
-      name: 'Lalo_SymphonieEspagnole_1stMovement_Notes.pdf',
-      type: 'application/pdf',
-      size: 1254367,
-      url: '#',
-      uploadDate: '2023-10-05',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Kreisler Schön Rosmarin (ID: 18)
-  '18': [
-    {
-      id: 'file47',
-      name: 'Kreisler_SchonRosmarin_Score.pdf',
-      type: 'application/pdf',
-      size: 1254367,
-      url: '#',
-      uploadDate: '2023-09-10',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file48',
-      name: 'Kreisler_SchonRosmarin_PianoReduction.pdf',
-      type: 'application/pdf',
-      size: 987654,
-      url: '#',
-      uploadDate: '2023-09-10',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Ravel Tzigane (ID: 19)
-  '19': [ 
-    {
-      id: 'file25',
-      name: 'Ravel_Tzigane_Score.pdf',
-      type: 'application/pdf',
-      size: 2978456,
-      url: '#',
-      uploadDate: '2023-10-18',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file26',
-      name: 'Ravel_Tzigane_TechnicalGuide.pdf',
-      type: 'application/pdf',
-      size: 1856327,
-      url: '#',
-      uploadDate: '2023-10-25',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Wieniawski Violin Concerto No. 2 in D minor, Op. 22 (ID: 20)
-  '20': [
-    {
-      id: 'file49',
-      name: 'Wieniawski_ViolinConcerto2_Dminor_Op22_Score.pdf',
-      type: 'application/pdf',
-      size: 3567891,
-      url: '#',
-      uploadDate: '2023-08-20',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file50',
-      name: 'Wieniawski_ViolinConcerto2_PianoReduction.pdf',
-      type: 'application/pdf',
-      size: 2789654,
-      url: '#',
-      uploadDate: '2023-08-20',
-      uploadedBy: 'You'
-    }
-  ],
-  
-  // Sibelius Violin Concerto in D minor, Op. 47 (ID: 51)
-  '51': [ 
-    {
-      id: 'file22',
-      name: 'Sibelius_ViolinConcerto_Dminor_Op47_Score.pdf',
-      type: 'application/pdf',
-      size: 4562137,
-      url: '#',
-      uploadDate: '2023-01-03',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file23',
-      name: 'Sibelius_ViolinConcerto_PianoReduction.pdf',
-      type: 'application/pdf',
-      size: 3789456,
-      url: '#',
-      uploadDate: '2023-01-03',
-      uploadedBy: 'You'
-    },
-    {
-      id: 'file24',
-      name: 'Sibelius_ViolinConcerto_InterpretationGuide.pdf',
-      type: 'application/pdf',
-      size: 2145678,
-      url: '#',
-      uploadDate: '2023-01-25',
-      uploadedBy: 'You'
-    }
-  ]
-};
-
-// Mock link resources for various pieces
-const mockLinkResources: Record<string, LinkResource[]> = {
-  // Bach Partita No. 2 in D minor, BWV 1004 (ID: p-1)
-  [createPrefixedId(ID_PREFIXES.PIECE, '1')]: [
-    {
-      id: createPrefixedId(ID_PREFIXES.LINK, '1-1'),
-      title: 'Hilary Hahn performs Bach Partita No. 2 - Chaconne',
-      url: 'https://www.youtube.com/watch?v=QqA3qQMKueA',
-      type: 'youtube',
-      description: 'Acclaimed performance of the Chaconne by Hilary Hahn',
-      thumbnailUrl: '/mockImages/hilary-hahn-chaconne.jpg',
-      addedDate: '2023-10-05'
-    },
-    {
-      id: createPrefixedId(ID_PREFIXES.LINK, '1-2'),
-      title: 'Historical Context of Bach\'s Partita No. 2',
-      url: 'https://www.violinist.com/blog/laurie/20159/17019/',
-      type: 'article',
-      description: 'An in-depth analysis of the historical and musical significance of the Partita',
-      addedDate: '2023-09-20'
-    },
-    {
-      id: 'link1-3',
-      title: 'Itzhak Perlman plays Bach Partita No.2',
-      url: 'https://www.youtube.com/watch?v=6KaYzgofHjc',
-      type: 'youtube',
-      description: 'Masterful interpretation by Itzhak Perlman',
-      thumbnailUrl: '/mockImages/perlman-bach.jpg',
-      addedDate: '2023-11-15'
-    }
-  ],
-  
-  // Bach Sonata No. 1 in G minor, BWV 1001 (ID: p-2)
-  [createPrefixedId(ID_PREFIXES.PIECE, '2')]: [
-    {
-      id: createPrefixedId(ID_PREFIXES.LINK, '2-1'),
-      title: 'James Ehnes performs Bach Sonata No. 1 in G minor',
-      url: 'https://www.youtube.com/watch?v=PZoaEmxrsZQ',
-      type: 'youtube',
-      description: 'Complete performance by James Ehnes',
-      thumbnailUrl: '/mockImages/ehnes-bach.jpg',
-      addedDate: '2023-08-10'
-    },
-    {
-      id: createPrefixedId(ID_PREFIXES.LINK, '2-2'),
-      title: 'Analysis: Bach\'s Solo Violin Sonatas and Partitas',
-      url: 'https://www.thestrad.com/playing/analysis-bachs-solo-violin-sonatas-and-partitas/7725.article',
-      type: 'article',
-      description: 'Structural analysis and practice guidance for Bach\'s solo works',
-      addedDate: '2023-07-28'
-    }
-  ],
-  
-  // Paganini Caprice No. 24 (ID: 5)
-  '5': [
-    {
-      id: 'link5-1',
-      title: 'Augustin Hadelich plays Paganini Caprice No. 24',
-      url: 'https://www.youtube.com/watch?v=adBKmDAdqto',
-      type: 'youtube',
-      description: 'Virtuosic performance with incredible technique',
-      thumbnailUrl: '/mockImages/hadelich-paganini.jpg',
-      addedDate: '2023-09-18'
-    },
-    {
-      id: 'link5-2',
-      title: 'The Technical Challenges of Paganini\'s Caprices',
-      url: 'https://stringsmagazine.com/the-technical-challenges-of-paganinis-caprices/',
-      type: 'article',
-      description: 'Breakdown of technical demands and practice strategies',
-      addedDate: '2023-10-14'
-    },
-    {
-      id: 'link5-3',
-      title: 'Rachel Barton Pine on Paganini Caprice No. 24',
-      url: 'https://www.youtube.com/watch?v=UWfYLmI6NMc',
-      type: 'youtube',
-      description: 'Performance and tutorial on approaching this challenging piece',
-      thumbnailUrl: '/mockImages/rachel-barton-pine.jpg',
-      addedDate: '2023-11-02'
-    }
-  ],
-  
-  // Tchaikovsky Violin Concerto (ID: 9)
-  '9': [
-    {
-      id: 'link9-1',
-      title: 'Janine Jansen performs Tchaikovsky Violin Concerto',
-      url: 'https://www.youtube.com/watch?v=cbJZeNWrWKU',
-      type: 'youtube',
-      description: 'Emotional interpretation with the London Symphony Orchestra',
-      thumbnailUrl: '/mockImages/jansen-tchaikovsky.jpg',
-      addedDate: '2023-08-15'
-    },
-    {
-      id: 'link9-2',
-      title: 'The Story Behind Tchaikovsky\'s Violin Concerto',
-      url: 'https://www.classicfm.com/composers/tchaikovsky/music/violin-concerto/',
-      type: 'article',
-      description: 'Historical context and analysis of this beloved concerto',
-      addedDate: '2023-09-05'
-    }
-  ]
-};
+// The original mock data is being replaced by our unified attachment system
+// We're keeping these empty objects for compatibility with old code
+const mockFileAttachments: Record<string, FileAttachment[]> = {};
+const mockLinkResources: Record<string, LinkResource[]> = {};
 
 interface AddPieceDialogProps {
   isOpen: boolean;
@@ -1306,47 +728,180 @@ interface PieceDetailDialogProps {
   onClose: () => void;
   piece: RepertoireItemData | null;
   students: Student[];
+  repertoire?: RepertoireItemData[];
 }
 
 const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({ 
   isOpen, 
   onClose, 
   piece, 
-  students 
+  students, 
+  repertoire 
 }) => {
-  if (!piece) return null;
+  // Early return if not open or no piece
+  if (!isOpen || !piece) return null;
   
-  // Get files directly from mockFileAttachments instead of using state
-  // This ensures we always get the correct files for the current piece
-  const files = mockFileAttachments[piece.id] || [];
-  
-  // State for UI interactions
-  const [isDragging, setIsDragging] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  // State for previewing files
   const [previewFile, setPreviewFile] = useState<FileAttachment | null>(null);
-  const [uploadedFiles, setUploadedFiles] = useState<FileAttachment[]>([]);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  // State for file to be deleted
+  const [fileToDelete, setFileToDelete] = useState<{ id: string; name: string } | null>(null);
+  // State for file upload
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [showUploadArea, setShowUploadArea] = useState(false);
   
-  // Reset uploaded files and preview when piece changes
+  // Does this piece have a masterPieceId (is it a student piece)?
+  // Enhanced detection of masterPieceId with debug logging
+  const hasMasterPieceId = 'masterPieceId' in piece && typeof (piece as any).masterPieceId === 'string';
+  const masterPieceId = hasMasterPieceId ? (piece as any).masterPieceId : null;
+  
+  console.log('Piece Detail Dialog - Opening piece:', {
+    id: piece.id,
+    title: piece.title,
+    composer: piece.composer,
+    hasStudentId: 'studentId' in piece,
+    hasMasterPieceId: hasMasterPieceId,
+    masterPieceId: masterPieceId,
+    studentId: 'studentId' in piece ? (piece as any).studentId : 'none'
+  });
+  
+  // Helper function to normalize titles for comparison
+  const normalizeTitle = useMemo(() => {
+    const normalize = (title: string) => {
+      return title.toLowerCase().replace(/\s+/g, ' ').trim();
+    };
+    return normalize;
+  }, []);
+  
+  // Get files for this piece using the new attachment system
+  const filesForPiece = useMemo(() => {
+    // For student pieces, try the masterPieceId first
+    if (hasMasterPieceId && masterPieceId) {
+      console.log(`Attempting to get files using masterPieceId: ${masterPieceId}`);
+      const files = getLegacyFileAttachments(masterPieceId);
+      console.log(`Found ${files.length} files using masterPieceId`);
+      
+      // If we found files, return them
+      if (files.length > 0) {
+        return files;
+      }
+      
+      // If no files found with masterPieceId, try using just the numeric part
+      if (masterPieceId.includes('-')) {
+        const numericId = masterPieceId.split('-')[1];
+        console.log(`Trying numeric-only master ID: ${numericId}`);
+        const filesWithNumericId = getLegacyFileAttachments(numericId);
+        console.log(`Found ${filesWithNumericId.length} files using numeric masterPieceId`);
+        
+        if (filesWithNumericId.length > 0) {
+          return filesWithNumericId;
+        }
+      }
+    }
+    
+    // Try with the piece's own ID as fallback
+    console.log(`Fallback: getting files using piece ID: ${piece.id}`);
+    return getLegacyFileAttachments(piece.id);
+  }, [piece, hasMasterPieceId, masterPieceId]);
+  
+  // Get links for this piece using the new attachment system
+  const linksForPiece = useMemo(() => {
+    // For student pieces, try the masterPieceId first
+    if (hasMasterPieceId && masterPieceId) {
+      console.log(`Attempting to get links using masterPieceId: ${masterPieceId}`);
+      const links = getLegacyLinkResources(masterPieceId);
+      console.log(`Found ${links.length} links using masterPieceId`);
+      
+      // If we found links, return them
+      if (links.length > 0) {
+        return links;
+      }
+      
+      // If no links found with masterPieceId, try using just the numeric part
+      if (masterPieceId.includes('-')) {
+        const numericId = masterPieceId.split('-')[1];
+        console.log(`Trying numeric-only master ID: ${numericId}`);
+        const linksWithNumericId = getLegacyLinkResources(numericId);
+        console.log(`Found ${linksWithNumericId.length} links using numeric masterPieceId`);
+        
+        if (linksWithNumericId.length > 0) {
+          return linksWithNumericId;
+        }
+      }
+    }
+    
+    // Try with the piece's own ID as fallback
+    console.log(`Fallback: getting links using piece ID: ${piece.id}`);
+    return getLegacyLinkResources(piece.id);
+  }, [piece, hasMasterPieceId, masterPieceId]);
+  
+  // Additional debug information to help troubleshoot empty files/links
   useEffect(() => {
-    setUploadedFiles([]);
-    setPreviewFile(null);
-    setUploadProgress({});
-  }, [piece.id]);
+    if (filesForPiece.length === 0 && linksForPiece.length === 0) {
+      console.warn(`Warning: No files or links found for ${piece.title} (ID: ${piece.id})`);
+      
+      if (hasMasterPieceId) {
+        console.warn(`This is a student piece with masterPieceId: ${masterPieceId}`);
+        
+        // Try to look up the master piece to confirm it exists
+        const masterPiece = repertoire?.find(p => p.id === masterPieceId);
+        console.warn(`Master piece found in repertoire: ${!!masterPiece}`);
+        
+        // Try multiple ID formats for debugging
+        ['4', 'p-4', '4'].forEach(testId => {
+          const testFiles = getLegacyFileAttachments(testId);
+          console.log(`Test ID "${testId}" has ${testFiles.length} files`);
+        });
+      }
+    }
+  }, [piece, filesForPiece, linksForPiece, hasMasterPieceId, masterPieceId, repertoire]);
   
-  // Helper function to normalize piece titles for better matching
-  const normalizePieceTitle = (title: string): string => {
-    return title.toLowerCase().trim()
-      .replace(/\s+/g, ' ') // normalize spaces
-      .replace(/sonata\s+in\s+/i, 'sonata ') // normalize "Sonata in X" to "Sonata X"
-      .replace(/concerto\s+in\s+/i, 'concerto '); // normalize "Concerto in X" to "Concerto X"
-  };
-  
-  // Helper function to check if two pieces are likely the same
-  const isPieceSimilar = (pieceA: string, pieceB: string, composerA?: string, composerB?: string): boolean => {
+  // Helper for piece similarity checking - wrapped in useCallback
+  const isPieceSimilar = useCallback((
+    pieceA: RepertoirePiece | string, 
+    pieceB: RepertoireItemData | string, 
+    composerA?: string, 
+    composerB?: string, 
+    masterRepertoire: RepertoireItemData[] = []
+  ): boolean => {
+    // Get title strings
+    let titleA: string, titleB: string, compA: string | undefined, compB: string | undefined;
+    
+    // Handle case where pieceA is a RepertoirePiece object
+    if (typeof pieceA !== 'string') {
+      // Try to get from masterPieceId first
+      if (pieceA.masterPieceId) {
+        const masterPiece = getMasterPieceById(pieceA.masterPieceId, masterRepertoire);
+        if (masterPiece) {
+          titleA = masterPiece.title;
+          compA = masterPiece.composer;
+        } else {
+          titleA = pieceA.title || '';
+          compA = pieceA.composer;
+        }
+      } else {
+        titleA = pieceA.title || '';
+        compA = pieceA.composer;
+      }
+    } else {
+      titleA = pieceA;
+      compA = composerA;
+    }
+    
+    // Handle case where pieceB is a RepertoireItemData object
+    if (typeof pieceB !== 'string') {
+      titleB = pieceB.title;
+      compB = pieceB.composer;
+    } else {
+      titleB = pieceB;
+      compB = composerB;
+    }
+    
+    // Use the normalizePieceTitle function directly
+    const normalizedPieceTitle = normalizeTitle;
+    
     // Normalize both titles
-    const normalizedA = normalizePieceTitle(pieceA);
-    const normalizedB = normalizePieceTitle(pieceB);
+    const normalizedA = normalizedPieceTitle(titleA);
+    const normalizedB = normalizedPieceTitle(titleB);
     
     // Exact match after normalization
     if (normalizedA === normalizedB) return true;
@@ -1358,18 +913,18 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
     
     if (catalogA && catalogB && catalogA[0].toLowerCase() === catalogB[0].toLowerCase()) {
       // If catalog numbers match and composers match (when both are present), it's likely the same piece
-      if (composerA && composerB) {
-        return composerA.toLowerCase().includes(composerB.toLowerCase()) || 
-               composerB.toLowerCase().includes(composerA.toLowerCase());
+      if (compA && compB) {
+        return compA.toLowerCase().includes(compB.toLowerCase()) || 
+              compB.toLowerCase().includes(compA.toLowerCase());
       }
       // If catalog numbers match but we don't have complete composer info, assume it's the same piece
       return true;
     }
     
     // If no catalog numbers but we have composers and one title is contained in the other
-    if (composerA && composerB && 
-        (composerA.toLowerCase().includes(composerB.toLowerCase()) || 
-         composerB.toLowerCase().includes(composerA.toLowerCase()))) {
+    if (compA && compB && 
+        (compA.toLowerCase().includes(compB.toLowerCase()) || 
+        compB.toLowerCase().includes(compA.toLowerCase()))) {
       return normalizedA.includes(normalizedB) || normalizedB.includes(normalizedA);
     }
     
@@ -1395,85 +950,91 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
     if (titleSimilarity > 0.8) return true;
     
     return false;
-  };
+  }, [normalizeTitle, getMasterPieceById]);
   
-  // Find all instances of this piece across all students, using more flexible matching
-  const pieceInstances: Array<{
-    studentId: string;
-    studentName: string;
-    status: 'current' | 'completed' | 'planned';
-    startDate: string;
-    endDate?: string;
-    notes?: string;
-    pieceTitle: string; // Store the actual title used by this student
-  }> = [];
-  
-  students.forEach(student => {
-    // Check current repertoire
-    student.currentRepertoire.forEach(p => {
-      if (isPieceSimilar(p.title, piece.title, p.composer, piece.composer)) {
-        pieceInstances.push({
-          studentId: student.id,
-          studentName: student.name,
-          status: p.status,
-          startDate: p.startDate,
-          endDate: undefined, // Current pieces don't have end dates
-          notes: p.notes,
-          pieceTitle: p.title // Store the actual title used
-        });
-      }
+  // Memoize the pieceInstances calculation
+  const pieceInstances = useMemo(() => {
+    if (!piece) return [];
+    
+    const instances: Array<{
+      studentId: string;
+      studentName: string;
+      status: 'current' | 'completed' | 'planned';
+      startDate: string;
+      endDate?: string;
+      notes?: string;
+      pieceTitle: string;
+    }> = [];
+    
+    students.forEach(student => {
+      // Check current repertoire
+      student.currentRepertoire.forEach(p => {
+        if (isPieceSimilar(p, piece, undefined, undefined, repertoire)) {
+          instances.push({
+            studentId: student.id,
+            studentName: student.name,
+            status: p.status,
+            startDate: p.startDate,
+            endDate: undefined, // Current pieces don't have end dates
+            notes: p.notes,
+            pieceTitle: p.title || (p.masterPieceId ? getMasterPieceById(p.masterPieceId, repertoire)?.title || '' : '')
+          });
+        }
+      });
+      
+      // Check past repertoire
+      student.pastRepertoire?.forEach(p => {
+        if (isPieceSimilar(p, piece, undefined, undefined, repertoire)) {
+          instances.push({
+            studentId: student.id,
+            studentName: student.name,
+            status: p.status,
+            startDate: p.startDate,
+            endDate: p.endDate, // Add end date for completed pieces
+            notes: p.notes,
+            pieceTitle: p.title || (p.masterPieceId ? getMasterPieceById(p.masterPieceId, repertoire)?.title || '' : '')
+          });
+        }
+      });
     });
     
-    // Check past repertoire
-    student.pastRepertoire?.forEach(p => {
-      if (isPieceSimilar(p.title, piece.title, p.composer, piece.composer)) {
-        pieceInstances.push({
-          studentId: student.id,
-          studentName: student.name,
-          status: p.status,
-          startDate: p.startDate,
-          endDate: p.endDate, // Add end date for completed pieces
-          notes: p.notes,
-          pieceTitle: p.title // Store the actual title used
-        });
+    // Remove duplicates (in case the same student has the same piece listed multiple times)
+    const uniqueInstances = instances.reduce((acc, current) => {
+      const isDuplicate = acc.some(item => 
+        item.studentId === current.studentId && 
+        item.status === current.status && 
+        item.startDate === current.startDate
+      );
+      
+      if (!isDuplicate) {
+        acc.push(current);
       }
+      return acc;
+    }, [] as typeof instances);
+    
+    // Sort instances by status (current first) then by start date (newest first)
+    uniqueInstances.sort((a, b) => {
+      // First sort by status (current before completed)
+      if (a.status !== b.status) {
+        return a.status === 'current' ? -1 : 1;
+      }
+      
+      // Then sort by start date (newest first)
+      const dateA = new Date(a.startDate).getTime();
+      const dateB = new Date(b.startDate).getTime();
+      return dateB - dateA;
     });
-  });
+    
+    return uniqueInstances;
+  }, [piece, students, repertoire, isPieceSimilar, getMasterPieceById]);
   
-  // Remove duplicates (in case the same student has the same piece listed multiple times)
-  const uniqueInstances = pieceInstances.reduce((acc, current) => {
-    const isDuplicate = acc.some(item => 
-      item.studentId === current.studentId && 
-      item.status === current.status && 
-      item.startDate === current.startDate
-    );
-    
-    if (!isDuplicate) {
-      acc.push(current);
-    }
-    return acc;
-  }, [] as typeof pieceInstances);
-
-  // Sort instances by status (current first) then by start date (newest first)
-  uniqueInstances.sort((a, b) => {
-    // First sort by status (current before completed)
-    if (a.status !== b.status) {
-      return a.status === 'current' ? -1 : 1;
-    }
-    
-    // Then sort by start date (newest first)
-    const dateA = new Date(a.startDate).getTime();
-    const dateB = new Date(b.startDate).getTime();
-    return dateB - dateA;
-  });
-
   // Calculate statistics
-  const totalStudents = uniqueInstances.length;
-  const currentStudents = uniqueInstances.filter(i => i.status === 'current').length;
-  const completedStudents = uniqueInstances.filter(i => i.status === 'completed').length;
+  const totalStudents = pieceInstances.length;
+  const currentStudents = pieceInstances.filter(i => i.status === 'current').length;
+  const completedStudents = pieceInstances.filter(i => i.status === 'completed').length;
   
   // Calculate average completion time (only for completed pieces with both dates)
-  const completedWithDates = uniqueInstances.filter(i => i.status === 'completed' && i.startDate && i.endDate);
+  const completedWithDates = pieceInstances.filter(i => i.status === 'completed' && i.startDate && i.endDate);
   let averageCompletionDays = 0;
   
   if (completedWithDates.length > 0) {
@@ -1487,106 +1048,61 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
     
     averageCompletionDays = Math.round(totalDays / completedWithDates.length);
   }
-
-  // File handling functions
-  const handleFileUpload = (uploadedFileList: FileList | null) => {
-    if (!uploadedFileList || !uploadedFileList.length) return;
-    
-    // Process each file
-    Array.from(uploadedFileList).forEach(file => {
-      // Create temporary progress tracker
-      const tempId = `temp-${Date.now()}-${file.name}`;
-      setUploadProgress(prev => ({ ...prev, [tempId]: 0 }));
-      
-      // Simulate file upload with progress
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += Math.random() * 20;
-        if (progress >= 100) {
-          progress = 100;
-          clearInterval(interval);
-          
-          // Add the file to the list after "upload" completes
-          setTimeout(() => {
-            // Create a filename based on the piece
-            const baseName = file.name.split('.').slice(0, -1).join('.');
-            const extension = file.name.split('.').pop();
-            
-            // Format composer name
-            const composerFormatted = piece.composer.replace(/\s+/g, '').replace(/\./g, '');
-            
-            // Format piece title
-            const titleFormatted = piece.title
-              .replace(/\s+/g, '_')
-              .replace(/[^\w]/g, '')
-              .replace(/_+/g, '_');
-            
-            // Create a more meaningful filename
-            const newFilename = `${composerFormatted}_${titleFormatted}_${baseName}.${extension}`;
-            
-            const newFile: FileAttachment = {
-              id: createPrefixedId(ID_PREFIXES.FILE, `${Date.now()}`),
-              name: newFilename,
-              type: file.type,
-              size: file.size,
-              url: '#', // In a real app, this would be the uploaded file URL
-              uploadDate: new Date().toISOString().split('T')[0],
-              uploadedBy: 'You'
-            };
-            
-            // Add to uploaded files
-            setUploadedFiles(prev => [...prev, newFile]);
-            
-            // Update mockFileAttachments with the new file
-            const existingFiles = mockFileAttachments[piece.id] || [];
-            mockFileAttachments[piece.id] = [...existingFiles, newFile];
-            
-            // Remove from progress tracking
-            setUploadProgress(prev => {
-              const updated = { ...prev };
-              delete updated[tempId];
-              return updated;
-            });
-          }, 500);
-        }
-        
-        setUploadProgress(prev => ({ ...prev, [tempId]: Math.min(progress, 100) }));
-      }, 300);
-    });
-  };
   
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-  
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-  
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    handleFileUpload(e.dataTransfer.files);
-  };
-  
-  const handleDeleteFile = (fileId: string) => {
-    setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
-    
-    // If we're currently previewing this file, close the preview
-    if (previewFile?.id === fileId) {
-      setPreviewFile(null);
-    }
-  };
-  
+  // Format file size for display
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // Get all files to display - combine stored files and newly uploaded files
-  const allFiles: FileAttachment[] = [...files, ...uploadedFiles];
+  // Handler for uploading files
+  const handleFileUpload = useCallback((file: File) => {
+    setUploadingFile(true);
+    
+    // Simulate file upload delay
+    setTimeout(() => {
+      try {
+        // Determine which ID to use for the attachment
+        const targetId = masterPieceId || piece.id;
+        
+        // Create a URL for the file (in a real app, this would be an uploaded file URL)
+        const fileUrl = URL.createObjectURL(file);
+        
+        // Add the file attachment
+        addFileAttachment(
+          AttachmentEntityType.PIECE, 
+          targetId, 
+          { 
+            name: file.name, 
+            type: file.type, 
+            size: file.size, 
+            url: fileUrl 
+          }
+        );
+        
+        // Hide the upload area
+        setShowUploadArea(false);
+      } catch (error) {
+        console.error('Error uploading file:', error);
+      } finally {
+        setUploadingFile(false);
+      }
+    }, 1000); // Simulate 1 second upload delay
+  }, [piece, masterPieceId]);
+  
+  // Handler for deleting files
+  const handleDeleteFile = useCallback((fileId: string, fileName: string) => {
+    setFileToDelete({ id: fileId, name: fileName });
+  }, []);
+  
+  // Handler for confirming file deletion
+  const handleConfirmDelete = useCallback(() => {
+    if (fileToDelete) {
+      deleteFileAttachment(fileToDelete.id);
+      setFileToDelete(null);
+    }
+  }, [fileToDelete]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -1598,6 +1114,7 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
         
+        <div className="mt-4 space-y-6">
         {/* Files Section */}
         <div className="mt-4">
           <div className="flex items-center justify-between gap-2 mb-4">
@@ -1605,80 +1122,33 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
               <FileText className="h-5 w-5 text-primary" />
               <h3 className="font-medium text-lg">Files</h3>
             </div>
-            
             <Button 
-              variant="outline" 
+              variant="ghost" 
               size="sm" 
-              onClick={() => fileInputRef.current?.click()}
+              className="h-8 gap-1"
+              onClick={() => setShowUploadArea(prev => !prev)}
             >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload
+              <Upload className="h-3.5 w-3.5" />
+              {showUploadArea ? 'Cancel' : 'Upload'}
             </Button>
-            <input 
-              ref={fileInputRef}
-              type="file" 
-              className="hidden" 
-              onChange={(e) => handleFileUpload(e.target.files)}
-              multiple
-            />
           </div>
           
-          {/* File upload area with drag & drop */}
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg transition-all duration-200 mb-4",
-              isDragging
-                ? "border-primary bg-primary/5"
-                : allFiles.length === 0 && Object.keys(uploadProgress).length === 0
-                ? "border-muted-foreground/20 hover:border-primary/50"
-                : "border-transparent",
-              allFiles.length === 0 && Object.keys(uploadProgress).length === 0 ? "p-8" : "p-0"
-            )}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            {allFiles.length === 0 && Object.keys(uploadProgress).length === 0 ? (
-              <div className="text-center">
-                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-muted-foreground">
-                  Drag & drop files here or <span className="text-primary font-medium">browse</span>
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Supports PDF, images, and audio files
-                </p>
-              </div>
-            ) : null}
-          </div>
+          {/* File upload area */}
+          {showUploadArea && (
+            <div className="mb-4">
+              <FileUpload
+                onFileSelect={handleFileUpload}
+                accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/jpeg,image/png,image/gif,audio/mpeg,audio/wav"
+                maxSize={20 * 1024 * 1024} // 20MB
+                uploading={uploadingFile}
+              />
+            </div>
+          )}
           
           {/* Files list */}
-          {(allFiles.length > 0 || Object.keys(uploadProgress).length > 0) && (
+          {filesForPiece.length > 0 ? (
             <div className="space-y-2">
-              {/* Currently uploading files */}
-              {Object.entries(uploadProgress).map(([id, progress]) => (
-                <div key={id} className="flex items-center p-3 border rounded-md">
-                  <div className="mr-3 shrink-0">
-                    <FileText className="h-9 w-9 text-muted-foreground/60" />
-                  </div>
-                  <div className="flex-1 min-w-0 mr-2">
-                    <div className="flex justify-between mb-1">
-                      <p className="text-sm font-medium truncate">
-                        {id.split('-').slice(2).join('-')}
-                      </p>
-                      <span className="text-xs text-muted-foreground">{progress.toFixed(0)}%</span>
-                    </div>
-                    <div className="w-full bg-muted-foreground/20 rounded-full h-1.5">
-                      <div 
-                        className="bg-primary h-1.5 rounded-full transition-all duration-300" 
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-              
-              {/* Completed uploads */}
-              {allFiles.map(file => (
+              {filesForPiece.map(file => (
                 <div key={file.id} className="flex items-center p-3 border rounded-md hover:bg-accent/5 transition-colors duration-200">
                   <div className="mr-3 shrink-0">
                     <FileText className="h-9 w-9 text-primary/70" />
@@ -1704,7 +1174,7 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
                                 className="h-7 w-7" 
                                 onClick={() => setPreviewFile(file)}
                               >
-                                <ExternalLink className="h-3.5 w-3.5" />
+                                <Eye className="h-3.5 w-3.5" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -1737,8 +1207,8 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                className="h-7 w-7 text-destructive hover:text-destructive/80"
-                                onClick={() => handleDeleteFile(file.id)}
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteFile(file.id, file.name)}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -1754,64 +1224,104 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
                 </div>
               ))}
             </div>
-          )}
-          
-          {/* File Preview Dialog */}
-          {previewFile && (
-            <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
-              <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
-                <div className="flex justify-between items-center p-4 bg-background sticky top-0 z-10 border-b">
-                  <DialogTitle className="text-base font-medium">{previewFile.name}</DialogTitle>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8"
-                    onClick={() => setPreviewFile(null)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="p-4 overflow-auto max-h-[calc(90vh-64px)]">
-                  {previewFile.type.includes('pdf') ? (
-                    <div className="w-full h-[70vh] bg-muted rounded-md flex items-center justify-center">
-                      <iframe 
-                        title={previewFile.name} 
-                        src="/placeholder-pdf-viewer.html" 
-                        className="w-full h-full rounded-md"
-                      />
-                    </div>
-                  ) : previewFile.type.includes('image') ? (
-                    <div className="flex justify-center">
-                      <img 
-                        src="/placeholder-image.jpg" 
-                        alt={previewFile.name} 
-                        className="max-w-full max-h-[70vh] object-contain rounded-md" 
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-full h-[30vh] bg-muted flex items-center justify-center rounded-md">
-                      <div className="text-center">
-                        <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-2" />
-                        <p>This file type cannot be previewed</p>
-                        <Button 
-                          variant="outline"
-                          className="mt-4"
-                          onClick={() => window.open(previewFile.url, '_blank')}
-                        >
-                          <Download className="h-4 w-4 mr-2" /> Download File
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </DialogContent>
-            </Dialog>
+          ) : (
+            <div className="text-center p-4 bg-muted/20 rounded-md">
+              <p>No files available for this piece.</p>
+            </div>
           )}
         </div>
         
         <Separator className="my-4" />
         
-        {/* Student History section - shown for all pieces, whether in master repertoire or student view */}
+        {/* Links section */}
+        <div className="mt-6">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <ExternalLink className="h-5 w-5 text-primary" />
+              <h3 className="font-medium text-lg">Links</h3>
+            </div>
+          </div>
+          
+          {linksForPiece.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {linksForPiece.map((link) => (
+                <a 
+                  key={link.id} 
+                  href={link.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex flex-col h-full border rounded-lg overflow-hidden hover:border-primary transition-all duration-200 hover:shadow-sm"
+                >
+                  {link.type === 'youtube' && (
+                    <div className="relative aspect-video overflow-hidden group rounded-t-lg">
+                      {/* Standardized elegant graphic instead of external images */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
+                        <div className="absolute inset-0 opacity-20">
+                          <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="white" strokeWidth="0.5" />
+                            <path d="M8 8L16 16M16 8L8 16" stroke="white" strokeWidth="0.5" opacity="0.5" />
+                          </svg>
+              </div>
+                        
+                        {/* Video title as subtle text overlay */}
+                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
+                          <p className="text-[10px] text-white opacity-90 font-medium truncate">{link.title}</p>
+                  </div>
+                        
+                        {/* Play button */}
+                        <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-200">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-red-600 ml-0.5">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                  </div>
+                    </div>
+                  </div>
+                )}
+                  
+                  {link.type === 'article' && (
+                    <div className="relative aspect-[3/1] overflow-hidden rounded-t-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center border-b">
+                      <div className="text-blue-500 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                        </svg>
+              </div>
+                    </div>
+                  )}
+                  
+                  <div className="p-2 flex-1 flex flex-col">
+                    <h4 className="font-medium line-clamp-1 text-xs">{link.title}</h4>
+                    
+                    {link.description && (
+                      <p className="text-muted-foreground text-[10px] line-clamp-1 mb-1">
+                        {link.description}
+                      </p>
+                    )}
+                    
+                    <div className="flex items-center mt-auto pt-1 text-[10px]">
+                      <Badge variant="outline" className={cn(
+                        "mr-1.5 px-1 py-0 text-[9px]",
+                        link.type === 'youtube' ? "bg-red-50 text-red-500 border-red-200" : 
+                        link.type === 'article' ? "bg-blue-50 text-blue-500 border-blue-200" : 
+                        "bg-gray-50 text-gray-500 border-gray-200"
+                      )}>
+                        {link.type === 'youtube' ? 'Video' : 
+                         link.type === 'article' ? 'Article' : 'Resource'}
+                      </Badge>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center p-3 bg-muted/20 rounded-md">
+              <p className="text-sm">No links available for this piece.</p>
+            </div>
+        )}
+        </div>
+        
+        <Separator className="my-4" />
+        
+          {/* Student History section */}
         <div className="mt-4">
           <div className="flex items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2">
@@ -1850,8 +1360,7 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
             )}
           </div>
           
-          {/* ... existing student history table ... */}
-          {uniqueInstances.length > 0 ? (
+            {pieceInstances.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1864,7 +1373,7 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {uniqueInstances.map((instance, index) => {
+                  {pieceInstances.map((instance, index) => {
                   // Calculate duration if we have both start and end dates
                   let duration = '';
                   if (instance.startDate && instance.endDate) {
@@ -1876,7 +1385,7 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
                   }
                   
                   // Check if this student's piece title differs from the master title
-                  const titleDiffers = normalizePieceTitle(instance.pieceTitle) !== normalizePieceTitle(piece.title);
+                    const titleDiffers = normalizeTitle(instance.pieceTitle) !== normalizeTitle(piece.title);
                   
                   return (
                     <TableRow key={`${instance.studentId}-${index}`}>
@@ -1930,96 +1439,59 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
           )}
         </div>
         
-        {/* Links section - New addition */}
-        <div className="mt-6">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2">
-              <ExternalLink className="h-5 w-5 text-primary" />
-              <h3 className="font-medium text-lg">Links</h3>
-            </div>
-          </div>
-          
-          {mockLinkResources[piece.id] && mockLinkResources[piece.id].length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {mockLinkResources[piece.id].map((link) => (
-                <a 
-                  key={link.id} 
-                  href={link.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex flex-col h-full border rounded-lg overflow-hidden hover:border-primary transition-all duration-200 hover:shadow-sm"
-                >
-                  {link.type === 'youtube' && (
-                    <div className="relative aspect-video overflow-hidden group rounded-t-lg">
-                      {/* Standardized elegant graphic instead of external images */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
-                        <div className="absolute inset-0 opacity-20">
-                          <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
-                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="white" strokeWidth="0.5" />
-                            <path d="M8 8L16 16M16 8L8 16" stroke="white" strokeWidth="0.5" opacity="0.5" />
-                          </svg>
-                        </div>
-                        
-                        {/* Video title as subtle text overlay */}
-                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
-                          <p className="text-[10px] text-white opacity-90 font-medium truncate">{link.title}</p>
-                        </div>
-                        
-                        {/* Play button */}
-                        <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-200">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-red-600 ml-0.5">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        </div>
-                      </div>
+          {/* Preview file modal */}
+          {previewFile && (
+            <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+              <DialogContent className="sm:max-w-[800px] max-h-[80vh]">
+                <DialogHeader>
+                  <DialogTitle>{previewFile.name}</DialogTitle>
+                  <DialogDescription>
+                    {formatFileSize(previewFile.size)} - Uploaded {previewFile.uploadDate}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="mt-2 flex-1 overflow-auto">
+                  {previewFile.type.includes('image') ? (
+                    <img 
+                      src={previewFile.url} 
+                      alt={previewFile.name} 
+                      className="max-w-full object-contain"
+                    />
+                  ) : previewFile.type.includes('pdf') ? (
+                    <iframe 
+                      src={previewFile.url} 
+                      className="w-full h-[60vh]" 
+                      title={previewFile.name}
+                    ></iframe>
+                  ) : (
+                    <div className="p-8 text-center">
+                      <p>Preview not available for this file type.</p>
+                      <Button 
+                        variant="outline" 
+                        className="mt-4"
+                        onClick={() => window.open(previewFile.url, '_blank')}
+                      >
+                        Open in new tab
+                      </Button>
                     </div>
                   )}
-                  
-                  {link.type === 'article' && (
-                    <div className="relative aspect-[3/1] overflow-hidden rounded-t-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center border-b">
-                      <div className="text-blue-500 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-                        </svg>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="p-2 flex-1 flex flex-col">
-                    <h4 className="font-medium line-clamp-1 text-xs">{link.title}</h4>
-                    
-                    {link.description && (
-                      <p className="text-muted-foreground text-[10px] line-clamp-1 mb-1">
-                        {link.description}
-                      </p>
-                    )}
-                    
-                    <div className="flex items-center mt-auto pt-1 text-[10px]">
-                      <Badge variant="outline" className={cn(
-                        "mr-1.5 px-1 py-0 text-[9px]",
-                        link.type === 'youtube' ? "bg-red-50 text-red-500 border-red-200" : 
-                        link.type === 'article' ? "bg-blue-50 text-blue-500 border-blue-200" : 
-                        "bg-gray-50 text-gray-500 border-gray-200"
-                      )}>
-                        {link.type === 'youtube' ? 'Video' : 
-                         link.type === 'article' ? 'Article' : 'Resource'}
-                      </Badge>
-                    </div>
-                  </div>
-                </a>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center p-3 bg-muted/20 rounded-md">
-              <p className="text-sm">No links available for this piece.</p>
-              <Button variant="link" size="sm" className="mt-1 h-7 text-xs">
-                <PlusCircle className="h-3 w-3 mr-1" /> Add a link
-              </Button>
-            </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           )}
-        </div>
-        
-        {/* Notes section if present - keep existing */}
+          
+          {/* Confirm delete dialog */}
+          <ConfirmDialog
+            isOpen={!!fileToDelete}
+            onClose={() => setFileToDelete(null)}
+            onConfirm={handleConfirmDelete}
+            title="Delete File"
+            description={`Are you sure you want to delete "${fileToDelete?.name}"? This action cannot be undone.`}
+            confirmLabel="Delete"
+            cancelLabel="Cancel"
+            variant="destructive"
+          />
+          
+          {/* Notes section if present */}
         {piece.notes && (
           <div className="mt-4">
             <div className="flex items-center gap-2 mb-2">
@@ -2031,10 +1503,7 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
             </div>
           </div>
         )}
-        
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={onClose}>Close</Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -2060,6 +1529,28 @@ const groupByComposer = (repertoire: RepertoireItemData[]) => {
     }, {});
 };
 
+// Helper function to get a master piece by ID
+const _getMasterPieceById = (pieceId: string, repertoireList: RepertoireItemData[]): RepertoireItemData | undefined => {
+  // Get the ID without prefix for compatibility with the master list
+  const idWithoutPrefix = getIdWithoutPrefix(pieceId);
+  
+  // First try with the full ID (might be using the prefixed ID)
+  let masterPiece = repertoireList.find(p => p.id === pieceId);
+  
+  // If not found, try with the ID without prefix
+  if (!masterPiece) {
+    masterPiece = repertoireList.find(p => p.id === idWithoutPrefix);
+  }
+  
+  return masterPiece;
+};
+
+// Helper function to get piece details (title, composer, etc.) from either a student piece or directly from a master piece ID
+const _getPieceDetails = (studentPiece: RepertoirePiece, repertoireList: RepertoireItemData[]): { title: string; composer: string; difficulty?: string } => {
+  // Use the imported function from repertoire-utils
+  return getPieceDetails(studentPiece, repertoireList);
+};
+
 const RepertoirePage = () => {
   const [activeStudent, setActiveStudent] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -2073,7 +1564,7 @@ const RepertoirePage = () => {
   const [viewMode, setViewMode] = useState<'list' | 'composer'>('list');
   
   // Filter repertoire based on active student, search query, and active tab
-  const getFilteredRepertoire = () => {
+  const getFilteredRepertoire = (): RepertoireItemData[] => {
     let filteredItems: RepertoireItemData[] = [];
     
     if (activeStudent) {
@@ -2083,22 +1574,70 @@ const RepertoirePage = () => {
       if (student) {
         // Combine current and past repertoire for the student
         const studentRepertoire: RepertoireItemData[] = [
-          ...(student.currentRepertoire || []).map(piece => ({
+          ...(student.currentRepertoire || []).map(piece => {
+            // If the piece uses the new masterPieceId pattern, look up details from master list
+            if (piece.masterPieceId) {
+              const masterPiece = _getMasterPieceById(piece.masterPieceId, repertoireList);
+              if (masterPiece) {
+                return {
             id: piece.id,
-            title: piece.title,
-            composer: piece.composer || '',
+                  title: masterPiece.title,
+                  composer: masterPiece.composer,
             startedDate: piece.startDate,
+                  endDate: piece.endDate,
             status: piece.status,
-            studentId: student.id
-          })),
-          ...(student.pastRepertoire || []).map(piece => ({
+                  studentId: student.id,
+                  masterPieceId: piece.masterPieceId,  // Include the masterPieceId in the student piece
+                  notes: piece.notes,
+                  difficulty: masterPiece.difficulty // Include difficulty from master piece
+                };
+              }
+            }
+            
+            // Fall back to the old pattern if masterPieceId is not available or master piece is not found
+            return {
             id: piece.id,
-            title: piece.title,
-            composer: piece.composer || '',
+              title: piece.title || 'Unknown Piece',
+              composer: piece.composer || 'Unknown Composer',
             startedDate: piece.startDate,
+              endDate: piece.endDate,
             status: piece.status,
-            studentId: student.id
-          }))
+              studentId: student.id,
+              notes: piece.notes
+            };
+          }),
+          ...(student.pastRepertoire || []).map(piece => {
+            // If the piece uses the new masterPieceId pattern, look up details from master list
+            if (piece.masterPieceId) {
+              const masterPiece = _getMasterPieceById(piece.masterPieceId, repertoireList);
+              if (masterPiece) {
+                return {
+                  id: piece.id,
+                  title: masterPiece.title,
+                  composer: masterPiece.composer,
+                  startedDate: piece.startDate,
+                  endDate: piece.endDate,
+                  status: piece.status,
+                  studentId: student.id,
+                  masterPieceId: piece.masterPieceId,  // Include the masterPieceId in the student piece
+                  notes: piece.notes,
+                  difficulty: masterPiece.difficulty // Include difficulty from master piece
+                };
+              }
+            }
+            
+            // Fall back to the old pattern if masterPieceId is not available or master piece is not found
+            return {
+              id: piece.id,
+              title: piece.title || 'Unknown Piece',
+              composer: piece.composer || 'Unknown Composer',
+              startedDate: piece.startDate,
+              endDate: piece.endDate,
+              status: piece.status,
+              studentId: student.id,
+              notes: piece.notes
+            };
+          })
         ];
         
         filteredItems = studentRepertoire;
@@ -2145,11 +1684,10 @@ const RepertoirePage = () => {
     
     if (!piece) return;
     
-    // Create a new student repertoire piece with proper ID structure
+    // Create a new student repertoire piece that references the master piece
     const newStudentPiece: RepertoirePiece = {
       id: createStudentPieceId(studentId, pieceId),
-      title: piece.title,
-      composer: piece.composer,
+      masterPieceId: pieceId,
       startDate: new Date().toISOString().split('T')[0],
       status: 'current'
     };
@@ -2224,6 +1762,10 @@ const RepertoirePage = () => {
   };
 
   const handleOpenPieceDetail = (piece: RepertoireItemData) => {
+    // Use the original piece temporarily to help with debugging
+    console.log('Opening piece detail with ID:', piece.id);
+    
+    // Pass the piece directly to the dialog - we'll handle the masterPieceId logic inside the dialog
     setSelectedPiece(piece);
     setIsPieceDetailDialogOpen(true);
   };
@@ -2481,6 +2023,7 @@ const RepertoirePage = () => {
         onClose={() => setIsPieceDetailDialogOpen(false)}
         piece={selectedPiece}
         students={studentsList}
+        repertoire={repertoireList}
       />
     </>
   );
