@@ -1364,30 +1364,77 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
 }) => {
   if (!piece) return null;
   
-  // Modified approach to get files by matching piece title/composer instead of just ID
-  // Find matching master piece ID for consistent file and link access
-  const getMasterPieceId = (studentPiece: RepertoireItemData): string => {
-    // First try to find an exact match in the master repertoire
-    const exactMatch = masterRepertoire.find(
-      masterPiece => isPieceSimilar(masterPiece.title, studentPiece.title, masterPiece.composer, studentPiece.composer)
-    );
-    
-    if (exactMatch) {
-      return exactMatch.id;
+  // For debugging
+  console.log("Opening piece detail:", piece);
+  
+  // Special case mapping for known student pieces to their master repertoire equivalents
+  const knownPieceMapping: Record<string, string> = {
+    // Olivia Martinez's Bach Partita maps to the master Bach Partita
+    '5-502': '1'
+  };
+  
+  // Modified approach to get files and links for consistent access
+  // This function finds the master repertoire piece ID for any student piece
+  const getMasterPieceId = (): string => {
+    // First check special case mappings
+    if (knownPieceMapping[piece.id]) {
+      console.log("Found in known piece mapping:", knownPieceMapping[piece.id]);
+      return knownPieceMapping[piece.id];
     }
     
-    // If no match is found, return the original ID (though this shouldn't happen for known pieces)
-    return studentPiece.id;
+    // Then check if this is already a master repertoire piece by ID
+    if (masterRepertoire.some(m => m.id === piece.id)) {
+      console.log("Found direct master ID match:", piece.id);
+      return piece.id;
+    }
+    
+    // If not found by ID, try to match by title and composer
+    for (const masterPiece of masterRepertoire) {
+      if (isPieceSimilar(masterPiece.title, piece.title, masterPiece.composer, piece.composer)) {
+        console.log("Found similar piece in master repertoire:", masterPiece.id);
+        return masterPiece.id;
+      }
+    }
+    
+    // If still not found, search for a specific pattern used in student piece IDs: 'student-id'-'piece-id'
+    // For example, if the piece ID is "5-502" we should check if "502" matches any master piece IDs
+    const potentialMasterIdMatch = piece.id.split('-').pop();
+    if (potentialMasterIdMatch) {
+      // Check if any master piece has an ID that ends with this segment
+      const masterPieceWithMatchingId = masterRepertoire.find(
+        m => m.id === potentialMasterIdMatch || 
+             m.id.endsWith(`-${potentialMasterIdMatch}`)
+      );
+      
+      if (masterPieceWithMatchingId) {
+        console.log("Found by ID pattern match:", masterPieceWithMatchingId.id);
+        return masterPieceWithMatchingId.id;
+      }
+    }
+    
+    // Final attempt: Look for any piece with a very similar title
+    for (const masterPiece of masterRepertoire) {
+      const normalizedPieceTitle = normalizePieceTitle(piece.title);
+      const normalizedMasterTitle = normalizePieceTitle(masterPiece.title);
+      
+      if (normalizedPieceTitle.includes(normalizedMasterTitle) || 
+          normalizedMasterTitle.includes(normalizedPieceTitle)) {
+        console.log("Found by title substring match:", masterPiece.id);
+        return masterPiece.id;
+      }
+    }
+    
+    // If no matching piece is found, use the original ID
+    console.log("No match found, using original ID:", piece.id);
+    return piece.id;
   };
-
-  // Get the corresponding master repertoire ID for consistent data access
-  const masterPieceId = getMasterPieceId(piece);
   
-  // Get files using the master piece ID for consistency
+  // Find the master ID for consistent access to resources
+  const masterPieceId = getMasterPieceId();
+  console.log("Using masterPieceId:", masterPieceId);
+  
+  // Get files and links using the master piece ID for consistency
   const files = mockFileAttachments[masterPieceId] || [];
-  
-  // Get links using the master piece ID for consistency
-  const links = mockLinkResources[masterPieceId] || [];
   
   // State for UI interactions
   const [isDragging, setIsDragging] = useState(false);
