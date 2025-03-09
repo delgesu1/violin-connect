@@ -1,5 +1,5 @@
-
 import React from 'react';
+import { Link } from 'react-router-dom';
 import PageHeader from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -83,107 +83,129 @@ const upcomingEvents: CalendarEventData[] = [
 
 const Dashboard = () => {
   return (
-    <>
+    <div className="max-w-[1600px] mx-auto px-1">
       <PageHeader 
         title="Dashboard" 
         description="Welcome back, Teacher."
       >
-        <Button>
+        <Button size="default" className="shadow-sm">
           <PlusCircle className="mr-2 h-4 w-4" />
           New Lesson
         </Button>
       </PageHeader>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="animate-slide-up animate-stagger-1 card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center">
-              <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+        <Card className="animate-slide-up animate-stagger-1 bg-white border border-gray-100 shadow-sm hover:shadow transition-all duration-200">
+          <CardHeader className="pb-2 pt-5 px-5">
+            <CardTitle className="text-sm font-medium flex items-center text-gray-500">
+              <Users className="mr-2 h-4 w-4 text-primary" />
               Students
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{students.length}</div>
-            <CardDescription>Total active students</CardDescription>
+          <CardContent className="px-5 pb-5">
+            <div className="text-3xl font-bold text-gray-800">{students.length}</div>
+            <CardDescription className="mt-1 text-gray-500">Total active students</CardDescription>
           </CardContent>
         </Card>
         
-        <Card className="animate-slide-up animate-stagger-2 card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center">
-              <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+        <Card className="animate-slide-up animate-stagger-2 bg-white border border-gray-100 shadow-sm hover:shadow transition-all duration-200">
+          <CardHeader className="pb-2 pt-5 px-5">
+            <CardTitle className="text-sm font-medium flex items-center text-gray-500">
+              <Calendar className="mr-2 h-4 w-4 text-primary" />
               Lessons
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <CardDescription>Scheduled this week</CardDescription>
+          <CardContent className="px-5 pb-5">
+            <div className="text-3xl font-bold text-gray-800">12</div>
+            <CardDescription className="mt-1 text-gray-500">Scheduled this week</CardDescription>
           </CardContent>
         </Card>
         
-        <Card className="animate-slide-up animate-stagger-3 card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center">
-              <MessageSquare className="mr-2 h-4 w-4 text-muted-foreground" />
-              Messages
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <CardDescription>Unread messages</CardDescription>
-          </CardContent>
-        </Card>
+        <Link to="/messages" className="block">
+          <Card className="animate-slide-up animate-stagger-3 bg-white border border-gray-100 shadow-sm hover:shadow transition-all duration-200 hover:border-primary/30">
+            <CardHeader className="pb-2 pt-5 px-5">
+              <CardTitle className="text-sm font-medium flex items-center text-gray-500">
+                <MessageSquare className="mr-2 h-4 w-4 text-primary" />
+                Messages
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-5 pb-5">
+              <div className="text-3xl font-bold text-gray-800">3</div>
+              <CardDescription className="mt-1 text-gray-500">Unread messages</CardDescription>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
       
+      {/* Main Content Area */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+        {/* Schedule Section */}
+        <div className="lg:col-span-2 bg-white border border-gray-100 shadow-sm rounded-lg">
           <Tabs defaultValue="today" className="animate-slide-up animate-stagger-2">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Upcoming Schedule</h2>
-              <TabsList>
-                <TabsTrigger value="today">Today</TabsTrigger>
-                <TabsTrigger value="week">This Week</TabsTrigger>
+            <div className="flex justify-between items-center p-5 pb-4 border-b border-gray-100">
+              <h2 className="text-xl font-semibold flex items-center text-gray-800">
+                <Calendar className="h-5 w-5 mr-2 text-primary" />
+                Upcoming Schedule
+              </h2>
+              <TabsList className="bg-gray-50">
+                <TabsTrigger value="today" className="rounded-md text-sm">Today</TabsTrigger>
+                <TabsTrigger value="week" className="rounded-md text-sm">This Week</TabsTrigger>
               </TabsList>
             </div>
             
-            <TabsContent value="today" className="space-y-4 mt-0">
-              {upcomingEvents.map(event => (
-                <CalendarEvent key={event.id} event={event} />
+            <TabsContent value="today" className="space-y-4 p-5 pt-4">
+              {upcomingEvents.map((event, index) => (
+                <CalendarEvent 
+                  key={event.id} 
+                  event={event} 
+                  className="transform transition-transform hover:scale-[1.01]"
+                />
               ))}
               
-              <Button variant="outline" className="w-full">
-                <Calendar className="mr-2 h-4 w-4" />
+              <Button variant="outline" className="w-full mt-2 rounded-lg h-12 border border-gray-200 bg-white hover:bg-gray-50 transition-all duration-200">
+                <Calendar className="mr-2 h-4 w-4 text-primary" />
                 View Full Calendar
               </Button>
             </TabsContent>
             
-            <TabsContent value="week" className="space-y-4 mt-0">
-              <p className="text-muted-foreground">Displaying events for the entire week...</p>
+            <TabsContent value="week" className="p-5">
+              <p className="text-gray-500">Displaying events for the entire week...</p>
             </TabsContent>
           </Tabs>
         </div>
         
-        <div>
-          <div className="flex justify-between items-center mb-4 animate-slide-up animate-stagger-3">
-            <h2 className="text-xl font-semibold">Your Students</h2>
-            <Button variant="ghost" size="sm">
-              View All
-            </Button>
+        {/* Students Section */}
+        <div className="bg-white border border-gray-100 shadow-sm rounded-lg">
+          <div className="p-5 pb-4 border-b border-gray-100">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold flex items-center text-gray-800">
+                <Users className="h-5 w-5 mr-2 text-primary" />
+                Your Students
+              </h2>
+              <Button variant="ghost" size="sm" className="text-primary font-medium hover:bg-gray-50">
+                View All
+              </Button>
+            </div>
           </div>
           
-          <div className="space-y-4 animate-slide-up animate-stagger-3">
+          <div className="space-y-4 p-5 pt-4 animate-slide-up animate-stagger-3">
             {students.slice(0, 3).map(student => (
-              <StudentCard key={student.id} student={student} />
+              <StudentCard 
+                key={student.id} 
+                student={student} 
+                className=""
+              />
             ))}
             
-            <Button variant="outline" className="w-full">
-              <Users className="mr-2 h-4 w-4" />
+            <Button variant="outline" className="w-full mt-3 rounded-lg h-12 border border-gray-200 bg-white hover:bg-gray-50 transition-all duration-200">
+              <Users className="mr-2 h-4 w-4 text-primary" />
               Manage Students
             </Button>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

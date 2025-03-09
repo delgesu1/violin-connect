@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -21,6 +20,7 @@ const navItems = [
   { name: 'Dashboard', path: '/', icon: Home },
   { name: 'Repertoire', path: '/repertoire', icon: Music },
   { name: 'Files', path: '/files', icon: FileText },
+  { name: 'Messages', path: '/messages', icon: MessageSquare },
   { name: 'Discussions', path: '/discussions', icon: MessageSquare },
   { name: 'Calendar', path: '/calendar', icon: Calendar },
   { name: 'Students', path: '/students', icon: Users },

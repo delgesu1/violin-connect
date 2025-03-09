@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import PageHeader from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,13 +15,28 @@ import {
   FileText,
   CheckCircle,
   BookText,
-  History
+  History,
+  Clock,
+  ChevronLeft,
+  Star,
+  Filter,
+  X,
+  Mail,
+  Phone
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { Student, RepertoirePiece, Lesson } from '@/components/common/StudentCard';
 import { Badge } from '@/components/ui/badge';
 import LessonHistory from '@/components/common/LessonHistory';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuGroup, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Mock student data with lessons
 const students: (Student & { level?: string; email?: string; phone?: string; startDate?: string; lastLesson?: string; })[] = [
@@ -173,343 +188,669 @@ const students: (Student & { level?: string; email?: string; phone?: string; sta
   }
 ];
 
+// Helper function to get level color
+const getLevelColor = (level: string) => {
+  switch (level?.toLowerCase()) {
+    case 'advanced':
+      return 'bg-violet-50 text-violet-700 border-violet-200';
+    case 'intermediate':
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    case 'beginner':
+      return 'bg-green-50 text-green-700 border-green-200';
+    default:
+      return 'bg-gray-50 text-gray-700 border-gray-200';
+  }
+};
+
+// Filter options
+type FilterOption = 'all' | 'level' | 'repertoire';
+
 const StudentPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
-  
-  // Filter students based on search query
-  const filteredStudents = students.filter(student =>
-    student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (student.email && student.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (student.level && student.level.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    student.currentRepertoire.some(piece => 
-      piece.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (piece.composer && piece.composer.toLowerCase().includes(searchQuery.toLowerCase()))
-    )
-  );
-
   const [selectedTab, setSelectedTab] = useState('grid');
+  const [filterType, setFilterType] = useState<FilterOption>('all');
+  const [levelFilter, setLevelFilter] = useState<string | null>(null);
+  const [showSearchInput, setShowSearchInput] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  
+  useEffect(() => {
+    if (showSearchInput && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [showSearchInput]);
+  
+  // Filter students based on search query and filters
+  const filteredStudents = students.filter(student => {
+    // Apply search query filter
+    const matchesSearch = searchQuery === '' || 
+      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (student.email && student.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (student.level && student.level.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      student.currentRepertoire.some(piece => 
+        piece.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (piece.composer && piece.composer.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    
+    // Apply level filter
+    const matchesLevel = levelFilter === null || student.level === levelFilter;
+    
+    return matchesSearch && matchesLevel;
+  });
   
   const currentStudent = selectedStudent ? students.find(s => s.id === selectedStudent) : null;
   
+  const clearFilters = () => {
+    setLevelFilter(null);
+    setFilterType('all');
+    setSearchQuery('');
+  };
+  
+  // Group students by their next lesson date
+  const upcomingLessons = filteredStudents
+    .filter(student => student.nextLesson && student.nextLesson.includes('Today'))
+    .sort((a, b) => {
+      // Extract time from "Today, 4:00 PM" format
+      const timeA = a.nextLesson?.split(', ')[1] || '';
+      const timeB = b.nextLesson?.split(', ')[1] || '';
+      return timeA.localeCompare(timeB);
+    });
+  
   return (
-    <>
-      <PageHeader 
-        title="Students" 
-        description="Manage your students and their progress"
-      >
-        <Button>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add Student
-        </Button>
-      </PageHeader>
-      
-      <div className="flex flex-col md:flex-row gap-6 mb-6">
-        <div className="relative flex-1 animate-slide-up animate-stagger-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search students..."
-            className="pl-8"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
-      
-      <Tabs 
-        defaultValue="grid" 
-        value={selectedTab}
-        onValueChange={setSelectedTab}
-        className="animate-slide-up animate-stagger-2"
-      >
-        <TabsList className="mb-6">
-          <TabsTrigger value="grid">
-            <Users className="h-4 w-4 mr-2" />
-            Grid View
-          </TabsTrigger>
-          <TabsTrigger value="list">
-            <User className="h-4 w-4 mr-2" />
-            List View
-          </TabsTrigger>
-          {selectedStudent && (
-            <TabsTrigger value="detail">
-              <User className="h-4 w-4 mr-2" />
-              Student Detail
-            </TabsTrigger>
-          )}
-        </TabsList>
-        
-        
-        <TabsContent value="grid" className="mt-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredStudents.map(student => (
-              <Card 
-                key={student.id} 
-                className="card-hover overflow-hidden cursor-pointer"
-                onClick={() => setSelectedStudent(student.id)}
+    <div className="space-y-8 animate-fade-in">
+      {!selectedStudent || selectedTab !== 'detail' ? (
+        /* Students list view - shown when no student is selected or not in detail tab */
+        <>
+          <PageHeader 
+            title="Students" 
+            description="Manage your students and their progress"
+            className="mb-6"
+          >
+            <Button className="shadow-sm transition-all hover:shadow-md">
+              <UserPlus className="mr-2 h-4 w-4" />
+              Add Student
+            </Button>
+          </PageHeader>
+          
+          <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
+            <div className={cn(
+              "relative transition-all duration-300 ease-in-out flex items-center",
+              showSearchInput ? "flex-1 w-full" : "w-auto"
+            )}>
+              {showSearchInput ? (
+                <>
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    ref={searchInputRef}
+                    type="search"
+                    placeholder="Search by name, repertoire, or level..."
+                    className="pl-10 pr-10 h-10 border-gray-200 focus:border-primary/50 transition-all"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button 
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                      onClick={() => setSearchQuery('')}
+                    >
+                      <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                    </button>
+                  )}
+                </>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="px-3 border-gray-200 text-muted-foreground"
+                  onClick={() => setShowSearchInput(true)}
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Search
+                </Button>
+              )}
+            </div>
+            
+            {showSearchInput && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="shrink-0 h-10 px-3"
+                onClick={() => {
+                  setShowSearchInput(false);
+                  setSearchQuery('');
+                }}
               >
-                <CardContent className="p-0">
-                  <div className="p-5">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={student.avatarUrl || "/placeholder.svg"} alt={student.name} />
-                        <AvatarFallback>{student.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="font-medium">{student.name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs">
-                            {student.level}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            Since {student.startDate}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4 space-y-2">
-                      <h4 className="text-xs uppercase text-muted-foreground font-medium tracking-wider mb-1">Current Repertoire</h4>
-                      {student.currentRepertoire.map((piece, index) => (
-                        <div key={piece.id} className="flex items-start gap-2 text-sm">
-                          {index === 0 ? (
-                            <Music className="h-4 w-4 text-muted-foreground mt-0.5" />
-                          ) : (
-                            <div className="w-4 h-4" />
-                          )}
-                          <div>
-                            <span className="font-medium">{piece.title}</span>
-                            {piece.composer && <span className="text-muted-foreground"> - {piece.composer}</span>}
-                          </div>
-                        </div>
-                      ))}
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span>Next: {student.nextLesson}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="p-3 border-t bg-muted/30 grid grid-cols-4 gap-1">
-                    <Button variant="ghost" size="sm" className="h-8">
-                      <Music className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8">
-                      <Calendar className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8">
-                      <MessageSquare className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8">
-                      <FileText className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          
-          {filteredStudents.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No students match your search criteria.</p>
-            </div>
-          )}
-        </TabsContent>
-        
-        
-        <TabsContent value="list" className="mt-0">
-          <div className="rounded-md border overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-muted">
-                  <th className="text-left p-3 font-medium">Name</th>
-                  <th className="text-left p-3 font-medium hidden md:table-cell">Current Repertoire</th>
-                  <th className="text-left p-3 font-medium hidden lg:table-cell">Level</th>
-                  <th className="text-left p-3 font-medium hidden lg:table-cell">Contact</th>
-                  <th className="text-left p-3 font-medium">Next Lesson</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredStudents.map((student, index) => (
-                  <tr 
-                    key={student.id}
-                    className={cn(
-                      "hover:bg-muted/50 transition-colors cursor-pointer",
-                      index % 2 === 0 ? "bg-card" : "bg-muted/20"
+                Cancel
+              </Button>
+            )}
+            
+            <div className="ml-auto flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-10 border-gray-200">
+                    <Filter className="h-4 w-4 mr-2" />
+                    {levelFilter ? `Level: ${levelFilter}` : "Filter"}
+                    {(levelFilter) && (
+                      <Badge variant="secondary" className="ml-2 px-1 text-xs font-normal">
+                        1
+                      </Badge>
                     )}
-                    onClick={() => setSelectedStudent(student.id)}
-                  >
-                    <td className="p-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={student.avatarUrl || "/placeholder.svg"} alt={student.name} />
-                          <AvatarFallback>{student.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <span>{student.name}</span>
-                      </div>
-                    </td>
-                    <td className="p-3 hidden md:table-cell">
-                      <div className="space-y-1">
-                        {student.currentRepertoire.slice(0, 2).map((piece, index) => (
-                          <div key={piece.id} className="text-sm">
-                            {piece.title}
-                            {index < student.currentRepertoire.length - 1 && index < 1 && ", ..."}
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="p-3 hidden lg:table-cell">
-                      <Badge variant="outline">{student.level}</Badge>
-                    </td>
-                    <td className="p-3 hidden lg:table-cell">
-                      <div className="text-sm">
-                        <div>{student.email}</div>
-                        <div className="text-muted-foreground">{student.phone}</div>
-                      </div>
-                    </td>
-                    <td className="p-3">{student.nextLesson}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem 
+                      className={cn("cursor-pointer", !levelFilter && "bg-muted")}
+                      onClick={() => setLevelFilter(null)}
+                    >
+                      All Levels
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className={cn("cursor-pointer", levelFilter === "Beginner" && "bg-muted")}
+                      onClick={() => setLevelFilter("Beginner")}
+                    >
+                      Beginner
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className={cn("cursor-pointer", levelFilter === "Intermediate" && "bg-muted")}
+                      onClick={() => setLevelFilter("Intermediate")}
+                    >
+                      Intermediate
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className={cn("cursor-pointer", levelFilter === "Advanced" && "bg-muted")}
+                      onClick={() => setLevelFilter("Advanced")}
+                    >
+                      Advanced
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              <Tabs 
+                value={selectedTab} 
+                onValueChange={setSelectedTab}
+                className="hidden sm:block"
+              >
+                <TabsList>
+                  <TabsTrigger value="grid" className="h-10">
+                    <Users className="h-4 w-4 mr-2" />
+                    Grid
+                  </TabsTrigger>
+                  <TabsTrigger value="list" className="h-10">
+                    <User className="h-4 w-4 mr-2" />
+                    List
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
           
-          {filteredStudents.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No students match your search criteria.</p>
+          {(levelFilter) && (
+            <div className="flex items-center mb-6">
+              <div className="text-sm text-muted-foreground mr-2">Active filters:</div>
+              {levelFilter && (
+                <Badge 
+                  variant="outline" 
+                  className="flex items-center gap-1 mr-2 border-gray-200"
+                >
+                  Level: {levelFilter}
+                  <button onClick={() => setLevelFilter(null)}>
+                    <X className="h-3 w-3 ml-1" />
+                  </button>
+                </Badge>
+              )}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground"
+                onClick={clearFilters}
+              >
+                Clear all
+              </Button>
             </div>
           )}
-        </TabsContent>
-        
-        {selectedStudent && (
-          <TabsContent value="detail" className="mt-0">
-            {currentStudent && (
-              <div className="space-y-6">
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-4 mb-6">
-                      <Avatar className="h-16 w-16">
-                        <AvatarImage src={currentStudent.avatarUrl || "/placeholder.svg"} alt={currentStudent.name} />
-                        <AvatarFallback>{currentStudent.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h2 className="text-2xl font-semibold">{currentStudent.name}</h2>
-                        <div className="flex items-center gap-3 mt-1">
-                          <Badge>{currentStudent.level}</Badge>
-                          <span className="text-sm text-muted-foreground">Student since {currentStudent.startDate}</span>
-                        </div>
-                        <div className="flex items-center gap-4 mt-2">
-                          <div className="text-sm">
-                            <div className="font-medium">Contact</div>
-                            <div>{currentStudent.email}</div>
-                            <div className="text-muted-foreground">{currentStudent.phone}</div>
-                          </div>
-                          <div className="text-sm">
-                            <div className="font-medium">Next Lesson</div>
-                            <div>{currentStudent.nextLesson}</div>
-                            <div className="text-muted-foreground">Last lesson: {currentStudent.lastLesson}</div>
+          
+          {upcomingLessons.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center mb-3">
+                <Clock className="h-4 w-4 mr-2 text-orange-500" />
+                <h3 className="font-medium text-sm">Today's Lessons</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {upcomingLessons.map(student => (
+                  <Card 
+                    key={`today-${student.id}`} 
+                    className="overflow-hidden border-orange-100 hover:border-orange-200 transition-all shadow-sm hover:shadow cursor-pointer"
+                    onClick={() => {
+                      setSelectedStudent(student.id);
+                      setSelectedTab('detail');
+                    }}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9 border-2 border-orange-100">
+                          <AvatarFallback className="bg-orange-50 text-orange-700">{student.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <h3 className="font-medium text-sm">{student.name}</h3>
+                          <div className="text-orange-600 text-xs font-medium">
+                            {student.nextLesson}
                           </div>
                         </div>
                       </div>
-                    </div>
-                    
-                    <Tabs defaultValue="repertoire" className="mt-6">
-                      <TabsList className="mb-4">
-                        <TabsTrigger value="repertoire">
-                          <Music className="h-4 w-4 mr-2" />
-                          Repertoire
-                        </TabsTrigger>
-                        <TabsTrigger value="lessons">
-                          <History className="h-4 w-4 mr-2" />
-                          Lesson History
-                        </TabsTrigger>
-                      </TabsList>
-                      
-                      <TabsContent value="repertoire" className="mt-0">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                          <div className="space-y-4">
-                            <h3 className="text-lg font-medium flex items-center gap-2">
-                              <Music className="h-5 w-5" />
-                              Current Repertoire
-                            </h3>
-                            <div className="space-y-3">
-                              {currentStudent.currentRepertoire.map(piece => (
-                                <div key={piece.id} className="p-3 border rounded-md bg-card">
-                                  <div className="flex justify-between">
-                                    <div>
-                                      <h4 className="font-medium">{piece.title}</h4>
-                                      {piece.composer && <p className="text-sm text-muted-foreground">{piece.composer}</p>}
-                                    </div>
-                                    <Badge variant="outline" className="text-xs">
-                                      Started {piece.startDate}
-                                    </Badge>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="animate-fade-in">
+            <TabsList className="sm:hidden mb-6">
+              <TabsTrigger value="grid">
+                <Users className="h-4 w-4 mr-2" />
+                Grid
+              </TabsTrigger>
+              <TabsTrigger value="list">
+                <User className="h-4 w-4 mr-2" />
+                List
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="grid" className="mt-0">
+              {filteredStudents.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {filteredStudents.map(student => (
+                    <Card 
+                      key={student.id} 
+                      className="overflow-hidden border-gray-200 hover:border-gray-300 transition-all shadow-sm hover:shadow cursor-pointer"
+                      onClick={() => {
+                        setSelectedStudent(student.id);
+                        setSelectedTab('detail');
+                      }}
+                    >
+                      <CardContent className="p-0">
+                        <div className="p-5">
+                          <div className="flex items-center gap-4">
+                            <Avatar className="h-12 w-12 border">
+                              <AvatarImage src={student.avatarUrl || "/placeholder.svg"} alt={student.name} />
+                              <AvatarFallback className="bg-gray-50">{student.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <h3 className="font-medium">{student.name}</h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge 
+                                  variant="outline" 
+                                  className={cn("text-xs font-normal rounded-full", getLevelColor(student.level || ''))}
+                                >
+                                  {student.level}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  Since {student.startDate}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-4 space-y-3">
+                            <h4 className="text-xs text-muted-foreground font-medium mb-2">Current Repertoire</h4>
+                            <div className="space-y-2">
+                              {student.currentRepertoire.map((piece, index) => (
+                                <div key={piece.id} className={cn(
+                                  "flex items-start text-sm py-1 px-2 rounded-md",
+                                  index === 0 && "bg-gray-50"
+                                )}>
+                                  <div>
+                                    <div className="font-medium">{piece.title}</div>
+                                    {piece.composer && <div className="text-muted-foreground text-xs">{piece.composer}</div>}
                                   </div>
                                 </div>
                               ))}
                             </div>
-                          </div>
-                          
-                          <div className="space-y-4">
-                            <h3 className="text-lg font-medium flex items-center gap-2">
-                              <CheckCircle className="h-5 w-5" />
-                              Past Repertoire
-                            </h3>
-                            <div className="space-y-3">
-                              {currentStudent.pastRepertoire && currentStudent.pastRepertoire.length > 0 ? (
-                                currentStudent.pastRepertoire.map(piece => (
-                                  <div key={piece.id} className="p-3 border rounded-md bg-card">
-                                    <div className="flex justify-between">
-                                      <div>
-                                        <h4 className="font-medium">{piece.title}</h4>
-                                        {piece.composer && <p className="text-sm text-muted-foreground">{piece.composer}</p>}
-                                      </div>
-                                      <Badge variant="outline" className="text-xs">
-                                        Completed
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                ))
-                              ) : (
-                                <div className="text-center py-4 text-muted-foreground">
-                                  No past repertoire available.
-                                </div>
-                              )}
+                            
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 mt-2 border-t">
+                              <Calendar className="h-3.5 w-3.5" />
+                              <span>{student.nextLesson}</span>
                             </div>
                           </div>
                         </div>
-                      </TabsContent>
-                      
-                      <TabsContent value="lessons" className="mt-0">
-                        {currentStudent.lessons && currentStudent.lessons.length > 0 ? (
-                          <LessonHistory lessons={currentStudent.lessons} />
-                        ) : (
-                          <div className="text-center py-8 text-muted-foreground border rounded-md">
-                            No lesson history available for this student.
+                        
+                        <div className="px-5 py-3 border-t bg-gray-50 flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <Button variant="ghost" size="sm" className="h-8 px-2">
+                              <Music className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-8 px-2">
+                              <Calendar className="h-4 w-4" />
+                            </Button>
                           </div>
-                        )}
-                      </TabsContent>
-                    </Tabs>
-                  </CardContent>
-                </Card>
-                
-                <div className="flex justify-end">
+                          <Button variant="ghost" size="sm" className="h-8 px-2">
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 border border-dashed rounded-lg bg-gray-50">
+                  <p className="text-muted-foreground">No students match your search criteria.</p>
                   <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setSelectedStudent(null);
-                      setSelectedTab('grid');
-                    }}
+                    variant="link" 
+                    className="mt-2"
+                    onClick={clearFilters}
                   >
-                    Back to Students
+                    Clear all filters
                   </Button>
                 </div>
-              </div>
-            )}
-          </TabsContent>
-        )}
-      </Tabs>
-    </>
+              )}
+            </TabsContent>
+            
+            
+            <TabsContent value="list" className="mt-0">
+              {filteredStudents.length > 0 ? (
+                <div className="rounded-xl border overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50 border-b">
+                          <th className="text-left p-4 font-medium text-gray-600">Student</th>
+                          <th className="text-left p-4 font-medium text-gray-600 hidden md:table-cell">Current Repertoire</th>
+                          <th className="text-left p-4 font-medium text-gray-600 hidden lg:table-cell">Contact</th>
+                          <th className="text-left p-4 font-medium text-gray-600">Next Lesson</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredStudents.map((student, index) => (
+                          <tr 
+                            key={student.id}
+                            className="hover:bg-gray-50 border-b border-gray-100 cursor-pointer transition-colors"
+                            onClick={() => {
+                              setSelectedStudent(student.id);
+                              setSelectedTab('detail');
+                            }}
+                          >
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9 border">
+                                  <AvatarImage src={student.avatarUrl || "/placeholder.svg"} alt={student.name} />
+                                  <AvatarFallback className="bg-gray-50">{student.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <div className="font-medium">{student.name}</div>
+                                  <div className="flex items-center mt-0.5">
+                                    <Badge 
+                                      variant="outline" 
+                                      className={cn("text-xs font-normal rounded-full", getLevelColor(student.level || ''))}
+                                    >
+                                      {student.level}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4 hidden md:table-cell">
+                              <div className="space-y-1 max-w-xs">
+                                {student.currentRepertoire.slice(0, 2).map((piece, index) => (
+                                  <div key={piece.id} className="text-sm truncate">
+                                    <span className="font-medium">{piece.title}</span>
+                                    {piece.composer && <span className="text-muted-foreground text-xs ml-1.5">- {piece.composer}</span>}
+                                  </div>
+                                ))}
+                                {student.currentRepertoire.length > 2 && (
+                                  <div className="text-xs text-muted-foreground">
+                                    +{student.currentRepertoire.length - 2} more...
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4 hidden lg:table-cell">
+                              <div className="space-y-0.5">
+                                <div className="flex items-center text-sm">
+                                  <Mail className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                                  <span>{student.email}</span>
+                                </div>
+                                <div className="flex items-center text-sm text-muted-foreground">
+                                  <Phone className="h-3.5 w-3.5 mr-1.5" />
+                                  <span>{student.phone}</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center text-sm">
+                                <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                                <span>{student.nextLesson}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12 border border-dashed rounded-lg bg-gray-50">
+                  <p className="text-muted-foreground">No students match your search criteria.</p>
+                  <Button 
+                    variant="link" 
+                    className="mt-2"
+                    onClick={clearFilters}
+                  >
+                    Clear all filters
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </>
+      ) : (
+        /* Student detail view - shown when a student is selected and in detail tab */
+        currentStudent && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="flex items-center">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="mr-2 text-muted-foreground"
+                onClick={() => {
+                  setSelectedStudent(null);
+                  setSelectedTab('grid');
+                }}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Back
+              </Button>
+              <div className="h-6 w-px bg-gray-200 mx-2" />
+              <div className="text-sm text-muted-foreground">Student Details</div>
+            </div>
+            
+            <Card className="border-gray-200 shadow-sm overflow-hidden">
+              <CardContent className="p-0">
+                <div className="relative bg-gradient-to-r from-blue-50 to-violet-50 px-6 pt-6 pb-12">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <Avatar className="h-16 w-16 border-2 border-white shadow-sm">
+                      <AvatarImage src={currentStudent.avatarUrl || "/placeholder.svg"} alt={currentStudent.name} />
+                      <AvatarFallback className="bg-gradient-to-br from-blue-100 to-violet-100 text-blue-700">{currentStudent.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h2 className="text-2xl font-bold">{currentStudent.name}</h2>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <Badge 
+                          variant="outline" 
+                          className={cn("font-normal rounded-full", getLevelColor(currentStudent.level || ''))}
+                        >
+                          {currentStudent.level}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground flex items-center">
+                          <Calendar className="h-3.5 w-3.5 mr-1" />
+                          Since {currentStudent.startDate}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="sm:ml-auto mt-4 sm:mt-0 flex gap-2">
+                      <Button size="sm" variant="outline" className="bg-white/80 shadow-sm">
+                        <MessageSquare className="h-4 w-4 mr-1.5" />
+                        Message
+                      </Button>
+                      <Button size="sm" className="shadow-sm">
+                        <Calendar className="h-4 w-4 mr-1.5" />
+                        Schedule Lesson
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 mt-0 border-b">
+                  <div className="p-6 border-r border-gray-100">
+                    <div className="text-sm text-muted-foreground mb-1.5">Contact Information</div>
+                    <div className="space-y-2">
+                      <div className="flex items-center text-sm">
+                        <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <span>{currentStudent.email}</span>
+                      </div>
+                      <div className="flex items-center text-sm">
+                        <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <span>{currentStudent.phone}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="p-6 border-r border-gray-100">
+                    <div className="text-sm text-muted-foreground mb-1.5">Next Lesson</div>
+                    <div className="font-semibold">{currentStudent.nextLesson}</div>
+                    <div className="text-sm text-muted-foreground mt-1">Last lesson: {currentStudent.lastLesson}</div>
+                  </div>
+                  
+                  <div className="p-6">
+                    <div className="text-sm text-muted-foreground mb-1.5">Student Progress</div>
+                    <div className="text-sm">
+                      <span className="font-medium">{currentStudent.currentRepertoire.length}</span> Current pieces
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium">{currentStudent.pastRepertoire ? currentStudent.pastRepertoire.length : 0}</span> Completed pieces
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-6">
+                  <Tabs defaultValue="repertoire" className="w-full">
+                    <TabsList className="w-full justify-start mb-6 bg-transparent p-0 border-b">
+                      <TabsTrigger 
+                        value="repertoire"
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary pb-3 pt-0 px-4"
+                      >
+                        <Music className="h-4 w-4 mr-2" />
+                        Repertoire
+                      </TabsTrigger>
+                      <TabsTrigger 
+                        value="lessons"
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary pb-3 pt-0 px-4"
+                      >
+                        <History className="h-4 w-4 mr-2" />
+                        Lesson History
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="repertoire" className="mt-0 space-y-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-medium flex items-center gap-2 mb-4">
+                            <Music className="h-5 w-5 text-blue-600" />
+                            Current Repertoire
+                          </h3>
+                          
+                          <ScrollArea className="h-[400px] pr-4">
+                            <div className="space-y-4">
+                              {currentStudent.currentRepertoire.map((piece, index) => (
+                                <Card key={piece.id} className="overflow-hidden border-gray-200">
+                                  <CardContent className="p-4">
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <div className="flex items-center gap-2">
+                                          <h4 className="font-medium">{piece.title}</h4>
+                                          {index === 0 && (
+                                            <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+                                              Focus
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        {piece.composer && <p className="text-sm text-muted-foreground mt-1">{piece.composer}</p>}
+                                      </div>
+                                      <Badge variant="outline" className="text-xs font-normal">
+                                        Since {piece.startDate}
+                                      </Badge>
+                                    </div>
+                                    
+                                    <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                                      <div className="text-xs text-muted-foreground">
+                                        Started {new Date(piece.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                      </div>
+                                      <Button variant="ghost" size="sm" className="h-7 px-2">
+                                        <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                                        Mark Complete
+                                      </Button>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-medium flex items-center gap-2 mb-4">
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                            Past Repertoire
+                          </h3>
+                          
+                          <ScrollArea className="h-[400px] pr-4">
+                            <div className="space-y-4">
+                              {currentStudent.pastRepertoire && currentStudent.pastRepertoire.length > 0 ? (
+                                currentStudent.pastRepertoire.map((piece) => (
+                                  <Card key={piece.id} className="overflow-hidden border-gray-200 bg-gray-50">
+                                    <CardContent className="p-4">
+                                      <div className="flex justify-between items-start">
+                                        <div>
+                                          <h4 className="font-medium">{piece.title}</h4>
+                                          {piece.composer && <p className="text-sm text-muted-foreground mt-1">{piece.composer}</p>}
+                                        </div>
+                                        <Badge variant="outline" className="text-xs font-normal bg-green-50 text-green-700 border-green-200">
+                                          Completed
+                                        </Badge>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                ))
+                              ) : (
+                                <div className="text-center py-12 border border-dashed rounded-lg bg-gray-50">
+                                  <p className="text-muted-foreground">No past repertoire available.</p>
+                                </div>
+                              )}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="lessons" className="mt-0">
+                      {currentStudent.lessons && currentStudent.lessons.length > 0 ? (
+                        <LessonHistory lessons={currentStudent.lessons} />
+                      ) : (
+                        <div className="text-center py-12 border border-dashed rounded-lg bg-gray-50">
+                          <p className="text-muted-foreground">No lesson history available for this student.</p>
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )
+      )}
+    </div>
   );
 };
 

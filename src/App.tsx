@@ -1,4 +1,3 @@
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
@@ -13,6 +12,7 @@ import FilesPage from "./pages/Files";
 import DiscussionsPage from "./pages/Discussions";
 import CalendarPage from "./pages/Calendar";
 import StudentsPage from "./pages/Students";
+import MessagesPage from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -68,6 +68,22 @@ const App = () => {
               element={
                 <AppLayout>
                   <StudentsPage />
+                </AppLayout>
+              }
+            />
+            <Route
+              path="/messages"
+              element={
+                <AppLayout>
+                  <MessagesPage />
+                </AppLayout>
+              }
+            />
+            <Route
+              path="/messages/:studentId"
+              element={
+                <AppLayout>
+                  <MessagesPage />
                 </AppLayout>
               }
             />
