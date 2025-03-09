@@ -526,6 +526,17 @@ interface FileAttachment {
   uploadedBy?: string;
 }
 
+// Interface for Link resources
+interface LinkResource {
+  id: string;
+  title: string;
+  url: string;
+  type: 'youtube' | 'article' | 'other';
+  description?: string;
+  thumbnailUrl?: string;
+  addedDate: string;
+}
+
 // Mock file data with accurate filenames matching the correct pieces
 const mockFileAttachments: Record<string, FileAttachment[]> = {
   // Bach Partita No. 2 in D minor, BWV 1004 (ID: 1)
@@ -1063,6 +1074,111 @@ const mockFileAttachments: Record<string, FileAttachment[]> = {
   ]
 };
 
+// Mock link resources for various pieces
+const mockLinkResources: Record<string, LinkResource[]> = {
+  // Bach Partita No. 2 in D minor, BWV 1004 (ID: 1)
+  '1': [
+    {
+      id: 'link1-1',
+      title: 'Hilary Hahn performs Bach Partita No. 2 - Chaconne',
+      url: 'https://www.youtube.com/watch?v=QqA3qQMKueA',
+      type: 'youtube',
+      description: 'Acclaimed performance of the Chaconne by Hilary Hahn',
+      thumbnailUrl: '/mockImages/hilary-hahn-chaconne.jpg',
+      addedDate: '2023-10-05'
+    },
+    {
+      id: 'link1-2',
+      title: 'Historical Context of Bach\'s Partita No. 2',
+      url: 'https://www.violinist.com/blog/laurie/20159/17019/',
+      type: 'article',
+      description: 'An in-depth analysis of the historical and musical significance of the Partita',
+      addedDate: '2023-09-20'
+    },
+    {
+      id: 'link1-3',
+      title: 'Itzhak Perlman plays Bach Partita No.2',
+      url: 'https://www.youtube.com/watch?v=6KaYzgofHjc',
+      type: 'youtube',
+      description: 'Masterful interpretation by Itzhak Perlman',
+      thumbnailUrl: '/mockImages/perlman-bach.jpg',
+      addedDate: '2023-11-15'
+    }
+  ],
+  
+  // Bach Sonata No. 1 in G minor, BWV 1001 (ID: 2)
+  '2': [
+    {
+      id: 'link2-1',
+      title: 'James Ehnes performs Bach Sonata No. 1 in G minor',
+      url: 'https://www.youtube.com/watch?v=PZoaEmxrsZQ',
+      type: 'youtube',
+      description: 'Complete performance by James Ehnes',
+      thumbnailUrl: '/mockImages/ehnes-bach.jpg',
+      addedDate: '2023-08-10'
+    },
+    {
+      id: 'link2-2',
+      title: 'Analysis: Bach\'s Solo Violin Sonatas and Partitas',
+      url: 'https://www.thestrad.com/playing/analysis-bachs-solo-violin-sonatas-and-partitas/7725.article',
+      type: 'article',
+      description: 'Structural analysis and practice guidance for Bach\'s solo works',
+      addedDate: '2023-07-28'
+    }
+  ],
+  
+  // Paganini Caprice No. 24 (ID: 5)
+  '5': [
+    {
+      id: 'link5-1',
+      title: 'Augustin Hadelich plays Paganini Caprice No. 24',
+      url: 'https://www.youtube.com/watch?v=adBKmDAdqto',
+      type: 'youtube',
+      description: 'Virtuosic performance with incredible technique',
+      thumbnailUrl: '/mockImages/hadelich-paganini.jpg',
+      addedDate: '2023-09-18'
+    },
+    {
+      id: 'link5-2',
+      title: 'The Technical Challenges of Paganini\'s Caprices',
+      url: 'https://stringsmagazine.com/the-technical-challenges-of-paganinis-caprices/',
+      type: 'article',
+      description: 'Breakdown of technical demands and practice strategies',
+      addedDate: '2023-10-14'
+    },
+    {
+      id: 'link5-3',
+      title: 'Rachel Barton Pine on Paganini Caprice No. 24',
+      url: 'https://www.youtube.com/watch?v=UWfYLmI6NMc',
+      type: 'youtube',
+      description: 'Performance and tutorial on approaching this challenging piece',
+      thumbnailUrl: '/mockImages/rachel-barton-pine.jpg',
+      addedDate: '2023-11-02'
+    }
+  ],
+  
+  // Tchaikovsky Violin Concerto (ID: 9)
+  '9': [
+    {
+      id: 'link9-1',
+      title: 'Janine Jansen performs Tchaikovsky Violin Concerto',
+      url: 'https://www.youtube.com/watch?v=cbJZeNWrWKU',
+      type: 'youtube',
+      description: 'Emotional interpretation with the London Symphony Orchestra',
+      thumbnailUrl: '/mockImages/jansen-tchaikovsky.jpg',
+      addedDate: '2023-08-15'
+    },
+    {
+      id: 'link9-2',
+      title: 'The Story Behind Tchaikovsky\'s Violin Concerto',
+      url: 'https://www.classicfm.com/composers/tchaikovsky/music/violin-concerto/',
+      type: 'article',
+      description: 'Historical context and analysis of this beloved concerto',
+      addedDate: '2023-09-05'
+    }
+  ]
+};
+
 interface AddPieceDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -1520,7 +1636,7 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl max-h-[calc(100vh-40px)] overflow-y-auto my-5">
         <DialogHeader>
           <DialogTitle className="text-xl">{piece.title}</DialogTitle>
           <DialogDescription className="text-base">
@@ -1856,6 +1972,95 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
           ) : (
             <div className="text-center p-4 bg-muted/20 rounded-md">
               <p>No students have worked on this piece yet.</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Links section - New addition */}
+        <div className="mt-6">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <ExternalLink className="h-5 w-5 text-primary" />
+              <h3 className="font-medium text-lg">Links</h3>
+            </div>
+          </div>
+          
+          {mockLinkResources[piece.id] && mockLinkResources[piece.id].length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {mockLinkResources[piece.id].map((link) => (
+                <a 
+                  key={link.id} 
+                  href={link.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex flex-col h-full border rounded-lg overflow-hidden hover:border-primary transition-all duration-200 hover:shadow-sm"
+                >
+                  {link.type === 'youtube' && (
+                    <div className="relative aspect-video overflow-hidden group rounded-t-lg">
+                      {/* Standardized elegant graphic instead of external images */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
+                        <div className="absolute inset-0 opacity-20">
+                          <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="white" strokeWidth="0.5" />
+                            <path d="M8 8L16 16M16 8L8 16" stroke="white" strokeWidth="0.5" opacity="0.5" />
+                          </svg>
+                        </div>
+                        
+                        {/* Video title as subtle text overlay */}
+                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
+                          <p className="text-[10px] text-white opacity-90 font-medium truncate">{link.title}</p>
+                        </div>
+                        
+                        {/* Play button */}
+                        <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-200">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-red-600 ml-0.5">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {link.type === 'article' && (
+                    <div className="relative aspect-[3/1] overflow-hidden rounded-t-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center border-b">
+                      <div className="text-blue-500 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="p-2 flex-1 flex flex-col">
+                    <h4 className="font-medium line-clamp-1 text-xs">{link.title}</h4>
+                    
+                    {link.description && (
+                      <p className="text-muted-foreground text-[10px] line-clamp-1 mb-1">
+                        {link.description}
+                      </p>
+                    )}
+                    
+                    <div className="flex items-center mt-auto pt-1 text-[10px]">
+                      <Badge variant="outline" className={cn(
+                        "mr-1.5 px-1 py-0 text-[9px]",
+                        link.type === 'youtube' ? "bg-red-50 text-red-500 border-red-200" : 
+                        link.type === 'article' ? "bg-blue-50 text-blue-500 border-blue-200" : 
+                        "bg-gray-50 text-gray-500 border-gray-200"
+                      )}>
+                        {link.type === 'youtube' ? 'Video' : 
+                         link.type === 'article' ? 'Article' : 'Resource'}
+                      </Badge>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center p-3 bg-muted/20 rounded-md">
+              <p className="text-sm">No links available for this piece.</p>
+              <Button variant="link" size="sm" className="mt-1 h-7 text-xs">
+                <PlusCircle className="h-3 w-3 mr-1" /> Add a link
+              </Button>
             </div>
           )}
         </div>
