@@ -183,9 +183,11 @@ const Dashboard = () => {
                 <Users className="h-5 w-5 mr-2 text-primary" />
                 Your Students
               </h2>
-              <Button variant="ghost" size="sm" className="text-primary font-medium hover:bg-gray-50">
-                View All
-              </Button>
+              <Link to="/students">
+                <Button variant="ghost" size="sm" className="text-primary font-medium hover:bg-gray-50">
+                  View All
+                </Button>
+              </Link>
             </div>
           </div>
           
@@ -198,10 +200,12 @@ const Dashboard = () => {
               />
             ))}
             
-            <Button variant="outline" className="w-full mt-3 rounded-lg h-12 border border-gray-200 bg-white hover:bg-gray-50 transition-all duration-200">
-              <Users className="mr-2 h-4 w-4 text-primary" />
-              Manage Students
-            </Button>
+            <Link to="/students">
+              <Button variant="outline" className="w-full mt-3 rounded-lg h-12 border border-gray-200 bg-white hover:bg-gray-50 transition-all duration-200">
+                <Users className="mr-2 h-4 w-4 text-primary" />
+                Manage Students
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

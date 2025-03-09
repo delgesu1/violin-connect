@@ -72,6 +72,14 @@ const App = () => {
               }
             />
             <Route
+              path="/students/:studentId"
+              element={
+                <AppLayout>
+                  <StudentsPage />
+                </AppLayout>
+              }
+            />
+            <Route
               path="/messages"
               element={
                 <AppLayout>

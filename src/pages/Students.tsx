@@ -37,6 +37,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useParams } from 'react-router-dom';
 
 // Mock student data with lessons
 const students: (Student & { level?: string; email?: string; phone?: string; startDate?: string; lastLesson?: string; })[] = [
@@ -205,12 +206,26 @@ const getLevelColor = (level: string) => {
 // Filter options
 type FilterOption = 'all' | 'level' | 'repertoire';
 
+type TabValue = 'grid' | 'list' | 'detail';
+
 const StudentPage = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTab, setSelectedTab] = useState<TabValue>('grid');
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
-  const [selectedTab, setSelectedTab] = useState('grid');
-  const [filterType, setFilterType] = useState<FilterOption>('all');
-  const [levelFilter, setLevelFilter] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
+  const [filterValue, setFilterValue] = useState('');
+  
+  // Get the studentId from the URL parameter
+  const { studentId } = useParams();
+  
+  // Set the selected student and tab when the component mounts or the URL parameter changes
+  useEffect(() => {
+    if (studentId) {
+      setSelectedStudent(studentId);
+      setSelectedTab('detail');
+    }
+  }, [studentId]);
+  
   const [showSearchInput, setShowSearchInput] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   
@@ -223,17 +238,17 @@ const StudentPage = () => {
   // Filter students based on search query and filters
   const filteredStudents = students.filter(student => {
     // Apply search query filter
-    const matchesSearch = searchQuery === '' || 
-      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (student.email && student.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (student.level && student.level.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    const matchesSearch = searchTerm === '' || 
+      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (student.email && student.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (student.level && student.level.toLowerCase().includes(searchTerm.toLowerCase())) ||
       student.currentRepertoire.some(piece => 
-        piece.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (piece.composer && piece.composer.toLowerCase().includes(searchQuery.toLowerCase()))
+        piece.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (piece.composer && piece.composer.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     
     // Apply level filter
-    const matchesLevel = levelFilter === null || student.level === levelFilter;
+    const matchesLevel = filterValue === null || student.level === filterValue;
     
     return matchesSearch && matchesLevel;
   });
@@ -241,9 +256,9 @@ const StudentPage = () => {
   const currentStudent = selectedStudent ? students.find(s => s.id === selectedStudent) : null;
   
   const clearFilters = () => {
-    setLevelFilter(null);
-    setFilterType('all');
-    setSearchQuery('');
+    setFilterValue(null);
+    setActiveFilter('all');
+    setSearchTerm('');
   };
   
   // Group students by their next lesson date
@@ -285,13 +300,13 @@ const StudentPage = () => {
                     type="search"
                     placeholder="Search by name, repertoire, or level..."
                     className="pl-10 pr-10 h-10 border-gray-200 focus:border-primary/50 transition-all"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                   />
-                  {searchQuery && (
+                  {searchTerm && (
                     <button 
                       className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                      onClick={() => setSearchQuery('')}
+                      onClick={() => setSearchTerm('')}
                     >
                       <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
                     </button>
@@ -317,7 +332,7 @@ const StudentPage = () => {
                 className="shrink-0 h-10 px-3"
                 onClick={() => {
                   setShowSearchInput(false);
-                  setSearchQuery('');
+                  setSearchTerm('');
                 }}
               >
                 Cancel
@@ -329,8 +344,8 @@ const StudentPage = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="h-10 border-gray-200">
                     <Filter className="h-4 w-4 mr-2" />
-                    {levelFilter ? `Level: ${levelFilter}` : "Filter"}
-                    {(levelFilter) && (
+                    {filterValue ? `Level: ${filterValue}` : "Filter"}
+                    {(filterValue) && (
                       <Badge variant="secondary" className="ml-2 px-1 text-xs font-normal">
                         1
                       </Badge>
@@ -340,26 +355,26 @@ const StudentPage = () => {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuGroup>
                     <DropdownMenuItem 
-                      className={cn("cursor-pointer", !levelFilter && "bg-muted")}
-                      onClick={() => setLevelFilter(null)}
+                      className={cn("cursor-pointer", !filterValue && "bg-muted")}
+                      onClick={() => setFilterValue(null)}
                     >
                       All Levels
                     </DropdownMenuItem>
                     <DropdownMenuItem 
-                      className={cn("cursor-pointer", levelFilter === "Beginner" && "bg-muted")}
-                      onClick={() => setLevelFilter("Beginner")}
+                      className={cn("cursor-pointer", filterValue === "Beginner" && "bg-muted")}
+                      onClick={() => setFilterValue("Beginner")}
                     >
                       Beginner
                     </DropdownMenuItem>
                     <DropdownMenuItem 
-                      className={cn("cursor-pointer", levelFilter === "Intermediate" && "bg-muted")}
-                      onClick={() => setLevelFilter("Intermediate")}
+                      className={cn("cursor-pointer", filterValue === "Intermediate" && "bg-muted")}
+                      onClick={() => setFilterValue("Intermediate")}
                     >
                       Intermediate
                     </DropdownMenuItem>
                     <DropdownMenuItem 
-                      className={cn("cursor-pointer", levelFilter === "Advanced" && "bg-muted")}
-                      onClick={() => setLevelFilter("Advanced")}
+                      className={cn("cursor-pointer", filterValue === "Advanced" && "bg-muted")}
+                      onClick={() => setFilterValue("Advanced")}
                     >
                       Advanced
                     </DropdownMenuItem>
@@ -369,7 +384,7 @@ const StudentPage = () => {
               
               <Tabs 
                 value={selectedTab} 
-                onValueChange={setSelectedTab}
+                onValueChange={(value: TabValue) => setSelectedTab(value)}
                 className="hidden sm:block"
               >
                 <TabsList>
@@ -386,16 +401,16 @@ const StudentPage = () => {
             </div>
           </div>
           
-          {(levelFilter) && (
+          {(filterValue) && (
             <div className="flex items-center mb-6">
               <div className="text-sm text-muted-foreground mr-2">Active filters:</div>
-              {levelFilter && (
+              {filterValue && (
                 <Badge 
                   variant="outline" 
                   className="flex items-center gap-1 mr-2 border-gray-200"
                 >
-                  Level: {levelFilter}
-                  <button onClick={() => setLevelFilter(null)}>
+                  Level: {filterValue}
+                  <button onClick={() => setFilterValue(null)}>
                     <X className="h-3 w-3 ml-1" />
                   </button>
                 </Badge>
@@ -446,7 +461,7 @@ const StudentPage = () => {
             </div>
           )}
           
-          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="animate-fade-in">
+          <Tabs value={selectedTab} onValueChange={(value: TabValue) => setSelectedTab(value)} className="animate-fade-in">
             <TabsList className="sm:hidden mb-6">
               <TabsTrigger value="grid">
                 <Users className="h-4 w-4 mr-2" />
