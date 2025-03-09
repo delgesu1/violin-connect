@@ -77,7 +77,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Mock data
 const students: Student[] = [
@@ -1354,114 +1353,19 @@ interface PieceDetailDialogProps {
   onClose: () => void;
   piece: RepertoireItemData | null;
   students: Student[];
-  setActiveStudent: (studentId: string | null) => void;
-  setActiveTab: (tab: string) => void;
 }
 
 const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({ 
   isOpen, 
   onClose, 
   piece, 
-  students, 
-  setActiveStudent, 
-  setActiveTab 
+  students 
 }) => {
   if (!piece) return null;
   
-  // Modified approach to properly match any student piece with its master repertoire counterpart
-  // to ensure consistent display of files and resources
-  const getMasterPieceId = (): string => {
-    // If this is already from the master repertoire, just use its ID
-    if (masterRepertoire.some(m => m.id === piece.id)) {
-      return piece.id;
-    }
-    
-    // Try to find a matching piece in the master repertoire
-    // First, look for an exact title and composer match
-    const exactMatch = masterRepertoire.find(m => 
-      m.title === piece.title && 
-      m.composer === piece.composer
-    );
-    
-    if (exactMatch) {
-      return exactMatch.id;
-    }
-    
-    // Next, try with normalized titles and similar composer matching
-    const normalizedPieceTitle = normalizePieceTitle(piece.title);
-    const normalizedPieceComposer = piece.composer?.toLowerCase().replace(/\./g, '').trim();
-    
-    for (const masterPiece of masterRepertoire) {
-      const normalizedMasterTitle = normalizePieceTitle(masterPiece.title);
-      const normalizedMasterComposer = masterPiece.composer?.toLowerCase().replace(/\./g, '').trim();
-      
-      // Check for matching titles and composers after normalization
-      const titleMatches = normalizedPieceTitle === normalizedMasterTitle;
-      const composerMatches = normalizedPieceComposer === normalizedMasterComposer ||
-                            (normalizedPieceComposer && normalizedMasterComposer && 
-                             (normalizedPieceComposer.includes(normalizedMasterComposer) || 
-                              normalizedMasterComposer.includes(normalizedPieceComposer)));
-      
-      if (titleMatches && composerMatches) {
-        return masterPiece.id;
-      }
-      
-      // Check for catalog numbers (BWV, K, Op. etc.) in titles
-      const catalogRegex = /\b(bwv|k\.|op\.|opus|sz\.)\s*\d+/i;
-      const pieceCatalog = normalizedPieceTitle.match(catalogRegex);
-      const masterCatalog = normalizedMasterTitle.match(catalogRegex);
-      
-      if (pieceCatalog && masterCatalog && 
-          pieceCatalog[0].toLowerCase() === masterCatalog[0].toLowerCase() &&
-          composerMatches) {
-        return masterPiece.id;
-      }
-    }
-    
-    // Try with broader matching criteria
-    for (const masterPiece of masterRepertoire) {
-      // Use the existing isPieceSimilar function which has good matching logic
-      if (isPieceSimilar(masterPiece.title, piece.title, masterPiece.composer, piece.composer)) {
-        return masterPiece.id;
-      }
-    }
-    
-    // If still not found, let's try a more aggressive matching approach
-    for (const masterPiece of masterRepertoire) {
-      const normalizedMasterTitle = normalizePieceTitle(masterPiece.title);
-      const normalizedMasterComposer = masterPiece.composer?.toLowerCase().replace(/\./g, '').trim();
-      
-      // Check if titles are significant substrings of each other (e.g., "Violin Concerto No. 5" vs "Concerto No. 5")
-      const titleOverlap = normalizedPieceTitle.includes(normalizedMasterTitle) || 
-                          normalizedMasterTitle.includes(normalizedPieceTitle);
-      
-      // Also check composer initials
-      const pieceComposerInitials = normalizedPieceComposer?.split(' ').map(word => word[0]).join('');
-      const masterComposerInitials = normalizedMasterComposer?.split(' ').map(word => word[0]).join('');
-      const composerInitialsMatch = pieceComposerInitials === masterComposerInitials;
-      
-      // Check if composer names are similar
-      const composerMatches = normalizedPieceComposer === normalizedMasterComposer ||
-                            (normalizedPieceComposer && normalizedMasterComposer && 
-                             (normalizedPieceComposer.includes(normalizedMasterComposer) || 
-                              normalizedMasterComposer.includes(normalizedPieceComposer)));
-      
-      if (titleOverlap && (composerInitialsMatch || composerMatches)) {
-        return masterPiece.id;
-      }
-    }
-    
-    // If we can't find a match, return the original ID
-    // Note: In a production app, we might want to log this for future improvement
-    return piece.id;
-  };
-  
-  // Find the master ID for consistent access to resources
-  const masterPieceId = getMasterPieceId();
-  
-  // Get files and links using the master piece ID for consistency
-  const files = mockFileAttachments[masterPieceId] || [];
-  const links = mockLinkResources[masterPieceId] || [];
+  // Get files directly from mockFileAttachments instead of using state
+  // This ensures we always get the correct files for the current piece
+  const files = mockFileAttachments[piece.id] || [];
   
   // State for UI interactions
   const [isDragging, setIsDragging] = useState(false);
@@ -1469,9 +1373,6 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
   const [previewFile, setPreviewFile] = useState<FileAttachment | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<FileAttachment[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  
-  // Compute all files list (both from mockFileAttachments and uploadedFiles)
-  const allFiles = [...files, ...uploadedFiles];
   
   // Reset uploaded files and preview when piece changes
   useEffect(() => {
@@ -1552,93 +1453,12 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
     endDate?: string;
     notes?: string;
     pieceTitle: string; // Store the actual title used by this student
-    pieceId: string; // Store the actual piece ID for reference
   }> = [];
   
-  // For debugging - log the current piece we're working with
-  console.log("Current piece in detail view:", piece.title, piece.composer, piece.id);
-  
-  // A more rigorous comparison to avoid false positives
-  const isExactMatch = (pieceA: { title: string; composer?: string }, pieceB: { title: string; composer?: string }): boolean => {
-    // Normalize titles and composer names for comparison
-    const titleA = normalizePieceTitle(pieceA.title);
-    const titleB = normalizePieceTitle(pieceB.title);
-    
-    // Extract catalog numbers (like Op. 53, BWV 1004, etc.)
-    const catalogRegex = /\b(op\.\s*\d+|bwv\s*\d+|k\.\s*\d+|sz\.\s*\d+)/i;
-    const catalogA = titleA.match(catalogRegex);
-    const catalogB = titleB.match(catalogRegex);
-    
-    // If both have catalog numbers, they should match
-    if (catalogA && catalogB) {
-      if (catalogA[0].toLowerCase() !== catalogB[0].toLowerCase()) {
-        return false;
-      }
-    }
-    
-    // Check if the main piece names are similar
-    const mainTitleA = titleA.replace(catalogRegex, '').trim();
-    const mainTitleB = titleB.replace(catalogRegex, '').trim();
-    
-    // Check for exact match in main title (like "Violin Concerto in A minor")
-    if (mainTitleA === mainTitleB) {
-      // Compare composers if available
-      if (pieceA.composer && pieceB.composer) {
-        const composerA = pieceA.composer.toLowerCase().replace(/\./g, '').trim();
-        const composerB = pieceB.composer.toLowerCase().replace(/\./g, '').trim();
-        
-        // Either exact composer match or one contains the other
-        return composerA === composerB || 
-               composerA.includes(composerB) || 
-               composerB.includes(composerA);
-      }
-      return true; // Titles match exactly, no composer to check
-    }
-    
-    // Stricter matching criteria for key-specific pieces
-    if (mainTitleA.includes(mainTitleB) || mainTitleB.includes(mainTitleA)) {
-      // For pieces with keys like "in A minor", ensure the keys match
-      const keyRegex = /\b(in\s+[A-G](?:\s*(?:sharp|flat|♯|♭))?\s+(?:major|minor))\b/i;
-      const keyA = titleA.match(keyRegex);
-      const keyB = titleB.match(keyRegex);
-      
-      if (keyA && keyB) {
-        // Keys must match
-        if (keyA[0].toLowerCase() !== keyB[0].toLowerCase()) {
-          return false;
-        }
-      }
-      
-      // Compare composers
-      if (pieceA.composer && pieceB.composer) {
-        const composerA = pieceA.composer.toLowerCase().replace(/\./g, '').trim();
-        const composerB = pieceB.composer.toLowerCase().replace(/\./g, '').trim();
-        
-        return composerA === composerB || 
-               composerA.includes(composerB) || 
-               composerB.includes(composerA);
-      }
-      return true;
-    }
-    
-    return false;
-  };
-  
   students.forEach(student => {
-    // For debugging - log each student we're checking
-    console.log(`Checking student: ${student.name} (${student.id})`);
-    
-    // Flag to track if this student has the piece to prevent duplicate entries
-    let studentHasPiece = false;
-    
-    // Check current repertoire with strict matching
+    // Check current repertoire
     student.currentRepertoire.forEach(p => {
-      // Log piece comparison for debugging
-      console.log(`  Comparing with student piece: "${p.title}" by ${p.composer || 'Unknown'} (${p.id})`);
-      
-      // Use stricter matching to avoid false positives
-      if (isExactMatch(p, piece)) {
-        console.log("   ✓ MATCH FOUND - Current repertoire");
+      if (isPieceSimilar(p.title, piece.title, p.composer, piece.composer)) {
         pieceInstances.push({
           studentId: student.id,
           studentName: student.name,
@@ -1646,22 +1466,14 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
           startDate: p.startDate,
           endDate: undefined, // Current pieces don't have end dates
           notes: p.notes,
-          pieceTitle: p.title, // Store the actual title used
-          pieceId: p.id // Store the piece ID
+          pieceTitle: p.title // Store the actual title used
         });
-        studentHasPiece = true;
-      } else {
-        console.log("   ✗ No match");
       }
     });
     
-    // Check past repertoire with strict matching
+    // Check past repertoire
     student.pastRepertoire?.forEach(p => {
-      // Log piece comparison for debugging
-      console.log(`  Comparing with past piece: "${p.title}" by ${p.composer || 'Unknown'} (${p.id})`);
-      
-      if (isExactMatch(p, piece)) {
-        console.log("   ✓ MATCH FOUND - Past repertoire");
+      if (isPieceSimilar(p.title, piece.title, p.composer, piece.composer)) {
         pieceInstances.push({
           studentId: student.id,
           studentName: student.name,
@@ -1669,12 +1481,8 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
           startDate: p.startDate,
           endDate: p.endDate, // Add end date for completed pieces
           notes: p.notes,
-          pieceTitle: p.title, // Store the actual title used
-          pieceId: p.id // Store the piece ID
+          pieceTitle: p.title // Store the actual title used
         });
-        studentHasPiece = true;
-      } else {
-        console.log("   ✗ No match");
       }
     });
   });
@@ -1823,478 +1631,457 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  // Get all files to display - combine stored files and newly uploaded files
+  const allFiles: FileAttachment[] = [...files, ...uploadedFiles];
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b sticky top-0 bg-background z-10">
-          <div className="flex justify-between items-center">
-            <div>
-              <DialogTitle className="text-xl font-medium">{piece.title}</DialogTitle>
-              <DialogDescription className="text-base">
-                {piece.composer} • 
-                <span className="ml-1 text-muted-foreground">
-                  Added {piece.startedDate}
-                </span>
-              </DialogDescription>
-            </div>
-            <Badge variant="outline" className="ml-2">
-              {piece.difficulty || 'Unknown difficulty'}
-            </Badge>
-          </div>
+      <DialogContent className="max-w-4xl max-h-[calc(100vh-40px)] overflow-y-auto my-5">
+        <DialogHeader>
+          <DialogTitle className="text-xl">{piece.title}</DialogTitle>
+          <DialogDescription className="text-base">
+            by {piece.composer} • {piece.difficulty} difficulty
+          </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="p-6 h-[calc(90vh-8rem)]">
-          {/* Statistics panel */}
-          <div className="mt-4">
-            <div className="flex items-center justify-between gap-2 mb-4">
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" />
-                <h3 className="font-medium text-lg">Student History</h3>
+        {/* Files Section */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              <h3 className="font-medium text-lg">Files</h3>
+            </div>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Upload
+            </Button>
+            <input 
+              ref={fileInputRef}
+              type="file" 
+              className="hidden" 
+              onChange={(e) => handleFileUpload(e.target.files)}
+              multiple
+            />
+          </div>
+          
+          {/* File upload area with drag & drop */}
+          <div
+            className={cn(
+              "border-2 border-dashed rounded-lg transition-all duration-200 mb-4",
+              isDragging
+                ? "border-primary bg-primary/5"
+                : allFiles.length === 0 && Object.keys(uploadProgress).length === 0
+                ? "border-muted-foreground/20 hover:border-primary/50"
+                : "border-transparent",
+              allFiles.length === 0 && Object.keys(uploadProgress).length === 0 ? "p-8" : "p-0"
+            )}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            {allFiles.length === 0 && Object.keys(uploadProgress).length === 0 ? (
+              <div className="text-center">
+                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-muted-foreground">
+                  Drag & drop files here or <span className="text-primary font-medium">browse</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Supports PDF, images, and audio files
+                </p>
               </div>
-              
-              {totalStudents > 0 && (
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center text-sm">
-                    <Badge variant="outline" className="mr-1.5">{totalStudents}</Badge>
-                    <span>Total</span>
+            ) : null}
+          </div>
+          
+          {/* Files list */}
+          {(allFiles.length > 0 || Object.keys(uploadProgress).length > 0) && (
+            <div className="space-y-2">
+              {/* Currently uploading files */}
+              {Object.entries(uploadProgress).map(([id, progress]) => (
+                <div key={id} className="flex items-center p-3 border rounded-md">
+                  <div className="mr-3 shrink-0">
+                    <FileText className="h-9 w-9 text-muted-foreground/60" />
                   </div>
-                  
-                  {currentStudents > 0 && (
-                    <div className="flex items-center text-sm">
-                      <Badge variant="outline" className="bg-primary/5 text-primary mr-1.5">{currentStudents}</Badge>
-                      <span>Current</span>
+                  <div className="flex-1 min-w-0 mr-2">
+                    <div className="flex justify-between mb-1">
+                      <p className="text-sm font-medium truncate">
+                        {id.split('-').slice(2).join('-')}
+                      </p>
+                      <span className="text-xs text-muted-foreground">{progress.toFixed(0)}%</span>
                     </div>
-                  )}
-                  
-                  {completedStudents > 0 && (
-                    <div className="flex items-center text-sm">
-                      <Badge variant="outline" className="bg-green-500/5 text-green-500 mr-1.5">{completedStudents}</Badge>
-                      <span>Completed</span>
+                    <div className="w-full bg-muted-foreground/20 rounded-full h-1.5">
+                      <div 
+                        className="bg-primary h-1.5 rounded-full transition-all duration-300" 
+                        style={{ width: `${progress}%` }}
+                      />
                     </div>
-                  )}
-                  
-                  {averageCompletionDays > 0 && (
-                    <div className="flex items-center text-sm">
-                      <Badge variant="outline" className="mr-1.5">{averageCompletionDays} days</Badge>
-                      <span>Avg. Time</span>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Completed uploads */}
+              {allFiles.map(file => (
+                <div key={file.id} className="flex items-center p-3 border rounded-md hover:bg-accent/5 transition-colors duration-200">
+                  <div className="mr-3 shrink-0">
+                    <FileText className="h-9 w-9 text-primary/70" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between">
+                      <p className="text-sm font-medium truncate">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatFileSize(file.size)}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-muted-foreground">
+                        Uploaded {file.uploadDate}
+                      </p>
+                      <div className="flex gap-1">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7" 
+                                onClick={() => setPreviewFile(file)}
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Preview</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7"
+                                onClick={() => window.open(file.url, '_blank')}
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Download</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7 text-destructive hover:text-destructive/80"
+                                onClick={() => handleDeleteFile(file.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Delete</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* File Preview Dialog */}
+          {previewFile && (
+            <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+              <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+                <div className="flex justify-between items-center p-4 bg-background sticky top-0 z-10 border-b">
+                  <DialogTitle className="text-base font-medium">{previewFile.name}</DialogTitle>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8"
+                    onClick={() => setPreviewFile(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="p-4 overflow-auto max-h-[calc(90vh-64px)]">
+                  {previewFile.type.includes('pdf') ? (
+                    <div className="w-full h-[70vh] bg-muted rounded-md flex items-center justify-center">
+                      <iframe 
+                        title={previewFile.name} 
+                        src="/placeholder-pdf-viewer.html" 
+                        className="w-full h-full rounded-md"
+                      />
+                    </div>
+                  ) : previewFile.type.includes('image') ? (
+                    <div className="flex justify-center">
+                      <img 
+                        src="/placeholder-image.jpg" 
+                        alt={previewFile.name} 
+                        className="max-w-full max-h-[70vh] object-contain rounded-md" 
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-[30vh] bg-muted flex items-center justify-center rounded-md">
+                      <div className="text-center">
+                        <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-2" />
+                        <p>This file type cannot be previewed</p>
+                        <Button 
+                          variant="outline"
+                          className="mt-4"
+                          onClick={() => window.open(previewFile.url, '_blank')}
+                        >
+                          <Download className="h-4 w-4 mr-2" /> Download File
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
-              )}
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+        
+        <Separator className="my-4" />
+        
+        {/* Student History section - shown for all pieces, whether in master repertoire or student view */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              <h3 className="font-medium text-lg">Student History</h3>
             </div>
             
-            {/* ... existing student history table ... */}
-            {uniqueInstances.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>End Date</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Notes</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {uniqueInstances.map((instance, index) => {
-                    const start = new Date(instance.startDate);
-                    const end = instance.endDate ? new Date(instance.endDate) : new Date();
-                    const diffTime = Math.abs(end.getTime() - start.getTime());
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    const duration = diffDays > 0 ? `${diffDays} days` : 'Just started';
-                    
-                    const titleDiffers = normalizePieceTitle(instance.pieceTitle) !== normalizePieceTitle(piece.title);
-                    
-                    // Find the student from the list to ensure data consistency
-                    const student = students.find(s => s.id === instance.studentId);
-                    
-                    // Verify piece status to ensure consistency with student view
-                    let verifiedStatus = instance.status;
-                    let verifiedEndDate = instance.endDate;
-                    
-                    if (student) {
-                      // Check if piece is in current repertoire
-                      const currentPiece = student.currentRepertoire.find(p => p.id === instance.pieceId);
-                      if (currentPiece) {
-                        verifiedStatus = currentPiece.status;
-                        verifiedEndDate = undefined; // Current pieces don't have end dates
-                      }
-                      
-                      // Check if piece is in past repertoire
-                      const pastPiece = student.pastRepertoire?.find(p => p.id === instance.pieceId);
-                      if (pastPiece) {
-                        verifiedStatus = pastPiece.status;
-                        verifiedEndDate = pastPiece.endDate;
-                      }
-                    }
-                    
-                    return (
-                      <TableRow key={`${instance.studentId}-${index}`}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center">
-                            <Button 
-                              variant="link" 
-                              className="p-0 h-auto font-medium text-sm"
-                              onClick={() => {
-                                // Navigate to the student's view and set the appropriate tab
-                                setActiveStudent(instance.studentId);
-                                setActiveTab(verifiedStatus === 'current' ? 'current' : 'completed');
-                                // Close the dialog
-                                onClose();
-                              }}
-                            >
-                              {instance.studentName}
-                            </Button>
-                            {titleDiffers && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Info className="inline-block h-3.5 w-3.5 ml-1 text-muted-foreground cursor-help" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    In student's repertoire as:<br />
-                                    "{instance.pieceTitle}"
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={verifiedStatus === 'current' ? 'outline' : 'default'}>
-                            {verifiedStatus === 'current' ? 'In Progress' : 'Completed'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{instance.startDate}</TableCell>
-                        <TableCell>{verifiedEndDate || '—'}</TableCell>
-                        <TableCell>{verifiedStatus === 'completed' ? duration : 'Ongoing'}</TableCell>
-                        <TableCell>
-                          {instance.notes && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs">
-                                  {instance.notes}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center p-4 bg-muted/20 rounded-md">
-                <p>No students have worked on this piece yet.</p>
+            {totalStudents > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center text-sm">
+                  <Badge variant="outline" className="mr-1.5">{totalStudents}</Badge>
+                  <span>Total</span>
+                </div>
+                
+                {currentStudents > 0 && (
+                  <div className="flex items-center text-sm">
+                    <Badge variant="outline" className="bg-primary/5 text-primary mr-1.5">{currentStudents}</Badge>
+                    <span>Current</span>
+                  </div>
+                )}
+                
+                {completedStudents > 0 && (
+                  <div className="flex items-center text-sm">
+                    <Badge variant="outline" className="bg-green-500/5 text-green-500 mr-1.5">{completedStudents}</Badge>
+                    <span>Completed</span>
+                  </div>
+                )}
+                
+                {averageCompletionDays > 0 && (
+                  <div className="flex items-center text-sm">
+                    <Badge variant="outline" className="mr-1.5">{averageCompletionDays} days</Badge>
+                    <span>Avg. Time</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
           
-          {/* Links section - New addition */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2">
-                <ExternalLink className="h-5 w-5 text-primary" />
-                <h3 className="font-medium text-lg">Links</h3>
-              </div>
+          {/* ... existing student history table ... */}
+          {uniqueInstances.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Started</TableHead>
+                  <TableHead>Completed</TableHead>
+                  <TableHead>Duration</TableHead>
+                  <TableHead className="w-20">Notes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {uniqueInstances.map((instance, index) => {
+                  // Calculate duration if we have both start and end dates
+                  let duration = '';
+                  if (instance.startDate && instance.endDate) {
+                    const start = new Date(instance.startDate);
+                    const end = new Date(instance.endDate);
+                    const diffTime = Math.abs(end.getTime() - start.getTime());
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    duration = `${diffDays} days`;
+                  }
+                  
+                  // Check if this student's piece title differs from the master title
+                  const titleDiffers = normalizePieceTitle(instance.pieceTitle) !== normalizePieceTitle(piece.title);
+                  
+                  return (
+                    <TableRow key={`${instance.studentId}-${index}`}>
+                      <TableCell className="font-medium">
+                        {instance.studentName}
+                        {titleDiffers && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="inline-block h-3.5 w-3.5 ml-1 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                In student's repertoire as:<br />
+                                "{instance.pieceTitle}"
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={instance.status === 'current' ? 'outline' : 'default'}>
+                          {instance.status === 'current' ? 'In Progress' : 'Completed'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{instance.startDate}</TableCell>
+                      <TableCell>{instance.endDate || '—'}</TableCell>
+                      <TableCell>{duration || 'Ongoing'}</TableCell>
+                      <TableCell>
+                        {instance.notes && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                {instance.notes}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center p-4 bg-muted/20 rounded-md">
+              <p>No students have worked on this piece yet.</p>
             </div>
-            
-            {links.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {links.map((link) => (
-                  <a 
-                    key={link.id} 
-                    href={link.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex flex-col h-full border rounded-lg overflow-hidden hover:border-primary transition-all duration-200 hover:shadow-sm"
-                  >
-                    {link.type === 'youtube' && (
-                      <div className="relative aspect-video overflow-hidden group rounded-t-lg">
-                        {/* Standardized elegant graphic instead of external images */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
-                          <div className="absolute inset-0 opacity-20">
-                            <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
-                              <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="white" strokeWidth="0.5" />
-                              <path d="M8 8L16 16M16 8L8 16" stroke="white" strokeWidth="0.5" opacity="0.5" />
-                            </svg>
-                          </div>
-                          
-                          {/* Video title as subtle text overlay */}
-                          <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
-                            <p className="text-[10px] text-white opacity-90 font-medium truncate">{link.title}</p>
-                          </div>
-                          
-                          {/* Play button */}
-                          <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-200">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-red-600 ml-0.5">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          </div>
+          )}
+        </div>
+        
+        {/* Links section - New addition */}
+        <div className="mt-6">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <ExternalLink className="h-5 w-5 text-primary" />
+              <h3 className="font-medium text-lg">Links</h3>
+            </div>
+          </div>
+          
+          {mockLinkResources[piece.id] && mockLinkResources[piece.id].length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {mockLinkResources[piece.id].map((link) => (
+                <a 
+                  key={link.id} 
+                  href={link.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex flex-col h-full border rounded-lg overflow-hidden hover:border-primary transition-all duration-200 hover:shadow-sm"
+                >
+                  {link.type === 'youtube' && (
+                    <div className="relative aspect-video overflow-hidden group rounded-t-lg">
+                      {/* Standardized elegant graphic instead of external images */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
+                        <div className="absolute inset-0 opacity-20">
+                          <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="white" strokeWidth="0.5" />
+                            <path d="M8 8L16 16M16 8L8 16" stroke="white" strokeWidth="0.5" opacity="0.5" />
+                          </svg>
                         </div>
-                      </div>
-                    )}
-                    
-                    {link.type === 'article' && (
-                      <div className="relative aspect-[3/1] overflow-hidden rounded-t-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center border-b">
-                        <div className="text-blue-500 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                        
+                        {/* Video title as subtle text overlay */}
+                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
+                          <p className="text-[10px] text-white opacity-90 font-medium truncate">{link.title}</p>
+                        </div>
+                        
+                        {/* Play button */}
+                        <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-200">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-red-600 ml-0.5">
+                            <path d="M8 5v14l11-7z" />
                           </svg>
                         </div>
                       </div>
+                    </div>
+                  )}
+                  
+                  {link.type === 'article' && (
+                    <div className="relative aspect-[3/1] overflow-hidden rounded-t-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center border-b">
+                      <div className="text-blue-500 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="p-2 flex-1 flex flex-col">
+                    <h4 className="font-medium line-clamp-1 text-xs">{link.title}</h4>
+                    
+                    {link.description && (
+                      <p className="text-muted-foreground text-[10px] line-clamp-1 mb-1">
+                        {link.description}
+                      </p>
                     )}
                     
-                    <div className="p-2 flex-1 flex flex-col">
-                      <h4 className="font-medium line-clamp-1 text-xs">{link.title}</h4>
-                      
-                      {link.description && (
-                        <p className="text-muted-foreground text-[10px] line-clamp-1 mb-1">
-                          {link.description}
-                        </p>
-                      )}
-                      
-                      <div className="flex items-center mt-auto pt-1 text-[10px]">
-                        <Badge variant="outline" className={cn(
-                          "mr-1.5 px-1 py-0 text-[9px]",
-                          link.type === 'youtube' ? "bg-red-50 text-red-500 border-red-200" : 
-                          link.type === 'article' ? "bg-blue-50 text-blue-500 border-blue-200" : 
-                          "bg-gray-50 text-gray-500 border-gray-200"
-                        )}>
-                          {link.type === 'youtube' ? 'Video' : 
-                           link.type === 'article' ? 'Article' : 'Resource'}
-                        </Badge>
-                      </div>
+                    <div className="flex items-center mt-auto pt-1 text-[10px]">
+                      <Badge variant="outline" className={cn(
+                        "mr-1.5 px-1 py-0 text-[9px]",
+                        link.type === 'youtube' ? "bg-red-50 text-red-500 border-red-200" : 
+                        link.type === 'article' ? "bg-blue-50 text-blue-500 border-blue-200" : 
+                        "bg-gray-50 text-gray-500 border-gray-200"
+                      )}>
+                        {link.type === 'youtube' ? 'Video' : 
+                         link.type === 'article' ? 'Article' : 'Resource'}
+                      </Badge>
                     </div>
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center p-3 bg-muted/20 rounded-md">
-                <p className="text-sm">No links available for this piece.</p>
-                <Button variant="link" size="sm" className="mt-1 h-7 text-xs">
-                  <PlusCircle className="h-3 w-3 mr-1" /> Add a link
-                </Button>
-              </div>
-            )}
-          </div>
-          
-          {/* Files section */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                <h3 className="font-medium text-lg">Files</h3>
-              </div>
-              <Button size="sm" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="h-4 w-4 mr-2" />
-                Upload
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center p-3 bg-muted/20 rounded-md">
+              <p className="text-sm">No links available for this piece.</p>
+              <Button variant="link" size="sm" className="mt-1 h-7 text-xs">
+                <PlusCircle className="h-3 w-3 mr-1" /> Add a link
               </Button>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                multiple 
-                className="hidden" 
-                onChange={(e) => handleFileUpload(e.target.files)} 
-              />
             </div>
-            
-            {/* File drop area */}
-            <div
-              className={cn(
-                "border-2 border-dashed rounded-lg transition-all duration-200 mb-4",
-                isDragging
-                  ? "border-primary bg-primary/5"
-                  : allFiles.length === 0 && Object.keys(uploadProgress).length === 0
-                  ? "border-muted-foreground/20 hover:border-primary/50"
-                  : "border-transparent",
-                allFiles.length === 0 && Object.keys(uploadProgress).length === 0 ? "p-8" : "p-0"
-              )}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              {allFiles.length === 0 && Object.keys(uploadProgress).length === 0 ? (
-                <div className="text-center">
-                  <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-muted-foreground">
-                    Drag & drop files here or <span className="text-primary font-medium">browse</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Supports PDF, images, and audio files
-                  </p>
-                </div>
-              ) : null}
+          )}
+        </div>
+        
+        {/* Notes section if present - keep existing */}
+        {piece.notes && (
+          <div className="mt-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Info className="h-5 w-5 text-primary" />
+              <h3 className="font-medium">Notes</h3>
             </div>
-            
-            {/* Files list */}
-            {files.length > 0 || uploadedFiles.length > 0 ? (
-              <div className="space-y-2 mt-4">
-                {/* Currently uploading files */}
-                {Object.entries(uploadProgress).map(([id, progress]) => (
-                  <div key={id} className="flex items-center p-3 border rounded-md">
-                    <div className="mr-3 shrink-0">
-                      <FileText className="h-9 w-9 text-muted-foreground/60" />
-                    </div>
-                    <div className="flex-1 min-w-0 mr-2">
-                      <div className="flex justify-between mb-1">
-                        <p className="text-sm font-medium truncate">
-                          {id.split('-').slice(2).join('-')}
-                        </p>
-                        <span className="text-xs text-muted-foreground">{progress.toFixed(0)}%</span>
-                      </div>
-                      <div className="w-full bg-muted-foreground/20 rounded-full h-1.5">
-                        <div 
-                          className="bg-primary h-1.5 rounded-full transition-all duration-300" 
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                
-                {/* Completed uploads */}
-                {allFiles.map(file => (
-                  <div key={file.id} className="flex items-center p-3 border rounded-md hover:bg-accent/5 transition-colors duration-200">
-                    <div className="mr-3 shrink-0">
-                      <FileText className="h-9 w-9 text-primary/70" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between">
-                        <p className="text-sm font-medium truncate">{file.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatFileSize(file.size)}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <p className="text-xs text-muted-foreground">
-                          Uploaded {file.uploadDate}
-                        </p>
-                        <div className="flex gap-1">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-7 w-7" 
-                                  onClick={() => setPreviewFile(file)}
-                                >
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Preview</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-7 w-7"
-                                  onClick={() => window.open(file.url, '_blank')}
-                                >
-                                  <Download className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Download</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-7 w-7 text-destructive hover:text-destructive/80"
-                                  onClick={() => handleDeleteFile(file.id)}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Delete</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center p-4 bg-muted/20 rounded-md">
-                <p>No files available for this piece. Upload one to get started.</p>
-              </div>
-            )}
+            <div className="p-3 bg-muted/20 rounded-md">
+              <p>{piece.notes}</p>
+            </div>
           </div>
-        </ScrollArea>
+        )}
+        
+        <DialogFooter className="mt-4">
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
       </DialogContent>
-      
-      {/* File Preview Dialog */}
-      {previewFile && (
-        <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
-            <div className="flex justify-between items-center p-4 bg-background sticky top-0 z-10 border-b">
-              <DialogTitle className="text-base font-medium">{previewFile.name}</DialogTitle>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8"
-                onClick={() => setPreviewFile(null)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="p-4 overflow-auto max-h-[calc(90vh-64px)]">
-              {previewFile.type.includes('pdf') ? (
-                <div className="w-full h-[70vh] bg-muted rounded-md flex items-center justify-center">
-                  <iframe 
-                    title={previewFile.name} 
-                    src="/placeholder-pdf-viewer.html" 
-                    className="w-full h-full rounded-md"
-                  />
-                </div>
-              ) : previewFile.type.includes('image') ? (
-                <div className="flex justify-center">
-                  <img 
-                    src="/placeholder-image.jpg" 
-                    alt={previewFile.name} 
-                    className="max-w-full max-h-[70vh] object-contain rounded-md" 
-                  />
-                </div>
-              ) : (
-                <div className="w-full h-[30vh] bg-muted flex items-center justify-center rounded-md">
-                  <div className="text-center">
-                    <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-2" />
-                    <p>This file type cannot be previewed</p>
-                    <Button 
-                      variant="outline"
-                      className="mt-4"
-                      onClick={() => window.open(previewFile.url, '_blank')}
-                    >
-                      <Download className="h-4 w-4 mr-2" /> Download File
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
     </Dialog>
   );
 };
@@ -2740,8 +2527,6 @@ const RepertoirePage = () => {
         onClose={() => setIsPieceDetailDialogOpen(false)}
         piece={selectedPiece}
         students={studentsList}
-        setActiveStudent={setActiveStudent}
-        setActiveTab={setActiveTab}
       />
     </>
   );

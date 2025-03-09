@@ -14,7 +14,6 @@ export interface RepertoirePiece {
   endDate?: string;
   status: 'current' | 'completed' | 'planned';
   notes?: string;
-  masterPieceId?: string;
 }
 
 export interface Lesson {

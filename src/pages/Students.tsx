@@ -217,6 +217,7 @@ type TabValue = 'grid' | 'list' | 'detail';
 const StudentPage = () => {
   const [selectedTab, setSelectedTab] = useState<TabValue>('grid');
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+  const [selectedStudentData, setSelectedStudentData] = useState<Student | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
   const [filterValue, setFilterValue] = useState<string | null>(null);
@@ -229,8 +230,12 @@ const StudentPage = () => {
     if (studentId) {
       setSelectedStudent(studentId);
       setSelectedTab('detail');
+      
+      // Find the student in our mock data
+      const student = students.find(s => s.id === studentId) || null;
+      setSelectedStudentData(student);
     }
-  }, [studentId]);
+  }, [studentId, students]);
   
   const [showSearchInput, setShowSearchInput] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -240,6 +245,14 @@ const StudentPage = () => {
       searchInputRef.current.focus();
     }
   }, [showSearchInput]);
+  
+  // Handle student selection
+  const handleStudentClick = (studentId: string) => {
+    const student = students.find(s => s.id === studentId);
+    setSelectedStudent(studentId);
+    setSelectedTab('detail');
+    setSelectedStudentData(student || null);
+  };
   
   // Filter students based on search query and filters
   const filteredStudents = students.filter(student => {
@@ -487,10 +500,7 @@ const StudentPage = () => {
                     <Card 
                       key={student.id} 
                       className="overflow-hidden border-gray-200 hover:border-gray-300 transition-all shadow-sm hover:shadow cursor-pointer"
-                      onClick={() => {
-                        setSelectedStudent(student.id);
-                        setSelectedTab('detail');
-                      }}
+                      onClick={() => handleStudentClick(student.id)}
                     >
                       <CardContent className="p-0">
                         <div className="p-5">
@@ -588,10 +598,7 @@ const StudentPage = () => {
                           <tr 
                             key={student.id}
                             className="hover:bg-gray-50 border-b border-gray-100 cursor-pointer transition-colors"
-                            onClick={() => {
-                              setSelectedStudent(student.id);
-                              setSelectedTab('detail');
-                            }}
+                            onClick={() => handleStudentClick(student.id)}
                           >
                             <td className="p-4">
                               <div className="flex items-center gap-3">
@@ -668,7 +675,8 @@ const StudentPage = () => {
         </>
       ) : (
         /* Student detail view - shown when a student is selected and in detail tab */
-        currentStudent && (
+        currentStudent ? (
+          /* Full detail view when data is available */
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center">
               <Button 
@@ -676,8 +684,8 @@ const StudentPage = () => {
                 size="sm"
                 className="mr-2 text-muted-foreground"
                 onClick={() => {
-                  setSelectedStudent(null);
                   setSelectedTab('grid');
+                  setSelectedStudent(null);
                 }}
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />
@@ -693,7 +701,9 @@ const StudentPage = () => {
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                     <Avatar className="h-16 w-16 border-2 border-white shadow-sm">
                       <AvatarImage src={currentStudent.avatarUrl || "/placeholder.svg"} alt={currentStudent.name} />
-                      <AvatarFallback className="bg-gradient-to-br from-blue-100 to-violet-100 text-blue-700">{currentStudent.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                      <AvatarFallback className="bg-gradient-to-br from-blue-100 to-violet-100 text-blue-700">
+                        {currentStudent.name?.slice(0, 2).toUpperCase() || 'ST'}
+                      </AvatarFallback>
                     </Avatar>
                     <div>
                       <h2 className="text-2xl font-bold">{currentStudent.name}</h2>
@@ -741,17 +751,17 @@ const StudentPage = () => {
                   
                   <div className="p-6 border-r border-gray-100">
                     <div className="text-sm text-muted-foreground mb-1.5">Next Lesson</div>
-                    <div className="font-semibold">{currentStudent.nextLesson}</div>
-                    <div className="text-sm text-muted-foreground mt-1">Last lesson: {currentStudent.lastLesson}</div>
+                    <div className="font-semibold">{currentStudent.nextLesson || 'Not scheduled'}</div>
+                    <div className="text-sm text-muted-foreground mt-1">Last lesson: {currentStudent.lastLesson || 'None'}</div>
                   </div>
                   
                   <div className="p-6">
                     <div className="text-sm text-muted-foreground mb-1.5">Student Progress</div>
                     <div className="text-sm">
-                      <span className="font-medium">{currentStudent.currentRepertoire.length}</span> Current pieces
+                      <span className="font-medium">{currentStudent.currentRepertoire?.length || 0}</span> Current pieces
                     </div>
                     <div className="text-sm">
-                      <span className="font-medium">{currentStudent.pastRepertoire ? currentStudent.pastRepertoire.length : 0}</span> Completed pieces
+                      <span className="font-medium">{currentStudent.pastRepertoire?.length || 0}</span> Completed pieces
                     </div>
                   </div>
                 </div>
@@ -785,38 +795,44 @@ const StudentPage = () => {
                           
                           <ScrollArea className="h-[400px] pr-4">
                             <div className="space-y-4">
-                              {currentStudent.currentRepertoire.map((piece, index) => (
-                                <Card key={piece.id} className="overflow-hidden border-gray-200">
-                                  <CardContent className="p-4">
-                                    <div className="flex justify-between items-start">
-                                      <div>
-                                        <div className="flex items-center gap-2">
-                                          <h4 className="font-medium">{piece.title}</h4>
-                                          {index === 0 && (
-                                            <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
-                                              Focus
-                                            </Badge>
-                                          )}
+                              {currentStudent.currentRepertoire && currentStudent.currentRepertoire.length > 0 ? (
+                                currentStudent.currentRepertoire.map((piece, index) => (
+                                  <Card key={piece.id} className="overflow-hidden border-gray-200">
+                                    <CardContent className="p-4">
+                                      <div className="flex justify-between items-start">
+                                        <div>
+                                          <div className="flex items-center gap-2">
+                                            <h4 className="font-medium">{piece.title}</h4>
+                                            {index === 0 && (
+                                              <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+                                                Focus
+                                              </Badge>
+                                            )}
+                                          </div>
+                                          {piece.composer && <p className="text-sm text-muted-foreground mt-1">{piece.composer}</p>}
                                         </div>
-                                        {piece.composer && <p className="text-sm text-muted-foreground mt-1">{piece.composer}</p>}
+                                        <Badge variant="outline" className="text-xs font-normal">
+                                          Since {piece.startDate}
+                                        </Badge>
                                       </div>
-                                      <Badge variant="outline" className="text-xs font-normal">
-                                        Since {piece.startDate}
-                                      </Badge>
-                                    </div>
-                                    
-                                    <div className="flex items-center justify-between mt-4 pt-3 border-t">
-                                      <div className="text-xs text-muted-foreground">
-                                        Started {new Date(piece.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                      
+                                      <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                                        <div className="text-xs text-muted-foreground">
+                                          Started {new Date(piece.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </div>
+                                        <Button variant="ghost" size="sm" className="h-7 px-2">
+                                          <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                                          Mark Complete
+                                        </Button>
                                       </div>
-                                      <Button variant="ghost" size="sm" className="h-7 px-2">
-                                        <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                                        Mark Complete
-                                      </Button>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              ))}
+                                    </CardContent>
+                                  </Card>
+                                ))
+                              ) : (
+                                <div className="text-center py-8 text-muted-foreground">
+                                  No current repertoire
+                                </div>
+                              )}
                             </div>
                           </ScrollArea>
                         </div>
@@ -846,8 +862,8 @@ const StudentPage = () => {
                                   </Card>
                                 ))
                               ) : (
-                                <div className="text-center py-12 border border-dashed rounded-lg bg-gray-50">
-                                  <p className="text-muted-foreground">No past repertoire available.</p>
+                                <div className="text-center py-8 text-muted-foreground">
+                                  No past repertoire
                                 </div>
                               )}
                             </div>
@@ -856,7 +872,7 @@ const StudentPage = () => {
                       </div>
                     </TabsContent>
                     
-                    <TabsContent value="lessons" className="mt-0">
+                    <TabsContent value="lessons">
                       {currentStudent.lessons && currentStudent.lessons.length > 0 ? (
                         <LessonHistory lessons={currentStudent.lessons} />
                       ) : (
@@ -869,6 +885,18 @@ const StudentPage = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        ) : (
+          /* Loading state when data is not available */
+          <div className="p-8 text-center">
+            <p className="text-lg text-muted-foreground">Loading student data...</p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => setSelectedStudent(null)}
+            >
+              Back to students list
+            </Button>
           </div>
         )
       )}
