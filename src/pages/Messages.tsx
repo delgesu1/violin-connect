@@ -201,7 +201,7 @@ const MessagesPage: React.FC = () => {
                     </Avatar>
                     
                     {getUnreadCount(student.id) > 0 && (
-                      <Badge className="absolute -top-1 -right-1 flex items-center gap-1 bg-primary rounded-full px-1.5 py-0.5 border-2 border-white">
+                      <Badge className="absolute -top-1 -right-1 flex items-center gap-1 bg-red-500 rounded-full px-1.5 py-0.5 border-2 border-white">
                         {getUnreadCount(student.id)}
                       </Badge>
                     )}

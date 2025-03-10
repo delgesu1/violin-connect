@@ -89,7 +89,7 @@ const StudentCard: React.FC<StudentCardProps> = ({ student, className, masterRep
               
               {student.unreadMessages && student.unreadMessages > 0 && (
                 <Badge 
-                  className="absolute -top-1 -right-1 flex items-center gap-1 bg-primary rounded-full px-1.5 py-0.5 border-2 border-white cursor-pointer hover:bg-primary/90"
+                  className="absolute -top-1 -right-1 flex items-center gap-1 bg-red-500 rounded-full px-1.5 py-0.5 border-2 border-white cursor-pointer hover:bg-red-600"
                   onClick={handleMessageBadgeClick}
                 >
                   {student.unreadMessages}

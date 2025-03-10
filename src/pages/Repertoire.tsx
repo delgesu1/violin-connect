@@ -1569,7 +1569,7 @@ const RepertoirePage = () => {
   const [studentsList, setStudentsList] = useState<Student[]>(students);
   const [activeTab, setActiveTab] = useState('current');
   const [viewMode, setViewMode] = useState<'list' | 'composer'>('list');
-  const [displayMode, setDisplayMode] = useState<'cards' | 'grid' | 'table'>('grid');
+  const [displayMode, setDisplayMode] = useState<'cards' | 'grid' | 'table'>('table');
   const [sortField, setSortField] = useState<'title' | 'composer' | 'difficulty' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
