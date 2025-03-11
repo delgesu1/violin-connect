@@ -16,7 +16,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
 }) => {
   return (
     <div className={cn(
-      "mb-10 pb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
+      "mb-6 pb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
       "border-b border-gray-100",
       className
     )}>

@@ -669,8 +669,6 @@ const AssignPieceDialog: React.FC<AssignPieceDialogProps> = ({
 }) => {
   const [selectedPieceId, setSelectedPieceId] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState('');
-  // Get the repertoire utilities from context
-  const { getPieceTitle, getPieceComposer } = useRepertoire();
 
   const handleSubmit = () => {
     if (selectedPieceId && selectedStudentId) {
@@ -700,7 +698,7 @@ const AssignPieceDialog: React.FC<AssignPieceDialogProps> = ({
               <SelectContent>
                 {repertoire.map(piece => (
                   <SelectItem key={piece.id} value={piece.id}>
-                    {getPieceTitle(convertToLegacyPiece(piece))} - {getPieceComposer(convertToLegacyPiece(piece))}
+                    {piece.title} - {piece.composer}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -808,6 +806,7 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
   repertoire 
 }) => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [showSimilarPieces, setShowSimilarPieces] = useState(true);
   const [showStudentsLearning, setShowStudentsLearning] = useState(true);
   
   // Access repertoire context utilities
@@ -939,127 +938,53 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
       .slice(0, 5);
   };
   
+  const similarPieces = findSimilarPieces();
   
   // Get files and links for this piece
   const getAttachmentsForPiece = () => {
     // In a real app, this would fetch from an API or database
-    // Extract the numeric portion of the ID for comparison
-    const pieceIdNumber = piece.id.replace('p-', '');
-    const numId = parseInt(pieceIdNumber, 10);
-    const pieceTitle = getPieceTitle(convertToLegacyPiece(piece));
-    const pieceComposer = getPieceComposer(convertToLegacyPiece(piece));
-    
-    // Instead of limiting to pieces 1-10, create different patterns based on the ID
-    // This ensures all pieces have some files
-    const hasScoreFile = numId % 4 !== 3; // 75% of pieces have scores
-    const hasRecording = numId % 5 !== 0; // 80% of pieces have recordings
-    const hasNotes = numId % 7 === 0;    // ~14% of pieces have performance notes
-    
-    const files = [];
-    
-    // Add score file (for 75% of pieces)
-    if (hasScoreFile) {
-      files.push({
+    // For now, we'll return mock data for some pieces and empty for others
+    const files = piece.id === 'p-1' || piece.id === 'p-2' ? [
+      {
         id: `file-${piece.id}-1`,
-        name: `${pieceTitle} - Score.pdf`,
+        name: `${piece.title} - Score.pdf`,
         type: 'application/pdf',
-        size: 2500000 + (numId * 100000 % 5000000), // Vary size slightly, cap at ~7.5MB
+        size: 2500000,
         url: '#',
-        uploadDate: `2023-${(numId % 12) + 1}-${(numId % 28) + 1}`, // Different dates
-      });
-    }
-    
-    // Add recording file (for 80% of pieces)
-    if (hasRecording) {
-      files.push({
+        uploadDate: '2023-05-15',
+      },
+      {
         id: `file-${piece.id}-2`,
-        name: `${pieceTitle} - Recording.mp3`,
+        name: `${piece.title} - Recording.mp3`,
         type: 'audio/mpeg',
-        size: 8500000 + (numId * 200000 % 10000000), // Vary size slightly, cap at ~18.5MB
+        size: 8500000,
         url: '#',
-        uploadDate: `2023-${(numId % 12) + 1}-${(numId % 28) + 2}`,
-      });
-    }
+        uploadDate: '2023-05-16',
+      }
+    ] : [];
     
-    // Add performance notes (for ~14% of pieces)
-    if (hasNotes) {
-      files.push({
-        id: `file-${piece.id}-3`,
-        name: `${pieceTitle} - Performance Notes.docx`,
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        size: 500000 + (numId * 20000 % 1000000),
-        url: '#',
-        uploadDate: `2023-${(numId % 12) + 1}-${(numId % 28) + 5}`,
-      });
-    }
-    
-    // Add links for all pieces with different patterns
-    const links = (() => {
-      // About 15% of pieces have no links (to demonstrate empty state)
-      if (numId % 7 === 5) return [];
-      
-      const baseLinks = [];
-      
-      // Add YouTube performance for most pieces (about 85%)
-      if (numId % 6 !== 3) {
-        const performers = ["Hilary Hahn", "Itzhak Perlman", "Anne-Sophie Mutter", "Joshua Bell", "Ray Chen", 
-                           "Janine Jansen", "Gil Shaham", "Sarah Chang", "Augustin Hadelich", "Midori"];
-        
-        baseLinks.push({
-          id: `link-${piece.id}-1`,
-          title: `${pieceTitle} - ${performers[numId % performers.length]} Performance`,
-          url: 'https://www.youtube.com/watch?v=example',
-          type: 'youtube',
-          thumbnailUrl: 'https://via.placeholder.com/120x68',
-          addedDate: `2023-${(numId % 12) + 1}-${(numId % 28) + 10}`,
-          description: `Beautiful performance by ${performers[numId % performers.length]}`
-        });
+    const links = piece.id === 'p-1' || piece.id === 'p-3' ? [
+      {
+        id: `link-${piece.id}-1`,
+        title: `${piece.title} - Hilary Hahn Performance`,
+        url: 'https://www.youtube.com/watch?v=example',
+        type: 'youtube' as const,
+        thumbnailUrl: 'https://via.placeholder.com/120x68',
+        addedDate: '2023-05-20',
+        description: 'Beautiful performance by Hilary Hahn'
+      },
+      {
+        id: `link-${piece.id}-2`,
+        title: `Historical Context of ${piece.title}`,
+        url: 'https://example.com/article',
+        type: 'article' as const,
+        addedDate: '2023-05-22',
+        description: 'Learn about the historical background'
       }
-      
-      // Add article links for about 40% of pieces
-      if (numId % 5 <= 1) {
-        baseLinks.push({
-          id: `link-${piece.id}-2`,
-          title: `Historical Context of ${pieceTitle}`,
-          url: 'https://example.com/article',
-          type: 'article',
-          thumbnailUrl: 'https://via.placeholder.com/120x68',
-          addedDate: `2023-${(numId % 12) + 1}-${(numId % 28) + 15}`,
-          description: `Learn about the historical background of this ${pieceComposer} masterpiece`
-        });
-      }
-      
-      // Add master class links for about 30% of pieces
-      if (numId % 10 <= 2) {
-        baseLinks.push({
-          id: `link-${piece.id}-3`,
-          title: `Master Class: ${pieceTitle}`,
-          url: 'https://www.youtube.com/watch?v=masterclass-example',
-          type: 'youtube',
-          thumbnailUrl: 'https://via.placeholder.com/120x68',
-          addedDate: `2023-${(numId % 12) + 1}-${(numId % 28) + 20}`,
-          description: 'Expert guidance on interpretation and technique'
-        });
-      }
-      
-      // Add sheet music shop link for about 25% of pieces
-      if (numId % 8 <= 1) {
-        baseLinks.push({
-          id: `link-${piece.id}-4`,
-          title: `Purchase Sheet Music: ${pieceTitle}`,
-          url: 'https://example.com/sheet-music-shop',
-          type: 'other',
-          thumbnailUrl: 'https://via.placeholder.com/120x68',
-          addedDate: `2023-${(numId % 12) + 1}-${(numId % 28) + 5}`,
-          description: 'High-quality edition with fingerings and bowings'
-        });
-      }
-      
-      return baseLinks;
-    })();
+    ] : [];
     
     if (files.length === 0 && links.length === 0) {
-      console.warn(`Warning: No files or links found for ${pieceTitle} (ID: ${piece.id})`);
+      console.warn(`Warning: No files or links found for ${piece.title} (ID: ${piece.id})`);
     }
     
     return { files, links };
@@ -1090,293 +1015,327 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
         </DialogHeader>
         
         <div className="mt-4 space-y-6">
-        {/* Files Section */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between gap-2 mb-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              <h3 className="font-medium text-lg">Files</h3>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 gap-1"
-            >
-              <Upload className="h-3.5 w-3.5" />
+          {/* Files Section */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                <h3 className="font-medium text-lg">Files</h3>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 gap-1"
+              >
+                <Upload className="h-3.5 w-3.5" />
                 Upload
-            </Button>
-          </div>
-          
-          {/* Files list */}
+              </Button>
+            </div>
+            
+            {/* Files list */}
               {files.length > 0 ? (
-            <div className="space-y-2">
+              <div className="space-y-2">
                   {files.map(file => (
-                <div key={file.id} className="flex items-center p-3 border rounded-md hover:bg-accent/5 transition-colors duration-200">
-                  <div className="mr-3 shrink-0">
-                    <FileText className="h-9 w-9 text-primary/70" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between">
-                      <p className="text-sm font-medium truncate">{file.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(file.size)}
-                      </p>
+                  <div key={file.id} className="flex items-center p-3 border rounded-md hover:bg-accent/5 transition-colors duration-200">
+                    <div className="mr-3 shrink-0">
+                      <FileText className="h-9 w-9 text-primary/70" />
                     </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <p className="text-xs text-muted-foreground">
-                        Uploaded {file.uploadDate}
-                      </p>
-                      <div className="flex gap-1">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-7 w-7" 
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Preview</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-7 w-7"
-                              >
-                                <Download className="h-3.5 w-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Download</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-7 w-7 text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Delete</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between">
+                        <p className="text-sm font-medium truncate">{file.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatFileSize(file.size)}
+                        </p>
                       </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center p-4 bg-muted/20 rounded-md">
-              <p>No files available for this piece.</p>
-            </div>
-          )}
-        </div>
-        
-        <Separator className="my-4" />
-        
-        {/* Links section */}
-        <div className="mt-6">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2">
-              <ExternalLink className="h-5 w-5 text-primary" />
-              <h3 className="font-medium text-lg">Links</h3>
-            </div>
-          </div>
-          
-              {links.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {links.map((link) => (
-                <a 
-                  key={link.id} 
-                  href={link.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex flex-col h-full border rounded-lg overflow-hidden hover:border-primary transition-all duration-200 hover:shadow-sm"
-                >
-                  {link.type === 'youtube' && (
-                    <div className="relative aspect-video overflow-hidden group rounded-t-lg">
-                      {/* Standardized elegant graphic instead of external images */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
-                        <div className="absolute inset-0 opacity-20">
-                          <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
-                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="white" strokeWidth="0.5" />
-                            <path d="M8 8L16 16M16 8L8 16" stroke="white" strokeWidth="0.5" opacity="0.5" />
-                          </svg>
-              </div>
-                        
-                        {/* Video title as subtle text overlay */}
-                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
-                          <p className="text-[10px] text-white opacity-90 font-medium truncate">{link.title}</p>
-                  </div>
-                        
-                        {/* Play button */}
-                        <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-200">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-red-600 ml-0.5">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                  </div>
-                    </div>
-                  </div>
-                )}
-                  
-                  {link.type === 'article' && (
-                    <div className="relative aspect-[3/1] overflow-hidden rounded-t-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center border-b">
-                      <div className="text-blue-500 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-                        </svg>
-              </div>
-                    </div>
-                  )}
-                  
-                  <div className="p-2 flex-1 flex flex-col">
-                    <h4 className="font-medium line-clamp-1 text-xs">{link.title}</h4>
-                    
-                    {link.description && (
-                      <p className="text-muted-foreground text-[10px] line-clamp-1 mb-1">
-                        {link.description}
-                      </p>
-                    )}
-                    
-                    <div className="flex items-center mt-auto pt-1 text-[10px]">
-                      <Badge variant="outline" className={cn(
-                        "mr-1.5 px-1 py-0 text-[9px]",
-                        link.type === 'youtube' ? "bg-red-50 text-red-500 border-red-200" : 
-                        link.type === 'article' ? "bg-blue-50 text-blue-500 border-blue-200" : 
-                        "bg-gray-50 text-gray-500 border-gray-200"
-                      )}>
-                        {link.type === 'youtube' ? 'Video' : 
-                         link.type === 'article' ? 'Article' : 'Resource'}
-                      </Badge>
-                    </div>
-                  </div>
-                </a>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center p-3 bg-muted/20 rounded-md">
-              <p className="text-sm">No links available for this piece.</p>
-            </div>
-        )}
-        </div>
-        
-        <Separator className="my-4" />
-        
-        <div className="mt-4">
-          <div className="flex items-center justify-between gap-2 mb-4">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              <h3 className="font-medium text-lg">Student History</h3>
-            </div>
-                </div>
-                
-              {studentsWithPiece.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Started</TableHead>
-                  <TableHead>Completed</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead className="w-20">Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                    {studentsWithPiece.map((instance, index) => {
-                  // Calculate duration if we have both start and end dates
-                  let duration = '';
-                  if (instance.startDate && instance.endDate) {
-                        // Use a simple calculation for display
-                    const start = new Date(instance.startDate);
-                    const end = new Date(instance.endDate);
-                    const diffTime = Math.abs(end.getTime() - start.getTime());
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    duration = `${diffDays} days`;
-                  }
-                  
-                  return (
-                    <TableRow key={`${instance.studentId}-${index}`}>
-                      <TableCell className="font-medium">
-                        {instance.studentName}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={instance.status === 'current' ? 'outline' : 'default'}>
-                          {instance.status === 'current' ? 'In Progress' : 'Completed'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{instance.startDate}</TableCell>
-                      <TableCell>{instance.endDate || '—'}</TableCell>
-                      <TableCell>{duration || 'Ongoing'}</TableCell>
-                      <TableCell>
-                        {instance.notes && (
+                      <div className="flex items-center justify-between mt-1">
+                        <p className="text-xs text-muted-foreground">
+                          Uploaded {file.uploadDate}
+                        </p>
+                        <div className="flex gap-1">
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7" 
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
                               </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                {instance.notes}
+                              <TooltipContent>
+                                <p>Preview</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center p-4 bg-muted/20 rounded-md">
-              <p>No students have worked on this piece yet.</p>
+                          
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7"
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Download</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Delete</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center p-4 bg-muted/20 rounded-md">
+                <p>No files available for this piece.</p>
+              </div>
+            )}
+          </div>
+          
+          <Separator className="my-4" />
+          
+          {/* Links section */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <ExternalLink className="h-5 w-5 text-primary" />
+                <h3 className="font-medium text-lg">Links</h3>
+              </div>
+            </div>
+            
+              {links.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {links.map((link) => (
+                  <a 
+                    key={link.id} 
+                    href={link.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex flex-col h-full border rounded-lg overflow-hidden hover:border-primary transition-all duration-200 hover:shadow-sm"
+                  >
+                    {link.type === 'youtube' && (
+                      <div className="relative aspect-video overflow-hidden group rounded-t-lg">
+                        {/* Standardized elegant graphic instead of external images */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
+                          <div className="absolute inset-0 opacity-20">
+                            <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+                              <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="white" strokeWidth="0.5" />
+                              <path d="M8 8L16 16M16 8L8 16" stroke="white" strokeWidth="0.5" opacity="0.5" />
+                            </svg>
+                          </div>
+                            
+                          {/* Video title as subtle text overlay */}
+                          <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
+                            <p className="text-[10px] text-white opacity-90 font-medium truncate">{link.title}</p>
+                          </div>
+                            
+                          {/* Play button */}
+                          <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-red-600 ml-0.5">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {link.type === 'article' && (
+                      <div className="relative aspect-[3/1] overflow-hidden rounded-t-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center border-b">
+                        <div className="text-blue-500 flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="p-2 flex-1 flex flex-col">
+                      <h4 className="font-medium line-clamp-1 text-xs">{link.title}</h4>
+                      
+                      {link.description && (
+                        <p className="text-muted-foreground text-[10px] line-clamp-1 mb-1">
+                          {link.description}
+                        </p>
+                      )}
+                      
+                      <div className="flex items-center mt-auto pt-1 text-[10px]">
+                        <Badge variant="outline" className={cn(
+                          "mr-1.5 px-1 py-0 text-[9px]",
+                          link.type === 'youtube' ? "bg-red-50 text-red-500 border-red-200" : 
+                          link.type === 'article' ? "bg-blue-50 text-blue-500 border-blue-200" : 
+                          "bg-gray-50 text-gray-500 border-gray-200"
+                        )}>
+                          {link.type === 'youtube' ? 'Video' : 
+                           link.type === 'article' ? 'Article' : 'Resource'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center p-3 bg-muted/20 rounded-md">
+                <p className="text-sm">No links available for this piece.</p>
+              </div>
+            )}
+          </div>
+          
+          <Separator className="my-4" />
+          
+          {/* Similar Pieces section */}
+          {showSimilarPieces && similarPieces.length > 0 && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div className="flex items-center gap-2">
+                  <BookText className="h-5 w-5 text-primary" />
+                  <h3 className="font-medium text-lg">Similar Pieces</h3>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {similarPieces.map(similarPiece => (
+                  <div 
+                    key={similarPiece.id} 
+                    className="border rounded-md p-3 hover:border-primary cursor-pointer transition-colors"
+                    onClick={() => {
+                      onClose();
+                      // You would typically call a function like handleOpenPieceDetail here
+                      // For now we'll just close the current dialog
+                    }}
+                  >
+                    <PieceDisplayAdapter
+                      piece={similarPiece}
+                      layout="list"
+                      showDifficulty={true}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-        </div>
           
-          {/* Notes section if present */}
-        {piece.notes && (
+          <Separator className="my-4" />
+          
+            {/* Student History section */}
           <div className="mt-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Info className="h-5 w-5 text-primary" />
-              <h3 className="font-medium">Notes</h3>
-            </div>
-            <div className="p-3 bg-muted/20 rounded-md">
-              <p>{piece.notes}</p>
-            </div>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                <h3 className="font-medium text-lg">Student History</h3>
+              </div>
+                  </div>
+                  
+              {studentsWithPiece.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Started</TableHead>
+                    <TableHead>Completed</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead className="w-20">Notes</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {studentsWithPiece.map((instance, index) => {
+                    // Calculate duration if we have both start and end dates
+                    let duration = '';
+                    if (instance.startDate && instance.endDate) {
+                        // Use a simple calculation for display
+                      const start = new Date(instance.startDate);
+                      const end = new Date(instance.endDate);
+                      const diffTime = Math.abs(end.getTime() - start.getTime());
+                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                      duration = `${diffDays} days`;
+                    }
+                    
+                    return (
+                      <TableRow key={`${instance.studentId}-${index}`}>
+                        <TableCell className="font-medium">
+                          {instance.studentName}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={instance.status === 'current' ? 'outline' : 'default'}>
+                            {instance.status === 'current' ? 'In Progress' : 'Completed'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{instance.startDate}</TableCell>
+                        <TableCell>{instance.endDate || '—'}</TableCell>
+                        <TableCell>{duration || 'Ongoing'}</TableCell>
+                        <TableCell>
+                          {instance.notes && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  {instance.notes}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center p-4 bg-muted/20 rounded-md">
+                <p>No students have worked on this piece yet.</p>
+              </div>
+            )}
           </div>
-        )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
+          
+            {/* Notes section if present */}
+          {piece.notes && (
+            <div className="mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="h-5 w-5 text-primary" />
+                <h3 className="font-medium">Notes</h3>
+              </div>
+              <div className="p-3 bg-muted/20 rounded-md">
+                <p>{piece.notes}</p>
+              </div>
+            </div>
+          )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
 
-// Function to group repertoire by composer
+  // Function to group repertoire by composer
   const groupByComposer = (repertoire: RepertoireItemData[]): Record<string, RepertoireItemData[]> => {
-  const grouped: Record<string, RepertoireItemData[]> = {};
-    const { getPieceComposer } = useRepertoire();
-  
-  repertoire.forEach(piece => {
-      const composer = getPieceComposer(convertToLegacyPiece(piece));
+    const grouped: Record<string, RepertoireItemData[]> = {};
+    
+    repertoire.forEach(piece => {
+      const composer = piece.composer || 'Unknown';
       if (!grouped[composer]) {
         grouped[composer] = [];
       }
@@ -1384,174 +1343,191 @@ const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({
     });
     
     return grouped;
-};
+  };
 
-const RepertoirePage = () => {
-  const [activeStudent, setActiveStudent] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isAddPieceDialogOpen, setIsAddPieceDialogOpen] = useState(false);
-  const [isAssignPieceDialogOpen, setIsAssignPieceDialogOpen] = useState(false);
-  const [isPieceDetailDialogOpen, setIsPieceDetailDialogOpen] = useState(false);
-  const [selectedPiece, setSelectedPiece] = useState<RepertoireItemData | null>(null);
-  const [repertoireList, setRepertoireList] = useState<RepertoireItemData[]>(masterRepertoire);
-  const [studentsList, setStudentsList] = useState<Student[]>(students);
-  const [activeTab, setActiveTab] = useState('current');
-  const [viewMode, setViewMode] = useState<'list' | 'composer'>('list');
-  const [displayMode, setDisplayMode] = useState<'cards' | 'grid' | 'table'>('table');
-  const [sortField, setSortField] = useState<'title' | 'composer' | 'difficulty' | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const RepertoirePage = () => {
+    const [activeStudent, setActiveStudent] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isAddPieceDialogOpen, setIsAddPieceDialogOpen] = useState(false);
+    const [isAssignPieceDialogOpen, setIsAssignPieceDialogOpen] = useState(false);
+    const [isPieceDetailDialogOpen, setIsPieceDetailDialogOpen] = useState(false);
+    const [selectedPiece, setSelectedPiece] = useState<RepertoireItemData | null>(null);
+    const [repertoireList, setRepertoireList] = useState<RepertoireItemData[]>(masterRepertoire);
+    const [studentsList, setStudentsList] = useState<Student[]>(students);
+    const [activeTab, setActiveTab] = useState('current');
+    const [viewMode, setViewMode] = useState<'list' | 'composer'>('list');
+    const [displayMode, setDisplayMode] = useState<'cards' | 'grid' | 'table'>('table');
+    const [sortField, setSortField] = useState<'title' | 'composer' | 'difficulty' | null>(null);
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     
-    // Access repertoire context utilities for the component
-    const { getPieceTitle, getPieceComposer, getPieceDifficulty } = useRepertoire();
-  
-  // Helper function to determine column count based on container width
-  const gridColumnCount = 3; // Default value, could be responsive
-  
-  // Format composer name to Last name, First initial(s)
-  const formatComposerName = (fullName: string): string => {
-    // Handle special cases like "J.S. Bach" or "W.A. Mozart"
-    if (fullName.includes('.')) {
+    // Helper function to determine column count based on container width
+    const gridColumnCount = 3; // Default value, could be responsive
+    
+    // Format composer name to Last name, First initial(s)
+    const formatComposerName = (fullName: string): string => {
+      // Handle special cases like "J.S. Bach" or "W.A. Mozart"
+      if (fullName.includes('.')) {
+        const parts = fullName.split(' ');
+        // If we have initials and last name (like "J.S. Bach")
+        if (parts.length >= 2) {
+          const lastName = parts[parts.length - 1];
+          const initials = parts.slice(0, parts.length - 1).join(' ');
+          return `${lastName}, ${initials}`;
+        }
+        return fullName; // Fallback
+      }
+      
+      // Handle regular names like "Ludwig van Beethoven" or "Claude Debussy"
       const parts = fullName.split(' ');
-      // If we have initials and last name (like "J.S. Bach")
-      if (parts.length >= 2) {
-        const lastName = parts[parts.length - 1];
-        const initials = parts.slice(0, parts.length - 1).join(' ');
-        return `${lastName}, ${initials}`;
-      }
-      return fullName; // Fallback
-    }
-    
-    // Handle regular names like "Ludwig van Beethoven" or "Claude Debussy"
-    const parts = fullName.split(' ');
-    if (parts.length === 1) return fullName; // Single name case
-    
-    const lastName = parts[parts.length - 1];
-    const firstNames = parts.slice(0, parts.length - 1);
-    const initials = firstNames.map(name => name.charAt(0)).join('.') + '.';
-    
-    return `${lastName}, ${initials}`;
-  };
-  
-  // Handle sorting when a column header is clicked
-  const handleSort = (field: 'title' | 'composer' | 'difficulty') => {
-    if (sortField === field) {
-      // Toggle direction if clicking the same field
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      // New field, set it and default to ascending
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-  
-  // Get sorted repertoire
-  const getSortedRepertoire = (items: RepertoireItemData[]): RepertoireItemData[] => {
-    if (!sortField) return items;
+      if (parts.length === 1) return fullName; // Single name case
       
-      const { getPieceTitle, getPieceComposer } = useRepertoire();
+      const lastName = parts[parts.length - 1];
+      const firstNames = parts.slice(0, parts.length - 1);
+      const initials = firstNames.map(name => name.charAt(0)).join('.') + '.';
+      
+      return `${lastName}, ${initials}`;
+    };
     
-    return [...items].sort((a, b) => {
-      let valueA: string | undefined;
-      let valueB: string | undefined;
-      
-      if (sortField === 'title') {
-          valueA = getPieceTitle(convertToLegacyPiece(a)).toLowerCase();
-          valueB = getPieceTitle(convertToLegacyPiece(b)).toLowerCase();
-      } else if (sortField === 'composer') {
-        // Extract last name for sorting
-        const getLastName = (composer: string): string => {
-          // Handle special cases like "J.S. Bach" or "W.A. Mozart"
-          if (composer.includes('.')) {
-            const parts = composer.split(' ');
-            // If we have initials and last name (like "J.S. Bach")
-            if (parts.length >= 2) {
-              return parts[parts.length - 1].toLowerCase();
-            }
-          }
-          
-          // Handle regular names like "Ludwig van Beethoven" or "Claude Debussy"
-          const parts = composer.split(' ');
-          if (parts.length === 1) return composer.toLowerCase();
-          
-          return parts[parts.length - 1].toLowerCase();
-        };
-        
-          valueA = getLastName(getPieceComposer(convertToLegacyPiece(a)));
-          valueB = getLastName(getPieceComposer(convertToLegacyPiece(b)));
-      } else if (sortField === 'difficulty') {
-        // Map difficulty to a numeric value for sorting
-        const difficultyOrder = { beginner: 1, intermediate: 2, advanced: 3 };
-        valueA = a.difficulty ? String(difficultyOrder[a.difficulty] || 0) : '0';
-        valueB = b.difficulty ? String(difficultyOrder[b.difficulty] || 0) : '0';
-      }
-      
-      if (!valueA || !valueB) return 0;
-      
-      // Compare the values based on sort direction
-      if (sortDirection === 'asc') {
-        return valueA.localeCompare(valueB);
+    // Handle sorting when a column header is clicked
+    const handleSort = (field: 'title' | 'composer' | 'difficulty') => {
+      if (sortField === field) {
+        // Toggle direction if clicking the same field
+        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
       } else {
-        return valueB.localeCompare(valueA);
+        // New field, set it and default to ascending
+        setSortField(field);
+        setSortDirection('asc');
       }
-    });
-  };
-  
-  // Filter repertoire based on active student, search query, and active tab
-  const getFilteredRepertoire = (): RepertoireItemData[] => {
-    let filteredItems: RepertoireItemData[] = [];
-      const { getPieceTitle, getPieceComposer, getPieceDifficulty, masterRepertoire } = useRepertoire();
+    };
     
-    if (activeStudent) {
-      // Find the active student
-      const student = studentsList.find(s => s.id === activeStudent);
+    // Get sorted repertoire
+    const getSortedRepertoire = (items: RepertoireItemData[]): RepertoireItemData[] => {
+      if (!sortField) return items;
       
-      if (student) {
-        // Combine current and past repertoire for the student
-          const studentRepertoire = [
-          ...(student.currentRepertoire || []).map(piece => {
-              // Find the master piece data for this student piece
-              const masterPiece = piece.masterPieceId 
-                ? masterRepertoire.find(mp => mp.id === piece.masterPieceId)
-                : null;
-              
-              // Create a RepertoireItemData object that combines student piece data with master piece data
-                return {
+      return [...items].sort((a, b) => {
+        let valueA: string | undefined;
+        let valueB: string | undefined;
+        
+        if (sortField === 'title') {
+          valueA = a.title?.toLowerCase();
+          valueB = b.title?.toLowerCase();
+        } else if (sortField === 'composer') {
+          // Extract last name for sorting
+          const getLastName = (composer: string): string => {
+            // Handle special cases like "J.S. Bach" or "W.A. Mozart"
+            if (composer.includes('.')) {
+              const parts = composer.split(' ');
+              // If we have initials and last name (like "J.S. Bach")
+              if (parts.length >= 2) {
+                return parts[parts.length - 1].toLowerCase();
+              }
+            }
+            
+            // Handle regular names like "Ludwig van Beethoven" or "Claude Debussy"
+            const parts = composer.split(' ');
+            if (parts.length === 1) return composer.toLowerCase();
+            
+            return parts[parts.length - 1].toLowerCase();
+          };
+          
+          valueA = getLastName(a.composer);
+          valueB = getLastName(b.composer);
+        } else if (sortField === 'difficulty') {
+          // Map difficulty to a numeric value for sorting
+          const difficultyOrder = { beginner: 1, intermediate: 2, advanced: 3 };
+          valueA = a.difficulty ? String(difficultyOrder[a.difficulty] || 0) : '0';
+          valueB = b.difficulty ? String(difficultyOrder[b.difficulty] || 0) : '0';
+        }
+        
+        if (!valueA || !valueB) return 0;
+        
+        // Compare the values based on sort direction
+        if (sortDirection === 'asc') {
+          return valueA.localeCompare(valueB);
+        } else {
+          return valueB.localeCompare(valueA);
+        }
+      });
+    };
+    
+    // Filter repertoire based on active student, search query, and active tab
+    const getFilteredRepertoire = (): RepertoireItemData[] => {
+      let filteredItems: RepertoireItemData[] = [];
+      
+      if (activeStudent) {
+        // Find the active student
+        const student = studentsList.find(s => s.id === activeStudent);
+        
+        if (student) {
+          // Combine current and past repertoire for the student
+          const studentRepertoire: RepertoireItemData[] = [
+            ...(student.currentRepertoire || []).map(piece => {
+              // If the piece uses the new masterPieceId pattern, look up details from master list
+              if (piece.masterPieceId) {
+                const masterPiece = getMasterPieceById(piece.masterPieceId, repertoireList);
+                if (masterPiece) {
+                  return {
             id: piece.id,
-                masterPieceId: piece.masterPieceId,
-                status: piece.status,
+                    title: masterPiece.title,
+                    composer: masterPiece.composer,
             startedDate: piece.startDate,
-                  endDate: piece.endDate,
-                  studentId: student.id,
-                  notes: piece.notes,
-                // Get data from master piece if available, otherwise use placeholder or context utilities
-                title: masterPiece ? masterPiece.title : getPieceTitle(piece as any),
-                composer: masterPiece ? masterPiece.composer : getPieceComposer(piece as any),
-                difficulty: (masterPiece ? masterPiece.difficulty : undefined) as 'beginner' | 'intermediate' | 'advanced' | undefined
+                    endDate: piece.endDate,
+            status: piece.status,
+                    studentId: student.id,
+                    masterPieceId: piece.masterPieceId,  // Include the masterPieceId in the student piece
+                    notes: piece.notes,
+                    difficulty: masterPiece.difficulty // Include difficulty from master piece
+                  };
+                }
+              }
+              
+              // Fall back to the old pattern if masterPieceId is not available or master piece is not found
+              return {
+            id: piece.id,
+              title: piece.title || 'Unknown Piece',
+              composer: piece.composer || 'Unknown Composer',
+            startedDate: piece.startDate,
+              endDate: piece.endDate,
+            status: piece.status,
+              studentId: student.id,
+              notes: piece.notes
             };
           }),
           ...(student.pastRepertoire || []).map(piece => {
-              // Find the master piece data for this student piece
-              const masterPiece = piece.masterPieceId 
-                ? masterRepertoire.find(mp => mp.id === piece.masterPieceId)
-                : null;
-              
+            // If the piece uses the new masterPieceId pattern, look up details from master list
+            if (piece.masterPieceId) {
+              const masterPiece = getMasterPieceById(piece.masterPieceId, repertoireList);
+              if (masterPiece) {
                 return {
                   id: piece.id,
-                masterPieceId: piece.masterPieceId,
-                status: piece.status,
+                  title: masterPiece.title,
+                  composer: masterPiece.composer,
                   startedDate: piece.startDate,
                   endDate: piece.endDate,
+                  status: piece.status,
                   studentId: student.id,
+                  masterPieceId: piece.masterPieceId,  // Include the masterPieceId in the student piece
                   notes: piece.notes,
-                // Get data from master piece if available, otherwise use placeholder or context utilities
-                title: masterPiece ? masterPiece.title : getPieceTitle(piece as any),
-                composer: masterPiece ? masterPiece.composer : getPieceComposer(piece as any),
-                difficulty: (masterPiece ? masterPiece.difficulty : undefined) as 'beginner' | 'intermediate' | 'advanced' | undefined
+                  difficulty: masterPiece.difficulty // Include difficulty from master piece
+                };
+              }
+            }
+            
+            // Fall back to the old pattern if masterPieceId is not available or master piece is not found
+            return {
+              id: piece.id,
+              title: piece.title || 'Unknown Piece',
+              composer: piece.composer || 'Unknown Composer',
+              startedDate: piece.startDate,
+              endDate: piece.endDate,
+              status: piece.status,
+              studentId: student.id,
+              notes: piece.notes
             };
           })
         ];
         
-          filteredItems = studentRepertoire as RepertoireItemData[];
+        filteredItems = studentRepertoire;
         
         // Apply tab filter if not showing "all" tab
         if (activeTab !== 'all') {
@@ -1559,39 +1535,34 @@ const RepertoirePage = () => {
         }
       }
     } else {
-        // Show all master repertoire if no student is selected
-        filteredItems = [...masterRepertoire];
-      }
+      // Show master repertoire list - no status filtering for Master Repertoire
+      filteredItems = repertoireList;
+    }
+    
+    // Apply search filter
+    filteredItems = filteredItems.filter(item => {
+      const matchesSearch = 
+        item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        item.composer.toLowerCase().includes(searchQuery.toLowerCase());
       
-      // Apply search filter if search query exists
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        filteredItems = filteredItems.filter(piece => {
-          const title = getPieceTitle(convertToLegacyPiece(piece)).toLowerCase();
-          const composer = getPieceComposer(convertToLegacyPiece(piece)).toLowerCase();
-          return title.includes(query) || composer.includes(query);
-        });
-      }
-      
-      // Return the filtered items
+      return matchesSearch;
+    });
+    
     return filteredItems;
   };
   
   const handleAddPiece = (newPiece: { id: string; title: string; composer: string; difficulty: string; notes?: string }) => {
-      // Get the addMasterPiece utility from context
-      const { addMasterPiece } = useRepertoire();
-      
-      // Create a new master repertoire piece using the context utility
-      const masterPiece = addMasterPiece({
+    const piece: RepertoireItemData = {
+      id: newPiece.id,
       title: newPiece.title,
       composer: newPiece.composer,
+      startedDate: new Date().toISOString().split('T')[0],
+      status: 'current',
       difficulty: newPiece.difficulty as 'beginner' | 'intermediate' | 'advanced',
-        startedDate: new Date().toISOString().split('T')[0], // Required by RepertoireItemData
       notes: newPiece.notes
-      });
+    };
     
-      // Add to the local repertoire list for UI updates
-      setRepertoireList(prev => [...prev, masterPiece]);
+    setRepertoireList(prev => [...prev, piece]);
   };
   
   const handleAssignPiece = (pieceId: string, studentId: string) => {
@@ -1692,10 +1663,11 @@ const RepertoirePage = () => {
   
   return (
     <>
-      <div>
+      <div className="container max-w-screen-2xl">
         <PageHeader 
           title="Repertoire" 
           description="Manage and track all repertoire pieces for students"
+          className="animate-slide-up"
         >
           <div className="flex space-x-2">
             <Button onClick={() => setIsAddPieceDialogOpen(true)}>
@@ -1705,8 +1677,8 @@ const RepertoirePage = () => {
           </div>
         </PageHeader>
         
-        <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 mt-6 relative">
-          <div className="w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-6">
+          <div className="lg:col-span-1 animate-slide-up animate-stagger-1">
             <div className="p-4 border rounded-lg bg-card">
               <div className="space-y-2">
                 <h3 className="text-md font-medium mb-3">Library</h3>
@@ -1739,7 +1711,7 @@ const RepertoirePage = () => {
             </div>
           </div>
         
-          <div className="w-full">
+          <div className="lg:col-span-3">
             <div className="flex items-center gap-3 mb-6 animate-slide-up animate-stagger-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1855,8 +1827,7 @@ const RepertoirePage = () => {
                                   </div>
                                 </TableCell>
                                 <TableCell className="font-medium">
-                                    {/* Use context utilities instead of direct access */}
-                                    {getPieceTitle(convertToLegacyPiece(item))}
+                                  {item.title}
                                   {item.notes && (
                                     <TooltipProvider>
                                       <Tooltip>
@@ -1870,7 +1841,7 @@ const RepertoirePage = () => {
                                     </TooltipProvider>
                                   )}
                                 </TableCell>
-                                  <TableCell>{getPieceComposer(convertToLegacyPiece(item))}</TableCell>
+                                <TableCell>{item.composer}</TableCell>
                                 <TableCell>{item.startedDate}</TableCell>
                                 <TableCell>
                                   {activeTab === 'completed' && item.endDate ? (

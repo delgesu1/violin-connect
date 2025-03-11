@@ -66,4 +66,133 @@ export const createStudentPieceId = (studentId: string, pieceId: string): string
  */
 export const isIdOfType = (id: string, type: string): boolean => {
   return id.startsWith(type);
-}; 
+};
+
+/**
+ * Determine the entity type from a prefixed ID
+ * @param prefixedId The full prefixed ID
+ * @returns Entity type key or null if no match
+ */
+export const getEntityTypeFromId = (prefixedId: string): keyof typeof ID_PREFIXES | null => {
+  for (const [key, prefix] of Object.entries(ID_PREFIXES)) {
+    if (prefixedId.startsWith(prefix)) {
+      return key as keyof typeof ID_PREFIXES;
+    }
+  }
+  return null;
+};
+
+/**
+ * Ensure an ID has the correct prefix
+ * @param id ID with or without prefix
+ * @param expectedPrefix The expected prefix
+ * @returns Correctly prefixed ID
+ */
+export const ensureIdHasPrefix = (id: string, expectedPrefix: string): string => {
+  // If already has the correct prefix, return as is
+  if (id.startsWith(expectedPrefix)) {
+    return id;
+  }
+  
+  // Check if it has a different prefix
+  for (const prefix of Object.values(ID_PREFIXES)) {
+    if (id.startsWith(prefix)) {
+      // Has wrong prefix, strip it and add correct one
+      return expectedPrefix + id.substring(prefix.length);
+    }
+  }
+  
+  // No prefix, add it
+  return expectedPrefix + id;
+};
+
+/**
+ * Compare IDs, ignoring prefix differences
+ * @param id1 First ID
+ * @param id2 Second ID
+ * @returns True if IDs match (ignoring prefixes)
+ */
+export const idsMatch = (id1: string, id2: string): boolean => {
+  return getIdWithoutPrefix(id1) === getIdWithoutPrefix(id2);
+};
+
+/**
+ * Log ID inconsistencies in development mode
+ * @param context Description of where the ID is being used
+ * @param id The ID to check
+ * @param expectedPrefix The expected prefix
+ */
+export const logIdInconsistency = (context: string, id: string, expectedPrefix: string): void => {
+  if (process.env.NODE_ENV === 'development' && !id.startsWith(expectedPrefix)) {
+    console.warn(`ID Inconsistency in ${context}: ID ${id} should use prefix ${expectedPrefix}`);
+  }
+};
+
+/**
+ * ID Generator factory class for centralized ID creation
+ */
+export class IdGenerator {
+  /**
+   * Create a student ID
+   * @param id The numeric or string ID
+   * @returns Prefixed student ID
+   */
+  static student(id: string | number): string {
+    return createPrefixedId(ID_PREFIXES.STUDENT, id);
+  }
+  
+  /**
+   * Create a lesson ID
+   * @param id The numeric or string ID
+   * @returns Prefixed lesson ID
+   */
+  static lesson(id: string | number): string {
+    return createPrefixedId(ID_PREFIXES.LESSON, id);
+  }
+  
+  /**
+   * Create a piece ID
+   * @param id The numeric or string ID
+   * @returns Prefixed piece ID
+   */
+  static piece(id: string | number): string {
+    return createPrefixedId(ID_PREFIXES.PIECE, id);
+  }
+  
+  /**
+   * Create a file attachment ID
+   * @param id The numeric or string ID
+   * @returns Prefixed file ID
+   */
+  static file(id: string | number): string {
+    return createPrefixedId(ID_PREFIXES.FILE, id);
+  }
+  
+  /**
+   * Create a message ID
+   * @param id The numeric or string ID
+   * @returns Prefixed message ID
+   */
+  static message(id: string | number): string {
+    return createPrefixedId(ID_PREFIXES.MESSAGE, id);
+  }
+  
+  /**
+   * Create a link ID
+   * @param id The numeric or string ID
+   * @returns Prefixed link ID
+   */
+  static link(id: string | number): string {
+    return createPrefixedId(ID_PREFIXES.LINK, id);
+  }
+  
+  /**
+   * Create a student piece ID
+   * @param studentId Student ID (with or without prefix)
+   * @param pieceId Piece ID (with or without prefix)
+   * @returns Prefixed student-piece ID
+   */
+  static studentPiece(studentId: string | number, pieceId: string | number): string {
+    return createStudentPieceId(studentId.toString(), pieceId.toString());
+  }
+} 

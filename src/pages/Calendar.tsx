@@ -198,7 +198,7 @@ const CalendarPage = () => {
   };
   
   return (
-    <div className="max-w-7xl mx-auto">
+    <div>
       <PageHeader 
         title="Calendar" 
         description={`Schedule for ${format(date, 'MMMM d, yyyy')}`}
@@ -212,23 +212,31 @@ const CalendarPage = () => {
         </Button>
       </PageHeader>
       
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-1">
-          <div className="space-y-5 sticky top-6 animate-slide-up animate-stagger-1">
-            <Card className="overflow-hidden shadow-sm border-gray-200/70 dark:border-gray-700/70">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={(newDate) => newDate && setDate(newDate)}
-                className="rounded-md p-3"
-                classNames={{
-                  day_selected: "bg-blue-600 text-white hover:bg-blue-600 hover:text-white",
-                  day_today: "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300"
-                }}
-              />
+      <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 relative">
+        <div className="w-full">
+          <div className="space-y-5 md:sticky md:top-6 animate-slide-up animate-stagger-1 max-h-[calc(100vh-120px)] md:overflow-auto pb-4">
+            <Card className="overflow-hidden shadow-sm border-gray-200/70 dark:border-gray-700/70 min-h-fit">
+              <div className="w-full overflow-x-auto">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={(newDate) => newDate && setDate(newDate)}
+                  className="rounded-md p-3 w-full"
+                  classNames={{
+                    months: "flex flex-col",
+                    month: "space-y-2 w-full",
+                    day_selected: "bg-blue-600 text-white hover:bg-blue-600 hover:text-white",
+                    day_today: "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300",
+                    table: "w-full",
+                    head_row: "flex w-full justify-between",
+                    row: "flex w-full justify-between mt-2",
+                    cell: "flex-1 h-9 max-w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20"
+                  }}
+                />
+              </div>
             </Card>
             
-            <Card className="shadow-sm border-gray-200/70 dark:border-gray-700/70">
+            <Card className="shadow-sm border-gray-200/70 dark:border-gray-700/70 min-h-fit">
               <CardContent className="p-4">
                 <div className="space-y-5">
                   <div className="flex items-center justify-between">
@@ -250,7 +258,7 @@ const CalendarPage = () => {
                   
                   <div>
                     <h3 className="font-medium mb-3 text-gray-700 dark:text-gray-300">Quick Add</h3>
-                    <div className="space-y-2">
+                    <div className="space-y-2 flex flex-col sm:flex-row sm:space-y-0 sm:space-x-2 md:flex-col md:space-x-0 md:space-y-2">
                       <Button 
                         variant="outline" 
                         className="w-full justify-start text-sm h-9 border-gray-200 dark:border-gray-700 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 hover:border-blue-200"
@@ -283,7 +291,7 @@ const CalendarPage = () => {
           </div>
         </div>
         
-        <div className="lg:col-span-3 animate-slide-up animate-stagger-2">
+        <div className="w-full">
           <div className="flex flex-wrap md:flex-nowrap justify-between items-center mb-6 bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 shadow-sm border border-gray-200/70 dark:border-gray-700/70">
             <div className="flex items-center gap-2">
               <Button 
@@ -294,7 +302,7 @@ const CalendarPage = () => {
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div className="font-medium text-lg text-gray-800 dark:text-gray-200">
+              <div className="font-medium text-lg text-gray-800 dark:text-gray-200 truncate">
                 {format(date, view === 'day' ? 'EEEE, MMMM d' : view === 'week' ? 'MMMM d - 7' : 'MMMM yyyy')}
               </div>
               <Button 
@@ -332,10 +340,10 @@ const CalendarPage = () => {
                       "hover:bg-gray-50/50 dark:hover:bg-gray-800/20 group"
                     )}
                   >
-                    <div className="w-20 text-gray-500 dark:text-gray-400 text-xs pr-4 pt-3 text-right">
+                    <div className="w-16 sm:w-20 text-gray-500 dark:text-gray-400 text-xs pr-2 sm:pr-4 pt-3 text-right">
                       {slot.time}
                     </div>
-                    <div className="flex-1 min-h-[70px] py-1 relative">
+                    <div className="flex-1 min-h-[70px] py-1 relative overflow-x-auto">
                       {!slot.events.length && (
                         <Button 
                           variant="ghost" 
@@ -361,13 +369,14 @@ const CalendarPage = () => {
                               colors.hover,
                               "border-l-[3px]",
                               colors.border,
-                              "shadow-sm hover:shadow"
+                              "shadow-sm hover:shadow",
+                              "min-w-[280px] md:min-w-0"
                             )}
                             onClick={() => openEditEventModal(event)}
                           >
-                            <div className="flex justify-between items-start">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
                               <h4 className="font-medium text-sm text-gray-800 dark:text-gray-200">{event.title}</h4>
-                              <div className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                              <div className="text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
                                 {event.startTime} - {event.endTime}
                               </div>
                             </div>
@@ -375,14 +384,14 @@ const CalendarPage = () => {
                             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
                               {event.location && (
                                 <div className="flex items-center text-gray-600 dark:text-gray-400">
-                                  <MapPin className={cn("h-3 w-3 mr-1", colors.icon)} />
-                                  {event.location}
+                                  <MapPin className={cn("h-3 w-3 mr-1 flex-shrink-0", colors.icon)} />
+                                  <span className="truncate">{event.location}</span>
                                 </div>
                               )}
                               {event.repertoire && (
                                 <div className="flex items-center text-gray-600 dark:text-gray-400">
-                                  <Music className={cn("h-3 w-3 mr-1", colors.icon)} />
-                                  {event.repertoire}
+                                  <Music className={cn("h-3 w-3 mr-1 flex-shrink-0", colors.icon)} />
+                                  <span className="truncate">{event.repertoire}</span>
                                 </div>
                               )}
                             </div>

@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { Music, Calendar, CheckCircle, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useRepertoire } from '@/contexts/RepertoireContext';
 
 export interface RepertoireItemData {
   id: string;
@@ -24,6 +25,13 @@ interface RepertoireItemProps {
   formatComposerName?: (name: string) => string;
 }
 
+/**
+ * RepertoireItem component
+ * 
+ * Displays a single repertoire piece. Uses the RepertoireContext
+ * for compatibility with the new data model while maintaining the
+ * old interface for backwards compatibility.
+ */
 const RepertoireItem: React.FC<RepertoireItemProps> = ({ 
   item, 
   className,
@@ -31,8 +39,25 @@ const RepertoireItem: React.FC<RepertoireItemProps> = ({
   onClick,
   formatComposerName
 }) => {
-  // Use formatter if provided, otherwise return original name
-  const displayComposer = formatComposerName ? formatComposerName(item.composer) : item.composer;
+  // Use the repertoire context for consistent display
+  const { getPieceTitle, getPieceComposer } = useRepertoire();
+  
+  // Adapt the item for use with context utilities - converting from RepertoireItemData to a format
+  // that works with getPieceTitle and getPieceComposer
+  const adaptedPiece = {
+    ...item,
+    // Ensure required properties exist for the legacy piece format if they don't already
+    startDate: item.startedDate || '2000-01-01',
+    status: item.status || 'current',
+    // Use masterPieceId if available, otherwise this will be a direct access
+  };
+  
+  // Get piece info using context utilities
+  const title = getPieceTitle(adaptedPiece as any);
+  const composer = getPieceComposer(adaptedPiece as any);
+  
+  // Apply composer formatting if provided
+  const displayComposer = formatComposerName ? formatComposerName(composer) : composer;
   
   if (layout === 'grid') {
     return (
@@ -69,7 +94,7 @@ const RepertoireItem: React.FC<RepertoireItemProps> = ({
             )}
           </div>
           
-          <h3 className="font-medium text-sm truncate">{item.title}</h3>
+          <h3 className="font-medium text-sm truncate">{title}</h3>
           <p className="text-xs text-muted-foreground truncate">{displayComposer}</p>
           
           <div className="mt-auto pt-2 flex items-center justify-between">
@@ -130,7 +155,7 @@ const RepertoireItem: React.FC<RepertoireItemProps> = ({
             )}
           </div>
           <div>
-            <h3 className="font-medium">{item.title}</h3>
+            <h3 className="font-medium">{title}</h3>
             <p className="text-sm text-muted-foreground">{displayComposer}</p>
           </div>
         </div>

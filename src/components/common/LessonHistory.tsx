@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format, formatDistance } from 'date-fns';
 import { 
   BookText, 
@@ -9,7 +9,8 @@ import {
   Calendar,
   Clock,
   Star,
-  Sparkles
+  Sparkles,
+  FileEdit
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,21 +35,37 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Lesson } from './StudentCard';
+import { PieceInfo } from './RepertoireDisplay';
+import { RepertoireItemData } from '@/components/common/RepertoireItem';
+import PieceDisplay from './PieceDisplay';
 
 interface LessonHistoryProps {
   lessons: Lesson[];
+  className?: string;
+  initialExpandedLesson?: string | null;
 }
 
-const LessonHistory: React.FC<LessonHistoryProps> = ({ lessons }) => {
-  const [activeDialog, setActiveDialog] = useState<{lessonId: string, type: 'transcript' | 'summary'} | null>(null);
-  const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
+const LessonHistory: React.FC<LessonHistoryProps> = ({ 
+  lessons,
+  className,
+  initialExpandedLesson = null
+}) => {
+  const [activeDialog, setActiveDialog] = useState<{lessonId: string, type: 'transcript' | 'summary' | 'notes'} | null>(null);
+  const [expandedLesson, setExpandedLesson] = useState<string | null>(initialExpandedLesson);
   
   // Sort lessons by date (newest first)
   const sortedLessons = [...lessons].sort((a, b) => 
     new Date(b.date).getTime() - new Date(a.date).getTime()
   );
-
-  const handleOpenDialog = (lessonId: string, type: 'transcript' | 'summary') => {
+  
+  // Update expandedLesson if initialExpandedLesson changes
+  useEffect(() => {
+    if (initialExpandedLesson) {
+      setExpandedLesson(initialExpandedLesson);
+    }
+  }, [initialExpandedLesson]);
+  
+  const handleOpenDialog = (lessonId: string, type: 'transcript' | 'summary' | 'notes') => {
     setActiveDialog({ lessonId, type });
   };
 
@@ -228,6 +245,51 @@ const LessonHistory: React.FC<LessonHistoryProps> = ({ lessons }) => {
           </DialogFooter>
         </DialogContent>
       );
+    } else if (activeDialog.type === 'notes') {
+      return (
+        <DialogContent className="max-w-2xl max-h-[85vh] p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b">
+            <div className="flex items-center gap-2 mb-1">
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">Teacher Notes</Badge>
+              <Badge variant="outline" className="font-normal">{format(new Date(lesson.date), 'EEEE, MMMM d, yyyy')}</Badge>
+            </div>
+            <DialogTitle className="text-xl">Teacher Notes</DialogTitle>
+            <DialogDescription>
+              Notes from your teacher about this lesson
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="h-[50vh] px-6 py-4">
+            {lesson.notes ? (
+              <div className="prose prose-sm max-w-none">
+                <div className="flex items-start gap-2 mb-6">
+                  <div className="mt-1">
+                    <FileEdit className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Teacher notes</p>
+                    <h3 className="mt-0">Lesson Notes</h3>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 rounded-lg p-4 mb-4">
+                  <p>{lesson.notes}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No teacher notes available for this lesson.</p>
+              </div>
+            )}
+          </ScrollArea>
+          
+          <DialogFooter className="px-6 py-4 border-t bg-gray-50">
+            <DialogClose asChild>
+              <Button onClick={handleCloseDialog}>Close</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      );
     }
     
     return null;
@@ -280,62 +342,68 @@ const LessonHistory: React.FC<LessonHistoryProps> = ({ lessons }) => {
               
               {expandedLesson === lesson.id && (
                 <div className="p-4 space-y-4">
-                  <div>
-                    <h4 className="text-sm font-medium mb-3">Repertoire Covered:</h4>
+                  <div className="space-y-2 mt-3">
+                    <h4 className="text-sm font-medium">Repertoire Covered:</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {lesson.repertoire.map((piece) => (
-                        <div 
-                          key={piece.id} 
-                          className="flex items-start gap-2 text-sm p-2 rounded-md border bg-gray-50"
-                        >
-                          <Music className="h-4 w-4 text-muted-foreground mt-0.5" />
-                          <div>
-                            <div className="font-medium">{piece.title}</div>
-                            {piece.composer && <div className="text-muted-foreground text-xs">{piece.composer}</div>}
-                          </div>
+                        <div key={piece.id} className="relative bg-gray-50 rounded-md p-3 border">
+                          <PieceDisplay 
+                            piece={piece} 
+                            layout="list"
+                            showStatus={true}
+                            showDifficulty={true}
+                            className="bg-transparent border-0 p-0"
+                          />
                         </div>
                       ))}
                     </div>
                   </div>
                   
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button 
-                          variant="default" 
-                          size="sm"
-                          className="flex items-center gap-2 w-full sm:w-auto"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenDialog(lesson.id, 'summary');
-                          }}
-                        >
-                          <Sparkles className="h-4 w-4" />
-                          AI Summary
-                        </Button>
-                      </DialogTrigger>
-                      {activeDialog?.lessonId === lesson.id && activeDialog.type === 'summary' && 
-                        getLessonContent(lesson)}
-                    </Dialog>
+                  {lesson.summary && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Lesson Summary:</h4>
+                      <div className="text-sm bg-gray-50 p-3 rounded-md border">
+                        {lesson.summary}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex gap-2 mt-2">
+                    {lesson.transcriptUrl && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-xs"
+                        onClick={() => handleOpenDialog(lesson.id, 'transcript')}
+                      >
+                        <FileText className="h-3.5 w-3.5 mr-1" />
+                        View Full Transcript
+                      </Button>
+                    )}
                     
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="flex items-center gap-2 w-full sm:w-auto"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenDialog(lesson.id, 'transcript');
-                          }}
-                        >
-                          <FileText className="h-4 w-4" />
-                          View Transcript
-                        </Button>
-                      </DialogTrigger>
-                      {activeDialog?.lessonId === lesson.id && activeDialog.type === 'transcript' && 
-                        getLessonContent(lesson)}
-                    </Dialog>
+                    {lesson.summary && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-xs"
+                        onClick={() => handleOpenDialog(lesson.id, 'summary')}
+                      >
+                        <Sparkles className="h-3.5 w-3.5 mr-1" />
+                        AI Summary
+                      </Button>
+                    )}
+                    
+                    {lesson.notes && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-xs"
+                        onClick={() => handleOpenDialog(lesson.id, 'notes')}
+                      >
+                        <FileEdit className="h-3.5 w-3.5 mr-1" />
+                        View Teacher Notes
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -348,6 +416,17 @@ const LessonHistory: React.FC<LessonHistoryProps> = ({ lessons }) => {
           <p className="text-muted-foreground">No lesson history available.</p>
         </div>
       )}
+      
+      {/* Render dialogs */}
+      {sortedLessons.map(lesson => (
+        <Dialog
+          key={`dialog-${lesson.id}`}
+          open={activeDialog?.lessonId === lesson.id}
+          onOpenChange={(open) => !open && handleCloseDialog()}
+        >
+          {getLessonContent(lesson)}
+        </Dialog>
+      ))}
     </div>
   );
 };

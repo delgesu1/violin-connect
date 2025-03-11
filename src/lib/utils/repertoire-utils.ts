@@ -1,5 +1,9 @@
 import { RepertoirePiece } from '@/components/common/StudentCard';
 import { RepertoireItemData } from '@/components/common/RepertoireItem';
+import { IdGenerator, idsMatch } from '@/lib/id-utils';
+
+// Simple in-memory cache for piece lookups
+const pieceCache = new Map<string, RepertoireItemData>();
 
 /**
  * Get a master piece by ID from the master repertoire list
@@ -9,7 +13,35 @@ import { RepertoireItemData } from '@/components/common/RepertoireItem';
  * @returns The found master piece or undefined if not found
  */
 export const getMasterPieceById = (pieceId: string, repertoireList: RepertoireItemData[]): RepertoireItemData | undefined => {
-  return repertoireList.find(p => p.id === pieceId);
+  if (!pieceId) return undefined;
+  
+  // Check cache first
+  if (pieceCache.has(pieceId)) {
+    return pieceCache.get(pieceId);
+  }
+  
+  // Find by exact match first
+  let masterPiece = repertoireList.find(p => p.id === pieceId);
+  
+  // If not found, try with ID matching (ignore prefixes)
+  if (!masterPiece) {
+    masterPiece = repertoireList.find(p => idsMatch(p.id, pieceId));
+  }
+  
+  // Cache the result (even if undefined)
+  if (masterPiece) {
+    pieceCache.set(pieceId, masterPiece);
+  }
+  
+  return masterPiece;
+};
+
+/**
+ * Clear the master piece cache
+ * Call this when repertoire data is updated
+ */
+export const clearPieceCache = (): void => {
+  pieceCache.clear();
 };
 
 /**
@@ -42,6 +74,68 @@ export const getPieceDetails = (studentPiece: RepertoirePiece, repertoireList: R
 };
 
 /**
+ * Get the title of a piece safely, using masterPieceId if available
+ * 
+ * @param piece Student repertoire piece
+ * @param repertoireList Master repertoire list
+ * @returns The piece title
+ */
+export const getPieceTitle = (piece: RepertoirePiece, repertoireList: RepertoireItemData[]): string => {
+  if (process.env.NODE_ENV === 'development' && piece.title && !piece.masterPieceId) {
+    console.warn('Using deprecated direct title property instead of masterPieceId in', piece);
+  }
+  
+  if (piece.masterPieceId) {
+    const masterPiece = getMasterPieceById(piece.masterPieceId, repertoireList);
+    if (masterPiece) {
+      return masterPiece.title;
+    }
+  }
+  
+  return piece.title || 'Unknown Piece';
+};
+
+/**
+ * Get the composer of a piece safely, using masterPieceId if available
+ * 
+ * @param piece Student repertoire piece
+ * @param repertoireList Master repertoire list
+ * @returns The piece composer
+ */
+export const getPieceComposer = (piece: RepertoirePiece, repertoireList: RepertoireItemData[]): string => {
+  if (process.env.NODE_ENV === 'development' && piece.composer && !piece.masterPieceId) {
+    console.warn('Using deprecated direct composer property instead of masterPieceId in', piece);
+  }
+  
+  if (piece.masterPieceId) {
+    const masterPiece = getMasterPieceById(piece.masterPieceId, repertoireList);
+    if (masterPiece) {
+      return masterPiece.composer;
+    }
+  }
+  
+  return piece.composer || 'Unknown Composer';
+};
+
+/**
+ * Get the difficulty of a piece, using masterPieceId to look it up
+ * 
+ * @param piece Student repertoire piece
+ * @param repertoireList Master repertoire list
+ * @returns The difficulty level or undefined
+ */
+export const getPieceDifficulty = (piece: RepertoirePiece, repertoireList: RepertoireItemData[]): string | undefined => {
+  if (piece.masterPieceId) {
+    const masterPiece = getMasterPieceById(piece.masterPieceId, repertoireList);
+    if (masterPiece) {
+      return masterPiece.difficulty;
+    }
+  }
+  
+  return undefined;
+};
+
+/**
  * Migrate an old-style student repertoire piece to the new format with masterPieceId
  * This is useful for converting existing data to the new format
  * 
@@ -71,4 +165,56 @@ export const migrateToMasterPieceReference = (piece: RepertoirePiece, repertoire
   
   // If no match is found, return the original piece
   return piece;
+};
+
+/**
+ * Create a new master repertoire piece
+ * 
+ * @param title Piece title
+ * @param composer Composer name
+ * @param difficulty Difficulty level
+ * @param notes Optional notes
+ * @returns A new master repertoire piece with a unique ID
+ */
+export const createMasterPiece = (
+  title: string, 
+  composer: string, 
+  difficulty?: 'beginner' | 'intermediate' | 'advanced',
+  notes?: string
+): RepertoireItemData => {
+  return {
+    id: IdGenerator.piece(Date.now().toString()),
+    title,
+    composer,
+    difficulty,
+    notes,
+    startedDate: new Date().toISOString().split('T')[0]
+  };
+};
+
+/**
+ * Create a student repertoire piece linked to a master piece
+ * 
+ * @param masterPieceId ID of the master piece
+ * @param studentId ID of the student
+ * @param status Current status of the piece
+ * @param notes Optional notes specific to this student's work on the piece
+ * @returns A new student repertoire piece
+ */
+export const createStudentPiece = (
+  masterPieceId: string,
+  studentId: string,
+  status: 'current' | 'completed' | 'planned' = 'current',
+  notes?: string
+): RepertoirePiece => {
+  const startDate = new Date().toISOString().split('T')[0];
+  
+  return {
+    // Create a unique ID for this student-piece association
+    id: `${studentId}-${masterPieceId}-${Date.now()}`,
+    masterPieceId,
+    startDate,
+    status,
+    notes
+  };
 }; 

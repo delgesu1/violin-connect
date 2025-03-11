@@ -162,11 +162,10 @@ const FilesPage = () => {
   };
   
   return (
-    <div className="container py-6">
+    <div>
       <PageHeader
         title="Files"
         description="Manage and organize all your uploaded resources"
-        className="mb-6"
       />
       
       <div className="flex flex-col md:flex-row gap-6">

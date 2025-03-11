@@ -156,7 +156,12 @@ export const enrichMockAttachmentData = () => {
     'Classical Music', 'Classical FM', 'VAN Magazine', 'American String Teacher', 'The Violin Channel'
   ];
   
-  // Define links for common violin piece resources
+  // MIGRATION TODO: This utility should ideally be updated to use the repertoire context utilities
+  // for accessing piece title and composer properties. However, since this is a non-React utility, 
+  // we can't directly use the useRepertoire hook here. Options for future improvement:
+  // 1. Accept piece accessor functions as parameters to this function
+  // 2. Refactor to accept a properly formatted piece object that already has title/composer resolved
+  // 3. Create a React-based wrapper for this utility that uses the context
   const createLinks = (piece: { title: string, composer: string, id: string }) => {
     const formattedTitle = piece.title.replace(/[,.]/g, '').replace(/\s+/g, '_');
     const formattedComposer = piece.composer.replace(/\./g, '').replace(/\s+/g, '_');

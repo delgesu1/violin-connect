@@ -137,7 +137,7 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
           {/* Date and Time */}
           <div className="grid gap-2">
             <Label>Date & Time</Label>
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col gap-3">
               {/* Date Picker */}
               <Popover>
                 <PopoverTrigger asChild>
@@ -149,7 +149,7 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
                     {format(date, "MMMM d, yyyy")}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={date}
@@ -160,38 +160,44 @@ const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
               </Popover>
               
               {/* Time Selectors */}
-              <div className="grid grid-cols-2 gap-2 flex-1">
-                <Select 
-                  value={formData.startTime} 
-                  onValueChange={(value) => handleSelectChange('startTime', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Start" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', 
-                     '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', 
-                     '6:00 PM', '7:00 PM', '8:00 PM'].map(time => (
-                      <SelectItem key={time} value={time}>{time}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor="startTime" className="text-xs text-gray-500 mb-1 block">Start Time</Label>
+                  <Select 
+                    value={formData.startTime} 
+                    onValueChange={(value) => handleSelectChange('startTime', value)}
+                  >
+                    <SelectTrigger id="startTime">
+                      <SelectValue placeholder="Start" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', 
+                       '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', 
+                       '6:00 PM', '7:00 PM', '8:00 PM'].map(time => (
+                        <SelectItem key={time} value={time}>{time}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 
-                <Select 
-                  value={formData.endTime} 
-                  onValueChange={(value) => handleSelectChange('endTime', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="End" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', 
-                     '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM', 
-                     '7:00 PM', '8:00 PM', '9:00 PM'].map(time => (
-                      <SelectItem key={time} value={time}>{time}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div>
+                  <Label htmlFor="endTime" className="text-xs text-gray-500 mb-1 block">End Time</Label>
+                  <Select 
+                    value={formData.endTime} 
+                    onValueChange={(value) => handleSelectChange('endTime', value)}
+                  >
+                    <SelectTrigger id="endTime">
+                      <SelectValue placeholder="End" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', 
+                       '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM', 
+                       '7:00 PM', '8:00 PM', '9:00 PM'].map(time => (
+                        <SelectItem key={time} value={time}>{time}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </div>

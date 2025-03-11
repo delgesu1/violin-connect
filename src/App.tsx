@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import AppLayout from "./components/layout/AppLayout";
+import { RepertoireProvider } from "@/contexts/RepertoireContext";
 
 // Pages
 import Dashboard from "./pages/Index";
@@ -21,87 +22,25 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <AppLayout>
-                  <Dashboard />
-                </AppLayout>
-              }
-            />
-            <Route
-              path="/repertoire"
-              element={
-                <AppLayout>
-                  <RepertoirePage />
-                </AppLayout>
-              }
-            />
-            <Route
-              path="/files"
-              element={
-                <AppLayout>
-                  <FilesPage />
-                </AppLayout>
-              }
-            />
-            <Route
-              path="/discussions"
-              element={
-                <AppLayout>
-                  <DiscussionsPage />
-                </AppLayout>
-              }
-            />
-            <Route
-              path="/calendar"
-              element={
-                <AppLayout>
-                  <CalendarPage />
-                </AppLayout>
-              }
-            />
-            <Route
-              path="/students"
-              element={
-                <AppLayout>
-                  <StudentsPage />
-                </AppLayout>
-              }
-            />
-            <Route
-              path="/students/:studentId"
-              element={
-                <AppLayout>
-                  <StudentsPage />
-                </AppLayout>
-              }
-            />
-            <Route
-              path="/messages"
-              element={
-                <AppLayout>
-                  <MessagesPage />
-                </AppLayout>
-              }
-            />
-            <Route
-              path="/messages/:studentId"
-              element={
-                <AppLayout>
-                  <MessagesPage />
-                </AppLayout>
-              }
-            />
-            {/* Add settings route later */}
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-        <Toaster />
-        <Sonner />
+        <RepertoireProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/students/*" element={<StudentsPage />} />
+                <Route path="/repertoire" element={<RepertoirePage />} />
+                <Route path="/messages" element={<MessagesPage />} />
+                <Route path="/messages/:studentId" element={<MessagesPage />} />
+                <Route path="/files" element={<FilesPage />} />
+                <Route path="/calendar" element={<CalendarPage />} />
+                <Route path="/discussions" element={<DiscussionsPage />} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+          <Toaster />
+          <Sonner />
+        </RepertoireProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

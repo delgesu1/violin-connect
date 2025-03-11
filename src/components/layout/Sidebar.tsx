@@ -88,8 +88,9 @@ const Sidebar = () => {
         <Button 
           variant="ghost" 
           size="icon" 
-          className="fixed top-4 left-4 z-50 bg-background/80 backdrop-blur-sm shadow-sm border rounded-md"
+          className="fixed top-4 left-4 z-50 bg-background/80 backdrop-blur-sm shadow-sm border rounded-md h-9 w-9"
           onClick={toggleSidebar}
+          aria-label={isOpen ? "Close menu" : "Open menu"}
         >
           {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </Button>
@@ -98,8 +99,8 @@ const Sidebar = () => {
       {/* Sidebar */}
       <div 
         className={cn(
-          "fixed lg:relative h-screen bg-gray-900 text-gray-100 border-r border-gray-800 transition-all duration-300 z-40 flex flex-col",
-          isOpen ? "translate-x-0 w-60" : "-translate-x-full lg:translate-x-0 lg:w-16",
+          "fixed md:relative h-screen bg-gray-900 text-gray-100 border-r border-gray-800 transition-all duration-300 z-40 flex flex-col",
+          isOpen ? "translate-x-0 w-60" : "-translate-x-full md:translate-x-0 md:w-16",
         )}
       >
         {/* Logo and title */}
