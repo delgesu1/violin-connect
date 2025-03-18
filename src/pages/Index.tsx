@@ -6,14 +6,27 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
-  Music, MessageSquare, Calendar, Book, Star, ChevronRight, Edit, ChevronDown,
-  PlusCircle, Users, BookText, Clock, FileText, Sparkles, BarChart2, CheckCircle
+  PlusCircle, 
+  Calendar, 
+  Users, 
+  BookText, 
+  MessageSquare,
+  FileText, 
+  Clock, 
+  CheckCircle, 
+  Sparkles,
+  Music,
+  Star,
+  ChevronRight,
+  Edit,
+  ChevronDown,
+  BarChart2
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Student, RepertoirePiece, LegacyRepertoirePiece } from '@/components/common/StudentCard';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ID_PREFIXES, createPrefixedId } from '@/lib/id-utils';
@@ -22,8 +35,11 @@ import { useRepertoire } from '@/contexts/RepertoireContext';
 import StudentCard from '@/components/common/StudentCard';
 import CalendarEvent, { CalendarEventData } from '@/components/common/CalendarEvent';
 import { RepertoireItemData } from '@/components/common/RepertoireItem';
-// We need to export and import the students from Students.tsx properly
-// Since we can't modify Students.tsx here, let's create the students with lessons locally
+import InspirationOfTheDay from '@/components/common/InspirationOfTheDay';
+import { useAllLessons } from '@/hooks/useLessons';
+import { convertToSupabaseLesson } from '@/utils/dataConverters';
+import TranscriptDialog from '@/components/dialogs/TranscriptDialog';
+import AISummaryDialog from '@/components/dialogs/AISummaryDialog';
 
 // Mock data for master repertoire (simplified version)
 const masterRepertoire: RepertoireItemData[] = [
@@ -376,8 +392,11 @@ const Dashboard = () => {
   const [activeDialog, setActiveDialog] = useState<{lessonId: string, type: 'transcript' | 'summary'} | null>(null);
   const navigate = useNavigate();
   
-  // Get recent lessons from students' data
-  const recentLessonsData = collectRecentLessons().slice(0, 4); // Get the 4 most recent lessons
+  // Fetch lessons data from Supabase using the hybrid caching approach
+  const { data: lessonsData, isLoading, error } = useAllLessons();
+  
+  // Get the 4 most recent lessons from the fetched data
+  const recentLessonsData = lessonsData?.slice(0, 4) || [];
   
   const getActiveLesson = () => {
     if (!activeDialog) return null;
@@ -402,6 +421,30 @@ const Dashboard = () => {
       // Navigate to student page with lessons tab active and specific lesson highlighted
       navigate(`/students/${studentId}?tab=lessons&lessonId=${lessonId}`);
     }
+  };
+  
+  // Calculate lesson duration in a readable format
+  const getLessonDuration = (lesson: any) => {
+    if (lesson.duration) return lesson.duration;
+    if (lesson.start_time && lesson.end_time) {
+      try {
+        const start = parseISO(`2000-01-01T${lesson.start_time}`);
+        const end = parseISO(`2000-01-01T${lesson.end_time}`);
+        const minutes = Math.round((end.getTime() - start.getTime()) / 60000);
+        return `${minutes} minutes`;
+      } catch (e) {
+        return '45 minutes';
+      }
+    }
+    return '45 minutes';
+  };
+  
+  // Format repertoire for display from lesson data
+  const getRepertoire = (lesson: any) => {
+    if (lesson.repertoire && Array.isArray(lesson.repertoire)) {
+      return lesson.repertoire;
+    }
+    return [];
   };
   
   return (
@@ -439,8 +482,8 @@ const Dashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-5 pb-5">
-            <div className="text-3xl font-bold text-gray-800">12</div>
-            <CardDescription className="mt-1 text-gray-500">Scheduled this week</CardDescription>
+            <div className="text-3xl font-bold text-gray-800">{lessonsData?.length || 0}</div>
+            <CardDescription className="mt-1 text-gray-500">Total lessons</CardDescription>
           </CardContent>
         </Card>
         
@@ -460,10 +503,10 @@ const Dashboard = () => {
         </Link>
       </div>
       
-      {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Schedule Section */}
-        <div className="lg:col-span-2 bg-white border border-gray-100 shadow-sm rounded-lg">
+      {/* Middle Content Area - More balanced layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+        {/* Schedule Section - Slightly narrower */}
+        <div className="lg:col-span-3 bg-white border border-gray-100 shadow-sm rounded-lg">
           <Tabs defaultValue="today" className="animate-slide-up animate-stagger-2">
             <div className="flex justify-between items-center p-5 pb-4 border-b border-gray-100">
               <h2 className="text-xl font-semibold flex items-center text-gray-800">
@@ -497,89 +540,69 @@ const Dashboard = () => {
           </Tabs>
         </div>
         
-        {/* Students Section */}
-        <div className="bg-white border border-gray-100 shadow-sm rounded-lg">
-          <div className="p-5 pb-4 border-b border-gray-100">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold flex items-center text-gray-800">
-                <Users className="h-5 w-5 mr-2 text-primary" />
-                Your Students
-              </h2>
-              <Link to="/students">
-                <Button variant="ghost" size="sm" className="text-primary font-medium hover:bg-gray-50">
-                  View All
-                </Button>
-              </Link>
-            </div>
-          </div>
-          
-          <div className="space-y-4 p-5 pt-4 animate-slide-up animate-stagger-3">
-            {students.slice(0, 3).map(student => (
-              <StudentCard 
-                key={student.id} 
-                student={student} 
-                className=""
-                masterRepertoire={masterRepertoire}
-              />
-            ))}
-            
-            <Link to="/students">
-              <Button variant="outline" className="w-full mt-3 rounded-lg h-12 border border-gray-200 bg-white hover:bg-gray-50 transition-all duration-200">
-                <Users className="mr-2 h-4 w-4 text-primary" />
-                Manage Students
-              </Button>
-            </Link>
-          </div>
+        {/* Inspiration of the Day - Wider column */}
+        <div className="lg:col-span-2">
+          <InspirationOfTheDay />
         </div>
       </div>
       
-      {/* Recent Lessons Section */}
-      <div className="mt-6 bg-white border border-gray-100 shadow-sm rounded-lg animate-slide-up animate-stagger-4">
+      {/* Recent Lessons Section - Full width */}
+      <div className="bg-white border border-gray-100 shadow-sm rounded-lg animate-slide-up animate-stagger-4">
         <div className="p-5 pb-4 border-b border-gray-100">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold flex items-center text-gray-800">
               <BookText className="h-5 w-5 mr-2 text-primary" />
               Recent Lessons
             </h2>
-            <Button variant="ghost" size="sm" className="text-primary font-medium hover:bg-gray-50">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-primary font-medium hover:bg-gray-50"
+              onClick={() => navigate('/students?tab=lessons')}
+            >
               View All Lessons
             </Button>
           </div>
         </div>
         
-        <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {recentLessonsData.length > 0 ? (
+        <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+          {isLoading ? (
+            <div className="col-span-2 text-center py-12">
+              <div className="animate-pulse h-4 w-24 bg-gray-200 rounded mx-auto mb-3"></div>
+              <p className="text-muted-foreground">Loading lessons...</p>
+            </div>
+          ) : error ? (
+            <div className="col-span-2 text-center py-12 border rounded-lg bg-red-50">
+              <p className="text-red-500">Failed to load lessons</p>
+            </div>
+          ) : recentLessonsData.length > 0 ? (
             recentLessonsData.map((lesson) => (
               <Card 
                 key={lesson.id}
                 className="overflow-hidden border border-gray-100 hover:shadow-md transition-all duration-200 hover:border-primary/20 cursor-pointer"
-                onClick={(e) => navigateToStudentLessons(lesson.student.id, lesson.id, e)}
+                onClick={(e) => navigateToStudentLessons(lesson.student_id, lesson.id, e)}
               >
                 <div className="p-5 pb-3">
                   <div className="flex items-center justify-between mb-3">
                     <Badge variant="outline" className="bg-gray-50 font-normal">
                       {format(new Date(lesson.date), 'MMM d, yyyy')}
                     </Badge>
-                    <Badge variant="outline" className="bg-gray-50 text-gray-500 font-normal">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {lesson.duration}
-                    </Badge>
                   </div>
                   
                   <div className="flex items-center gap-3 mb-3">
                     <Avatar className="h-10 w-10 border">
-                      <AvatarImage src={lesson.student.avatarUrl} alt={lesson.student.name} />
+                      <AvatarImage src={lesson.student?.avatar_url} alt={lesson.student?.name} />
                       <AvatarFallback className="bg-primary/10 text-primary">
-                        {lesson.student.name.substring(0, 2)}
+                        {lesson.student?.name ? lesson.student.name.substring(0, 2) : "??"}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h3 className="font-medium text-gray-900">{lesson.student.name}</h3>
+                      <h3 className="font-medium text-gray-900">{lesson.student?.name || "Unknown Student"}</h3>
                       <p className="text-xs text-gray-500">
-                        {lesson.repertoire.map((piece, i) => (
-                          <React.Fragment key={piece.id}>
+                        {getRepertoire(lesson).map((piece: any, i: number) => (
+                          <React.Fragment key={piece.id || i}>
                             <PieceDisplay piece={piece} layout="inline" />
-                            {i < lesson.repertoire.length - 1 ? ', ' : ''}
+                            {i < getRepertoire(lesson).length - 1 ? ', ' : ''}
                           </React.Fragment>
                         ))}
                       </p>
@@ -587,7 +610,7 @@ const Dashboard = () => {
                   </div>
                   
                   <div className="line-clamp-3 text-sm text-gray-600 mb-4">
-                    {lesson.summary}
+                    {lesson.summary || lesson.notes || "No summary available"}
                   </div>
                 </div>
                 
@@ -599,6 +622,7 @@ const Dashboard = () => {
                       e.stopPropagation();
                       handleOpenDialog(lesson.id, 'transcript');
                     }}
+                    disabled={!lesson.transcript_url}
                   >
                     <FileText className="h-4 w-4 mr-1" />
                     Transcript
@@ -611,6 +635,7 @@ const Dashboard = () => {
                       e.stopPropagation();
                       handleOpenDialog(lesson.id, 'summary');
                     }}
+                    disabled={!lesson.ai_summary}
                   >
                     <Sparkles className="h-4 w-4 mr-1" />
                     AI Summary
@@ -619,7 +644,7 @@ const Dashboard = () => {
               </Card>
             ))
           ) : (
-            <div className="col-span-4 text-center py-12 border rounded-lg bg-gray-50">
+            <div className="col-span-2 text-center py-12 border rounded-lg bg-gray-50">
               <BookText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
               <p className="text-muted-foreground">No lesson history available yet.</p>
             </div>
@@ -627,157 +652,18 @@ const Dashboard = () => {
         </div>
       </div>
       
-      {/* Transcript Dialog */}
-      <Dialog 
-        open={activeDialog?.type === 'transcript'} 
+      {/* Dialog components */}
+      <TranscriptDialog
+        lesson={convertToSupabaseLesson(getActiveLesson())}
+        open={activeDialog?.type === 'transcript'}
         onOpenChange={(open) => !open && handleCloseDialog()}
-      >
-        <DialogContent className="max-w-3xl max-h-[85vh] p-0 overflow-hidden">
-          {getActiveLesson() && (
-            <>
-              <DialogHeader className="px-6 pt-6 pb-4 border-b">
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">Transcript</Badge>
-                  <Badge variant="outline" className="font-normal">
-                    {format(new Date(getActiveLesson()!.date), 'EEEE, MMMM d, yyyy')}
-                  </Badge>
-                </div>
-                <DialogTitle className="text-xl">
-                  Lesson with {getActiveLesson()!.student.name}
-                </DialogTitle>
-                <DialogDescription>
-                  Full transcript of the lesson covering {getActiveLesson()!.repertoire.map(p => p.title).join(", ")}
-                </DialogDescription>
-              </DialogHeader>
-              
-              <ScrollArea className="h-[60vh] px-6 py-4">
-                <div className="prose prose-sm max-w-none">
-                  <h3>Transcript Content</h3>
-                  <p className="text-muted-foreground text-sm mb-4">
-                    <Clock className="inline-block h-3.5 w-3.5 mr-1" /> 
-                    Duration: {getActiveLesson()!.duration}
-                  </p>
-                  <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                    <div className="font-medium mb-2">Topics Covered:</div>
-                    <ul className="list-disc pl-4 text-sm space-y-1">
-                      <li>Technique and articulation</li>
-                      <li>Interpretation and phrasing</li>
-                      <li>Historical context</li>
-                      <li>Practice strategies</li>
-                    </ul>
-                  </div>
-                  <p>{getActiveLesson()!.transcriptUrl}</p>
-                  <p>This would display the full lesson transcript text in a conversational format.</p>
-                  <div className="py-2 px-4 rounded-lg bg-blue-50 my-4 border-l-4 border-blue-400">
-                    <p className="font-medium">Teacher:</p> 
-                    <p className="text-sm mb-3">Let's focus on the articulation in the opening passage. Try using more bow on the downbeat.</p>
-                    <p className="font-medium">Student:</p>
-                    <p className="text-sm">Like this? [Plays passage]</p>
-                  </div>
-                  <div className="py-2 px-4 rounded-lg bg-gray-50 my-4 border-l-4 border-gray-200">
-                    <p className="font-medium">Teacher:</p> 
-                    <p className="text-sm mb-3">Yes, that's better. Now let's work on the vibrato in measure 24. Try to make it slightly wider.</p>
-                    <p className="font-medium">Student:</p>
-                    <p className="text-sm">I'll try. [Plays measure with adjusted vibrato]</p>
-                  </div>
-                </div>
-              </ScrollArea>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      />
       
-      {/* AI Summary Dialog */}
-      <Dialog 
-        open={activeDialog?.type === 'summary'} 
+      <AISummaryDialog
+        lesson={convertToSupabaseLesson(getActiveLesson())}
+        open={activeDialog?.type === 'summary'}
         onOpenChange={(open) => !open && handleCloseDialog()}
-      >
-        <DialogContent className="max-w-3xl max-h-[85vh] p-0 overflow-hidden">
-          {getActiveLesson() && (
-            <>
-              <DialogHeader className="px-6 pt-6 pb-4 border-b">
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="outline" className="bg-purple-50 text-purple-700 hover:bg-purple-50">AI Summary</Badge>
-                  <Badge variant="outline" className="font-normal">
-                    {format(new Date(getActiveLesson()!.date), 'EEEE, MMMM d, yyyy')}
-                  </Badge>
-                </div>
-                <DialogTitle className="text-xl">
-                  Lesson Summary: {getActiveLesson()!.student.name}
-                </DialogTitle>
-                <DialogDescription>
-                  AI-generated summary of key points and action items from the lesson
-                </DialogDescription>
-              </DialogHeader>
-              
-              <ScrollArea className="h-[60vh] px-6 py-4">
-                <div className="prose prose-sm max-w-none">
-                  <div className="flex items-start gap-2 mb-6">
-                    <div className="mt-1">
-                      <Sparkles className="h-5 w-5 text-purple-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Generated summary</p>
-                      <h3 className="mt-0">Key Lesson Points</h3>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-purple-50 rounded-lg p-4 mb-6">
-                    <h4 className="text-purple-900 mb-2 mt-0">Areas of Focus</h4>
-                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-0">
-                      <li className="flex items-center gap-2 bg-white p-2 rounded">
-                        <div className="h-2 w-2 rounded-full bg-purple-400"></div>
-                        Technique
-                      </li>
-                      <li className="flex items-center gap-2 bg-white p-2 rounded">
-                        <div className="h-2 w-2 rounded-full bg-purple-400"></div>
-                        Articulation
-                      </li>
-                      <li className="flex items-center gap-2 bg-white p-2 rounded">
-                        <div className="h-2 w-2 rounded-full bg-purple-400"></div>
-                        Interpretation
-                      </li>
-                      <li className="flex items-center gap-2 bg-white p-2 rounded">
-                        <div className="h-2 w-2 rounded-full bg-purple-400"></div>
-                        Practice strategies
-                      </li>
-                    </ul>
-                  </div>
-                  
-                  <div className="mb-6">
-                    <h4 className="font-medium flex items-center gap-2 mb-3">
-                      <Star className="h-4 w-4 text-amber-500" />
-                      Accomplishments
-                    </h4>
-                    <ul className="list-disc pl-4 space-y-1 mb-0">
-                      <li>Improved bow distribution in opening passages</li>
-                      <li>Better understanding of the piece's historical context</li>
-                      <li>More consistent vibrato in lyrical sections</li>
-                    </ul>
-                  </div>
-                  
-                  <div className="mb-6">
-                    <h4 className="font-medium flex items-center gap-2 mb-3">
-                      <Clock className="h-4 w-4 text-blue-500" />
-                      Practice Assignments
-                    </h4>
-                    <ul className="list-disc pl-4 space-y-1 mb-0">
-                      <li>Practice with metronome at quarter note = 60</li>
-                      <li>Record yourself playing challenging passages</li>
-                      <li>Listen to recommended recordings for stylistic reference</li>
-                    </ul>
-                  </div>
-                  
-                  <div className="border-t pt-4 mt-6">
-                    <p className="font-medium mb-2">Summary:</p>
-                    <p>{getActiveLesson()!.summary}</p>
-                  </div>
-                </div>
-              </ScrollArea>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      />
     </div>
   );
 };
