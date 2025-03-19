@@ -57,1355 +57,166 @@ import { FileUpload, SelectedFile } from '@/components/ui/file-upload';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/components/ui/use-toast';
 
-// Mock data
-const students: Student[] = [
-  {
-    id: createPrefixedId(ID_PREFIXES.STUDENT, '1'),
-    name: 'Emma Thompson',
-    currentRepertoire: [
-      { 
-        id: createStudentPieceId('1', '1'), 
-        masterPieceId: createPrefixedId(ID_PREFIXES.PIECE, '1'),
-        startDate: '2023-10-01', 
-        status: 'current', 
-        notes: 'Working on Chaconne section' 
-      },
-      { 
-        id: createStudentPieceId('1', '9'), 
-        masterPieceId: createPrefixedId(ID_PREFIXES.PIECE, '9'),
-        startDate: '2023-11-15', 
-        status: 'current', 
-        notes: 'Preparing for spring competition' 
-      },
-      { 
-        id: createStudentPieceId('1', '19'), 
-        masterPieceId: createPrefixedId(ID_PREFIXES.PIECE, '19'),
-        startDate: '2024-01-10', 
-        status: 'current' 
-      }
-    ],
-    pastRepertoire: [
-      { 
-        id: createStudentPieceId('1', '6'), 
-        masterPieceId: createPrefixedId(ID_PREFIXES.PIECE, '6'),
-        startDate: '2023-05-10', 
-        endDate: '2023-09-15', 
-        status: 'completed', 
-        notes: 'Performed at summer recital' 
-      },
-      { 
-        id: createStudentPieceId('1', '15'), 
-        masterPieceId: createPrefixedId(ID_PREFIXES.PIECE, '15'),
-        startDate: '2023-01-15', 
-        endDate: '2023-04-20', 
-        status: 'completed' 
-      },
-      { 
-        id: createStudentPieceId('1', '16'), 
-        masterPieceId: createPrefixedId(ID_PREFIXES.PIECE, '16'),
-        startDate: '2022-11-05', 
-        endDate: '2023-02-10', 
-        status: 'completed' 
-      },
-      { 
-        id: createStudentPieceId('1', '7'), 
-        masterPieceId: createPrefixedId(ID_PREFIXES.PIECE, '7'),
-        startDate: '2022-08-15', 
-        endDate: '2022-12-20', 
-        status: 'completed', 
-        notes: 'Performed with university orchestra' 
-      }
-    ],
-    nextLesson: 'Today, 4:00 PM',
-  },
-  {
-    id: createPrefixedId(ID_PREFIXES.STUDENT, '2'),
-    name: 'James Wilson',
-    currentRepertoire: [
-      { id: createStudentPieceId('2', '4'), title: 'Caprice No. 24 in A minor', composer: 'N. Paganini', startDate: '2023-09-10', status: 'current', notes: 'Focus on variation techniques' },
-      { id: createStudentPieceId('2', '11'), title: 'Violin Concerto in D major, Op. 77', composer: 'J. Brahms', startDate: '2023-10-05', status: 'current' }
-    ],
-    pastRepertoire: [
-      { id: createStudentPieceId('2', '7'), title: 'Introduction and Rondo Capriccioso', composer: 'C. Saint-Saëns', startDate: '2023-03-15', endDate: '2023-08-20', status: 'completed' },
-      { id: createStudentPieceId('2', '3'), title: 'Violin Concerto in D major, Op. 35', composer: 'P.I. Tchaikovsky', startDate: '2022-10-10', endDate: '2023-02-25', status: 'completed', notes: 'Performed with youth symphony' },
-      { id: createStudentPieceId('2', '33'), title: 'Partita No. 3 in E major, BWV 1006', composer: 'J.S. Bach', startDate: '2022-06-15', endDate: '2022-11-30', status: 'completed' }
-    ],
-    nextLesson: 'Tomorrow, 3:30 PM',
-  },
-  {
-    id: '3',
-    name: 'Sophia Chen',
-    currentRepertoire: [
-      { id: '3-301', title: 'Violin Concerto in D major, Op. 35', composer: 'P.I. Tchaikovsky', startDate: '2023-09-05', status: 'current', notes: 'Working on first movement cadenza' },
-      { id: '3-302', title: 'Caprice No. 5 in A minor', composer: 'N. Paganini', startDate: '2023-11-10', status: 'current' },
-      { id: '3-303', title: 'Liebesleid', composer: 'F. Kreisler', startDate: '2023-12-15', status: 'current' }
-    ],
-    pastRepertoire: [
-      { id: '3-304', title: 'Violin Sonata K.304 in E minor', composer: 'W.A. Mozart', startDate: '2023-04-20', endDate: '2023-08-30', status: 'completed' },
-      { id: '3-305', title: 'The Four Seasons - Summer', composer: 'A. Vivaldi', startDate: '2023-01-05', endDate: '2023-04-15', status: 'completed', notes: 'Summer festival performance' },
-      { id: '3-306', title: 'Meditation from Thaïs', composer: 'J. Massenet', startDate: '2022-09-15', endDate: '2022-12-20', status: 'completed' }
-    ],
-    nextLesson: 'Friday, 5:00 PM',
-  },
-  {
-    id: '4',
-    name: 'Michael Brown',
-    currentRepertoire: [
-      { id: '4-401', title: 'Violin Sonata K.304 in E minor', composer: 'W.A. Mozart', startDate: '2023-09-20', status: 'current', notes: 'Working on second movement' },
-      { id: '4-402', title: 'Schön Rosmarin', composer: 'F. Kreisler', startDate: '2023-11-05', status: 'current' }
-    ],
-    pastRepertoire: [
-      { id: '4-403', title: 'Violin Concerto No. 3 in B minor, Op. 61', composer: 'C. Saint-Saëns', startDate: '2023-06-15', endDate: '2023-09-10', status: 'completed', notes: 'Performed at fall showcase' },
-      { id: '4-404', title: 'The Four Seasons - Autumn', composer: 'A. Vivaldi', startDate: '2023-03-10', endDate: '2023-06-05', status: 'completed' },
-      { id: '4-405', title: 'Carmen Fantasy, Op. 25', composer: 'P. de Sarasate', startDate: '2022-11-20', endDate: '2023-03-01', status: 'completed' }
-    ],
-    nextLesson: 'Next Monday, 4:30 PM',
-  },
-  {
-    id: '5',
-    name: 'Olivia Martinez',
-    currentRepertoire: [
-      { id: '5-501', title: 'Violin Concerto in E minor, Op. 64', composer: 'F. Mendelssohn', startDate: '2023-10-15', status: 'current', notes: 'Preparing for conservatory audition' },
-      { id: '5-502', title: 'Partita No. 2 in D minor, BWV 1004', composer: 'J.S. Bach', startDate: '2023-12-01', status: 'current' }
-    ],
-    pastRepertoire: [
-      { id: '5-503', title: 'Violin Concerto No. 1 in G minor, Op. 26', composer: 'M. Bruch', startDate: '2023-05-20', endDate: '2023-09-25', status: 'completed', notes: 'Regional competition winner' },
-      { id: '5-504', title: 'Introduction and Rondo Capriccioso', composer: 'C. Saint-Saëns', startDate: '2023-01-10', endDate: '2023-05-15', status: 'completed' },
-      { id: '5-505', title: 'Violin Sonata No. 9 (Kreutzer)', composer: 'L.V. Beethoven', startDate: '2022-08-15', endDate: '2022-12-20', status: 'completed', notes: 'Winter recital performance' }
-    ],
-    nextLesson: 'Thursday, 5:30 PM',
-  },
-  {
-    id: '6',
-    name: 'Daniel Kim',
-    currentRepertoire: [
-      { id: '6-601', title: 'Violin Concerto in D minor, Op. 47', composer: 'J. Sibelius', startDate: '2023-11-01', status: 'current', notes: 'Working on first movement' },
-      { id: '6-602', title: 'Caprice No. 24 in A minor', composer: 'N. Paganini', startDate: '2023-09-15', status: 'current' }
-    ],
-    pastRepertoire: [
-      { id: '6-603', title: 'Tzigane', composer: 'M. Ravel', startDate: '2023-06-10', endDate: '2023-10-25', status: 'completed', notes: 'Summer intensive final performance' },
-      { id: '6-604', title: 'Violin Concerto in D major, Op. 35', composer: 'P.I. Tchaikovsky', startDate: '2022-12-15', endDate: '2023-05-30', status: 'completed' },
-      { id: '6-605', title: 'Violin Sonata in G minor, L. 140', composer: 'C. Debussy', startDate: '2022-09-10', endDate: '2022-12-05', status: 'completed' }
-    ],
-    nextLesson: 'Wednesday, 6:00 PM',
-  }
-];
+// Import Supabase hooks
+import { useStudents } from '@/hooks/useStudents';
+import { useMasterRepertoire, useStudentRepertoire } from '@/hooks/useRepertoire';
 
-// Master repertoire list with a larger selection of pieces - removed status property
-const masterRepertoire: RepertoireItemData[] = [
-  // Bach
-  {
-    id: createPrefixedId(ID_PREFIXES.PIECE, '1'),
-    title: 'Partita No. 2 in D minor, BWV 1004',
-    composer: 'J.S. Bach',
-    startedDate: '2023-10-15',
-    difficulty: 'advanced'
-  },
-  {
-    id: createPrefixedId(ID_PREFIXES.PIECE, '2'),
-    title: 'Sonata No. 1 in G minor, BWV 1001',
-    composer: 'J.S. Bach',
-    startedDate: '2023-07-10',
-    difficulty: 'advanced'
-  },
-  {
-    id: createPrefixedId(ID_PREFIXES.PIECE, '10'),
-    title: 'Violin Concerto in A minor, BWV 1041',
-    composer: 'J.S. Bach',
-    startedDate: '2023-11-01',
-    difficulty: 'intermediate'
-  },
-  {
-    id: '33',
-    title: 'Partita No. 3 in E major, BWV 1006',
-    composer: 'J.S. Bach',
-    startedDate: '2022-09-15',
-    difficulty: 'advanced'
-  },
-  {
-    id: '34',
-    title: 'Sonata No. 2 in A minor, BWV 1003',
-    composer: 'J.S. Bach',
-    startedDate: '2022-06-20',
-    difficulty: 'advanced'
-  },
-  
-  // Tchaikovsky
-  {
-    id: '3',
-    title: 'Violin Concerto in D major, Op. 35',
-    composer: 'P.I. Tchaikovsky',
-    startedDate: '2023-08-01',
-    difficulty: 'advanced'
-  },
-  {
-    id: '35',
-    title: 'Sérénade mélancolique, Op. 26',
-    composer: 'P.I. Tchaikovsky',
-    startedDate: '2023-01-15',
-    difficulty: 'advanced'
-  },
-  {
-    id: '36',
-    title: 'Valse-Scherzo, Op. 34',
-    composer: 'P.I. Tchaikovsky',
-    startedDate: '2022-11-10',
-    difficulty: 'advanced'
-  },
-  
-  // Paganini
-  {
-    id: '4',
-    title: 'Caprice No. 24 in A minor',
-    composer: 'N. Paganini',
-    startedDate: '2023-09-12',
-    difficulty: 'advanced'
-  },
-  {
-    id: '37',
-    title: 'Caprice No. 5 in A minor',
-    composer: 'N. Paganini',
-    startedDate: '2023-03-05',
-    difficulty: 'advanced'
-  },
-  {
-    id: '38',
-    title: 'Violin Concerto No. 1 in D major, Op. 6',
-    composer: 'N. Paganini',
-    startedDate: '2022-10-30',
-    difficulty: 'advanced'
-  },
-  
-  // Mozart
-  {
-    id: '5',
-    title: 'Violin Sonata K.304 in E minor',
-    composer: 'W.A. Mozart',
-    startedDate: '2023-07-20',
-    difficulty: 'intermediate'
-  },
-  {
-    id: '39',
-    title: 'Violin Concerto No. 5 in A major, K.219',
-    composer: 'W.A. Mozart',
-    startedDate: '2023-04-12',
-    difficulty: 'intermediate'
-  },
-  {
-    id: '40',
-    title: 'Violin Sonata K.301 in G major',
-    composer: 'W.A. Mozart',
-    startedDate: '2022-08-15',
-    difficulty: 'intermediate'
-  },
-  
-  // Beethoven
-  {
-    id: '6',
-    title: 'Violin Sonata No. 5 in F major (Spring)',
-    composer: 'L.V. Beethoven',
-    startedDate: '2023-05-10',
-    difficulty: 'intermediate'
-  },
-  {
-    id: '14',
-    title: 'Violin Sonata No. 9 (Kreutzer)',
-    composer: 'L.V. Beethoven',
-    startedDate: '2023-01-15',
-    difficulty: 'advanced'
-  },
-  {
-    id: '41',
-    title: 'Violin Concerto in D major, Op. 61',
-    composer: 'L.V. Beethoven',
-    startedDate: '2023-02-28',
-    difficulty: 'advanced'
-  },
-  
-  // Saint-Saëns
-  {
-    id: '7',
-    title: 'Introduction and Rondo Capriccioso',
-    composer: 'C. Saint-Saëns',
-    startedDate: '2023-03-15',
-    difficulty: 'advanced'
-  },
-  {
-    id: '8',
-    title: 'Violin Concerto No. 3 in B minor, Op. 61',
-    composer: 'C. Saint-Saëns',
-    startedDate: '2023-06-15',
-    difficulty: 'advanced'
-  },
-  {
-    id: '42',
-    title: 'Havanaise, Op. 83',
-    composer: 'C. Saint-Saëns',
-    startedDate: '2022-12-10',
-    difficulty: 'advanced'
-  },
-  
-  // Mendelssohn
-  {
-    id: '9',
-    title: 'Violin Concerto in E minor, Op. 64',
-    composer: 'F. Mendelssohn',
-    startedDate: '2023-04-20',
-    difficulty: 'advanced'
-  },
-  
-  // Brahms
-  {
-    id: '11',
-    title: 'Violin Concerto in D major, Op. 77',
-    composer: 'J. Brahms',
-    startedDate: '2023-05-30',
-    difficulty: 'advanced'
-  },
-  {
-    id: '43',
-    title: 'Violin Sonata No. 1 in G major, Op. 78',
-    composer: 'J. Brahms',
-    startedDate: '2022-09-05',
-    difficulty: 'advanced'
-  },
-  
-  // Sarasate
-  {
-    id: '12',
-    title: 'Zigeunerweisen, Op. 20',
-    composer: 'P. de Sarasate',
-    startedDate: '2023-08-15',
-    difficulty: 'advanced'
-  },
-  {
-    id: '44',
-    title: 'Carmen Fantasy, Op. 25',
-    composer: 'P. de Sarasate',
-    startedDate: '2022-11-20',
-    difficulty: 'advanced'
-  },
-  
-  // Bruch
-  {
-    id: '13',
-    title: 'Violin Concerto No. 1 in G minor, Op. 26',
-    composer: 'M. Bruch',
-    startedDate: '2023-09-01',
-    difficulty: 'advanced'
-  },
-  
-  // Vivaldi
-  {
-    id: '15',
-    title: 'The Four Seasons - Spring',
-    composer: 'A. Vivaldi',
-    startedDate: '2023-02-10',
-    difficulty: 'intermediate'
-  },
-  {
-    id: '45',
-    title: 'The Four Seasons - Summer',
-    composer: 'A. Vivaldi',
-    startedDate: '2023-03-15',
-    difficulty: 'intermediate'
-  },
-  {
-    id: '46',
-    title: 'The Four Seasons - Autumn',
-    composer: 'A. Vivaldi',
-    startedDate: '2023-04-20',
-    difficulty: 'intermediate'
-  },
-  {
-    id: '47',
-    title: 'The Four Seasons - Winter',
-    composer: 'A. Vivaldi',
-    startedDate: '2023-05-25',
-    difficulty: 'intermediate'
-  },
-  
-  // Massenet
-  {
-    id: '16',
-    title: 'Meditation from Thaïs',
-    composer: 'J. Massenet',
-    startedDate: '2023-03-01',
-    difficulty: 'intermediate'
-  },
-  
-  // Lalo
-  {
-    id: '17',
-    title: 'Symphonie Espagnole',
-    composer: 'É. Lalo',
-    startedDate: '2023-10-01',
-    difficulty: 'advanced'
-  },
-  
-  // Kreisler
-  {
-    id: '18',
-    title: 'Schön Rosmarin',
-    composer: 'F. Kreisler',
-    startedDate: '2023-09-15',
-    difficulty: 'intermediate'
-  },
-  {
-    id: '48',
-    title: 'Liebesleid',
-    composer: 'F. Kreisler',
-    startedDate: '2022-12-05',
-    difficulty: 'intermediate'
-  },
-  {
-    id: '49',
-    title: 'Caprice Viennois, Op. 2',
-    composer: 'F. Kreisler',
-    startedDate: '2023-01-20',
-    difficulty: 'intermediate'
-  },
-  
-  // Ravel
-  {
-    id: '19',
-    title: 'Tzigane',
-    composer: 'M. Ravel',
-    startedDate: '2023-10-20',
-    difficulty: 'advanced'
-  },
-  
-  // Wieniawski
-  {
-    id: '20',
-    title: 'Violin Concerto No. 2 in D minor, Op. 22',
-    composer: 'H. Wieniawski',
-    startedDate: '2023-08-25',
-    difficulty: 'advanced'
-  },
-  {
-    id: '50',
-    title: 'Polonaise Brillante No. 1 in D major, Op. 4',
-    composer: 'H. Wieniawski',
-    startedDate: '2022-10-10',
-    difficulty: 'advanced'
-  },
-  
-  // Sibelius
-  {
-    id: '51',
-    title: 'Violin Concerto in D minor, Op. 47',
-    composer: 'J. Sibelius',
-    startedDate: '2023-01-05',
-    difficulty: 'advanced'
-  },
-  
-  // Dvorak
-  {
-    id: '52',
-    title: 'Violin Concerto in A minor, Op. 53',
-    composer: 'A. Dvorak',
-    startedDate: '2022-11-15',
-    difficulty: 'advanced'
-  },
-  
-  // Bartók
-  {
-    id: '53',
-    title: 'Violin Concerto No. 2, Sz. 112',
-    composer: 'B. Bartók',
-    startedDate: '2023-02-10',
-    difficulty: 'advanced'
-  },
-  
-  // Elgar
-  {
-    id: '54',
-    title: 'Violin Concerto in B minor, Op. 61',
-    composer: 'E. Elgar',
-    startedDate: '2022-09-20',
-    difficulty: 'advanced'
-  },
-  
-  // Debussy
-  {
-    id: '55',
-    title: 'Violin Sonata in G minor, L. 140',
-    composer: 'C. Debussy',
-    startedDate: '2023-03-10',
-    difficulty: 'advanced'
-  }
-];
+// Import types for Supabase data
+import type { Database } from '@/types/supabase';
+type SupabaseStudent = Database['public']['Tables']['students']['Row'];
+type StudentRepertoire = Database['public']['Tables']['student_repertoire']['Row'];
+type MasterRepertoire = Database['public']['Tables']['master_repertoire']['Row'];
 
-// Add this interface to track file attachments
+// Add file attachment interface
 interface FileAttachment {
   id: string;
   name: string;
-  type: string;
-  size: number;
   url: string;
-  uploadDate: string;
-  uploadedBy?: string;
+  type: string;
+  entityId: string;
+  entityType: AttachmentEntityType;
+  createdAt: string;
 }
 
-// Interface for Link resources
+// Add link resource interface
 interface LinkResource {
   id: string;
   title: string;
   url: string;
-  type: 'youtube' | 'article' | 'other';
-  description?: string;
-  thumbnailUrl?: string;
-  addedDate: string;
+  entityId: string;
+  entityType: AttachmentEntityType;
+  createdAt: string;
 }
-
-// The original mock data is being replaced by our unified attachment system
-// We're keeping these empty objects for compatibility with old code
-const mockFileAttachments: Record<string, FileAttachment[]> = {};
-const mockLinkResources: Record<string, LinkResource[]> = {};
-
-interface AddPieceDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAdd: (piece: { id: string; title: string; composer: string; difficulty: string; notes?: string }) => void;
-}
-
-const AddPieceDialog: React.FC<AddPieceDialogProps> = ({ isOpen, onClose, onAdd }) => {
-  const [title, setTitle] = useState('');
-  const [composer, setComposer] = useState('');
-  const [difficulty, setDifficulty] = useState('intermediate');
-  const [notes, setNotes] = useState('');
-
-  const handleSubmit = () => {
-    onAdd({
-      id: createPrefixedId(ID_PREFIXES.PIECE, Date.now().toString()),
-      title,
-      composer,
-      difficulty,
-      notes
-    });
-    setTitle('');
-    setComposer('');
-    setDifficulty('intermediate');
-    setNotes('');
-    onClose();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add New Repertoire Piece</DialogTitle>
-          <DialogDescription>
-            Add a new piece to your master repertoire list.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="title">Title</Label>
-            <Input 
-              id="title" 
-              value={title} 
-              onChange={(e) => setTitle(e.target.value)} 
-              placeholder="e.g. Violin Concerto in D major"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="composer">Composer</Label>
-            <Input 
-              id="composer" 
-              value={composer} 
-              onChange={(e) => setComposer(e.target.value)} 
-              placeholder="e.g. W.A. Mozart"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="difficulty">Difficulty</Label>
-            <Select value={difficulty} onValueChange={setDifficulty}>
-              <SelectTrigger id="difficulty">
-                <SelectValue placeholder="Select difficulty" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="beginner">Beginner</SelectItem>
-                <SelectItem value="intermediate">Intermediate</SelectItem>
-                <SelectItem value="advanced">Advanced</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="notes">Notes (Optional)</Label>
-            <Textarea 
-              id="notes" 
-              value={notes} 
-              onChange={(e) => setNotes(e.target.value)} 
-              placeholder="Add any notes about this piece..."
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit}>Add Piece</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-interface AssignPieceDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  repertoire: RepertoireItemData[];
-  students: Student[];
-  onAssign: (pieceId: string, studentId: string) => void;
-}
-
-const AssignPieceDialog: React.FC<AssignPieceDialogProps> = ({ 
-  isOpen, 
-  onClose, 
-  repertoire, 
-  students, 
-  onAssign 
-}) => {
-  const [selectedPieceId, setSelectedPieceId] = useState('');
-  const [selectedStudentId, setSelectedStudentId] = useState('');
-  // Get the repertoire utilities from context
-  const { getPieceTitle, getPieceComposer } = useRepertoire();
-
-  const handleSubmit = () => {
-    if (selectedPieceId && selectedStudentId) {
-      onAssign(selectedPieceId, selectedStudentId);
-      setSelectedPieceId('');
-      setSelectedStudentId('');
-      onClose();
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Assign Piece to Student</DialogTitle>
-          <DialogDescription>
-            Assign a piece from your repertoire to a student.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="piece">Piece</Label>
-            <Select value={selectedPieceId} onValueChange={setSelectedPieceId}>
-              <SelectTrigger id="piece">
-                <SelectValue placeholder="Select a piece" />
-              </SelectTrigger>
-              <SelectContent>
-                {repertoire.map(piece => (
-                  <SelectItem key={piece.id} value={piece.id}>
-                    {getPieceTitle(convertToLegacyPiece(piece))} - {getPieceComposer(convertToLegacyPiece(piece))}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="student">Student</Label>
-            <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
-              <SelectTrigger id="student">
-                <SelectValue placeholder="Select a student" />
-              </SelectTrigger>
-              <SelectContent>
-                {students.map(student => (
-                  <SelectItem key={student.id} value={student.id}>
-                    {student.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button 
-            onClick={handleSubmit} 
-            disabled={!selectedPieceId || !selectedStudentId}
-          >
-            Assign Piece
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-interface PieceDetailDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  piece: RepertoireItemData | null;
-  students: Student[];
-  repertoire?: RepertoireItemData[];
-}
-
-// Define isPieceSimilar function without using hooks
-const isPieceSimilar = (
-  piece1: RepertoirePiece | LegacyRepertoirePiece,
-  piece2: RepertoireItemData,
-  getPieceTitle: (piece: RepertoirePiece | LegacyRepertoirePiece) => string,
-  getPieceComposer: (piece: RepertoirePiece | LegacyRepertoirePiece) => string,
-  threshold = 0.7,
-  ignoreCase = true,
-  repertoire?: RepertoireItemData[]
-) => {
-  // For simplicity in the migration, just check if titles and composers are similar
-  const title1 = getPieceTitle(piece1);
-  const title2 = piece2.title;
-  
-  const composer1 = getPieceComposer(piece1);
-  const composer2 = piece2.composer;
-  
-  // Check if titles are similar or composers match
-  return title1.toLowerCase() === title2.toLowerCase() || composer1 === composer2;
-};
-
-// Helper function to convert RepertoireItemData to LegacyRepertoirePiece
-const convertToLegacyPiece = (piece: RepertoireItemData): LegacyRepertoirePiece => {
-  return {
-    ...piece,
-    startDate: '2000-01-01', // Default date for display purposes only
-    status: 'current' as const, // Default status for display purposes only
-  };
-};
-
-// Create a wrapper component that adapts RepertoireItemData for PieceDisplay
-const PieceDisplayAdapter: React.FC<{
-  piece: RepertoireItemData;
-  layout?: 'inline' | 'card' | 'list' | 'detail';
-  showDifficulty?: boolean;
-  showStatus?: boolean;
-  className?: string;
-}> = ({ piece, layout, showDifficulty, showStatus, className }) => {
-  // Convert RepertoireItemData to LegacyRepertoirePiece
-  const adaptedPiece: LegacyRepertoirePiece = {
-    ...piece,
-    startDate: '2000-01-01', // Default date for display purposes only
-    status: 'current' as const, // Default status for display purposes only
-  };
-  
-  return (
-    <PieceDisplay
-      piece={adaptedPiece}
-      layout={layout}
-      showDifficulty={showDifficulty}
-      showStatus={showStatus}
-      className={className}
-    />
-  );
-};
-
-const PieceDetailDialog: React.FC<PieceDetailDialogProps> = ({ 
-  isOpen, 
-  onClose, 
-  piece, 
-  students, 
-  repertoire 
-}) => {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [showStudentsLearning, setShowStudentsLearning] = useState(true);
-  
-  // Access repertoire context utilities
-  const { getPieceTitle, getPieceComposer, getPieceDifficulty } = useRepertoire();
-  
-  // Early return after all hooks have been called
-  if (!piece) return null;
-  
-  // Find students who are learning or have learned this piece
-  const findStudentsWithPiece = () => {
-    const instances: {
-      studentId: string;
-      studentName: string;
-      pieceId: string;
-      pieceTitle: string;
-      status: string;
-      startDate: string;
-      endDate?: string;
-      notes?: string;
-    }[] = [];
-    
-    students.forEach(student => {
-      // Check current repertoire
-      student.currentRepertoire.forEach(p => {
-        if (isPieceSimilar(p, piece, getPieceTitle, getPieceComposer, undefined, undefined, repertoire)) {
-          instances.push({
-            studentId: student.id,
-            studentName: student.name,
-            pieceId: p.id,
-            pieceTitle: getPieceTitle(p),
-            status: p.status,
-            startDate: p.startDate,
-            endDate: p.endDate,
-            notes: p.notes
-          });
-        }
-      });
-      
-      // Check past repertoire
-      student.pastRepertoire?.forEach(p => {
-        if (isPieceSimilar(p, piece, getPieceTitle, getPieceComposer, undefined, undefined, repertoire)) {
-          instances.push({
-            studentId: student.id,
-            studentName: student.name,
-            pieceId: p.id,
-            pieceTitle: getPieceTitle(p),
-            status: p.status,
-            startDate: p.startDate,
-            endDate: p.endDate,
-            notes: p.notes
-          });
-        }
-      });
-    });
-    
-    return instances;
-  };
-  
-  const studentsWithPiece = findStudentsWithPiece();
-  
-  // Helper function to check if a title is similar
-  const isTitleSimilar = (title1: string, title2: string): boolean => {
-    const normalize = (title: string) => {
-      return title
-        .toLowerCase()
-        .replace(/[^\w\s]/g, '') // Remove punctuation
-        .replace(/\s+/g, ' ')    // Normalize whitespace
-        .trim();
-    };
-    
-    const normalizedTitle1 = normalize(title1);
-    const normalizedTitle2 = normalize(title2);
-    
-    // Check for exact match after normalization
-    if (normalizedTitle1 === normalizedTitle2) return true;
-    
-    // Check if one is a substring of the other
-    if (normalizedTitle1.includes(normalizedTitle2) || normalizedTitle2.includes(normalizedTitle1)) {
-      return true;
-    }
-    
-    // Calculate similarity score
-    const similarity = (a: string, b: string) => {
-      const longer = a.length > b.length ? a : b;
-      const shorter = a.length > b.length ? b : a;
-      
-      if (longer.length === 0) return 1.0;
-      
-      const editDistance = (s1: string, s2: string) => {
-        const costs = [];
-        for (let i = 0; i <= s1.length; i++) {
-          let lastValue = i;
-          for (let j = 0; j <= s2.length; j++) {
-            if (i === 0) {
-              costs[j] = j;
-            } else if (j > 0) {
-              let newValue = costs[j - 1];
-              if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
-                newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
-              }
-              costs[j - 1] = lastValue;
-              lastValue = newValue;
-            }
-          }
-          if (i > 0) costs[s2.length] = lastValue;
-        }
-        return costs[s2.length];
-      };
-      
-      return (longer.length - editDistance(longer, shorter)) / longer.length;
-    };
-    
-    // Return true if similarity is above threshold
-    return similarity(normalizedTitle1, normalizedTitle2) > 0.7;
-  };
-  
-  // Find similar pieces based on title/composer similarity
-  const findSimilarPieces = () => {
-    if (!repertoire) return [];
-    
-    // Convert RepertoireItemData to a format compatible with PieceDisplay
-    return repertoire
-      .filter(p => p.id !== piece.id && (
-        isTitleSimilar(getPieceTitle(convertToLegacyPiece(p)), 
-                      getPieceTitle(convertToLegacyPiece(piece))) || 
-        getPieceComposer(convertToLegacyPiece(p)) === 
-        getPieceComposer(convertToLegacyPiece(piece))
-      ))
-      .slice(0, 5);
-  };
-  
-  
-  // Get files and links for this piece
-  const getAttachmentsForPiece = () => {
-    // In a real app, this would fetch from an API or database
-    // Extract the numeric portion of the ID for comparison
-    const pieceIdNumber = piece.id.replace('p-', '');
-    const numId = parseInt(pieceIdNumber, 10);
-    const pieceTitle = getPieceTitle(convertToLegacyPiece(piece));
-    const pieceComposer = getPieceComposer(convertToLegacyPiece(piece));
-    
-    // Instead of limiting to pieces 1-10, create different patterns based on the ID
-    // This ensures all pieces have some files
-    const hasScoreFile = numId % 4 !== 3; // 75% of pieces have scores
-    const hasRecording = numId % 5 !== 0; // 80% of pieces have recordings
-    const hasNotes = numId % 7 === 0;    // ~14% of pieces have performance notes
-    
-    const files = [];
-    
-    // Add score file (for 75% of pieces)
-    if (hasScoreFile) {
-      files.push({
-        id: `file-${piece.id}-1`,
-        name: `${pieceTitle} - Score.pdf`,
-        type: 'application/pdf',
-        size: 2500000 + (numId * 100000 % 5000000), // Vary size slightly, cap at ~7.5MB
-        url: '#',
-        uploadDate: `2023-${(numId % 12) + 1}-${(numId % 28) + 1}`, // Different dates
-      });
-    }
-    
-    // Add recording file (for 80% of pieces)
-    if (hasRecording) {
-      files.push({
-        id: `file-${piece.id}-2`,
-        name: `${pieceTitle} - Recording.mp3`,
-        type: 'audio/mpeg',
-        size: 8500000 + (numId * 200000 % 10000000), // Vary size slightly, cap at ~18.5MB
-        url: '#',
-        uploadDate: `2023-${(numId % 12) + 1}-${(numId % 28) + 2}`,
-      });
-    }
-    
-    // Add performance notes (for ~14% of pieces)
-    if (hasNotes) {
-      files.push({
-        id: `file-${piece.id}-3`,
-        name: `${pieceTitle} - Performance Notes.docx`,
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        size: 500000 + (numId * 20000 % 1000000),
-        url: '#',
-        uploadDate: `2023-${(numId % 12) + 1}-${(numId % 28) + 5}`,
-      });
-    }
-    
-    // Add links for all pieces with different patterns
-    const links = (() => {
-      // About 15% of pieces have no links (to demonstrate empty state)
-      if (numId % 7 === 5) return [];
-      
-      const baseLinks = [];
-      
-      // Add YouTube performance for most pieces (about 85%)
-      if (numId % 6 !== 3) {
-        const performers = ["Hilary Hahn", "Itzhak Perlman", "Anne-Sophie Mutter", "Joshua Bell", "Ray Chen", 
-                           "Janine Jansen", "Gil Shaham", "Sarah Chang", "Augustin Hadelich", "Midori"];
-        
-        baseLinks.push({
-          id: `link-${piece.id}-1`,
-          title: `${pieceTitle} - ${performers[numId % performers.length]} Performance`,
-          url: 'https://www.youtube.com/watch?v=example',
-          type: 'youtube',
-          thumbnailUrl: 'https://via.placeholder.com/120x68',
-          addedDate: `2023-${(numId % 12) + 1}-${(numId % 28) + 10}`,
-          description: `Beautiful performance by ${performers[numId % performers.length]}`
-        });
-      }
-      
-      // Add article links for about 40% of pieces
-      if (numId % 5 <= 1) {
-        baseLinks.push({
-          id: `link-${piece.id}-2`,
-          title: `Historical Context of ${pieceTitle}`,
-          url: 'https://example.com/article',
-          type: 'article',
-          thumbnailUrl: 'https://via.placeholder.com/120x68',
-          addedDate: `2023-${(numId % 12) + 1}-${(numId % 28) + 15}`,
-          description: `Learn about the historical background of this ${pieceComposer} masterpiece`
-        });
-      }
-      
-      // Add master class links for about 30% of pieces
-      if (numId % 10 <= 2) {
-        baseLinks.push({
-          id: `link-${piece.id}-3`,
-          title: `Master Class: ${pieceTitle}`,
-          url: 'https://www.youtube.com/watch?v=masterclass-example',
-          type: 'youtube',
-          thumbnailUrl: 'https://via.placeholder.com/120x68',
-          addedDate: `2023-${(numId % 12) + 1}-${(numId % 28) + 20}`,
-          description: 'Expert guidance on interpretation and technique'
-        });
-      }
-      
-      // Add sheet music shop link for about 25% of pieces
-      if (numId % 8 <= 1) {
-        baseLinks.push({
-          id: `link-${piece.id}-4`,
-          title: `Purchase Sheet Music: ${pieceTitle}`,
-          url: 'https://example.com/sheet-music-shop',
-          type: 'other',
-          thumbnailUrl: 'https://via.placeholder.com/120x68',
-          addedDate: `2023-${(numId % 12) + 1}-${(numId % 28) + 5}`,
-          description: 'High-quality edition with fingerings and bowings'
-        });
-      }
-      
-      return baseLinks;
-    })();
-    
-    if (files.length === 0 && links.length === 0) {
-      console.warn(`Warning: No files or links found for ${pieceTitle} (ID: ${piece.id})`);
-    }
-    
-    return { files, links };
-  };
-  
-  const { files, links } = getAttachmentsForPiece();
-  
-  // Format file size for display
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[calc(100vh-40px)] overflow-y-auto my-5">
-        <DialogHeader>
-          <DialogTitle className="text-xl">
-            <PieceDisplayAdapter 
-              piece={piece}
-              layout="inline" 
-            />
-          </DialogTitle>
-          <DialogDescription>
-            {getPieceComposer(convertToLegacyPiece(piece))} • {getPieceDifficulty(convertToLegacyPiece(piece)) || 'Unknown'} difficulty
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="mt-4 space-y-6">
-        {/* Files Section */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between gap-2 mb-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              <h3 className="font-medium text-lg">Files</h3>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 gap-1"
-            >
-              <Upload className="h-3.5 w-3.5" />
-                Upload
-            </Button>
-          </div>
-          
-          {/* Files list */}
-              {files.length > 0 ? (
-            <div className="space-y-2">
-                  {files.map(file => (
-                <div key={file.id} className="flex items-center p-3 border rounded-md hover:bg-accent/5 transition-colors duration-200">
-                  <div className="mr-3 shrink-0">
-                    <FileText className="h-9 w-9 text-primary/70" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between">
-                      <p className="text-sm font-medium truncate">{file.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(file.size)}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <p className="text-xs text-muted-foreground">
-                        Uploaded {file.uploadDate}
-                      </p>
-                      <div className="flex gap-1">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-7 w-7" 
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Preview</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-7 w-7"
-                              >
-                                <Download className="h-3.5 w-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Download</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-7 w-7 text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Delete</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center p-4 bg-muted/20 rounded-md">
-              <p>No files available for this piece.</p>
-            </div>
-          )}
-        </div>
-        
-        <Separator className="my-4" />
-        
-        {/* Links section */}
-        <div className="mt-6">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2">
-              <ExternalLink className="h-5 w-5 text-primary" />
-              <h3 className="font-medium text-lg">Links</h3>
-            </div>
-          </div>
-          
-              {links.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {links.map((link) => (
-                <a 
-                  key={link.id} 
-                  href={link.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex flex-col h-full border rounded-lg overflow-hidden hover:border-primary transition-all duration-200 hover:shadow-sm"
-                >
-                  {link.type === 'youtube' && (
-                    <div className="relative aspect-video overflow-hidden group rounded-t-lg">
-                      {/* Standardized elegant graphic instead of external images */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
-                        <div className="absolute inset-0 opacity-20">
-                          <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
-                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="white" strokeWidth="0.5" />
-                            <path d="M8 8L16 16M16 8L8 16" stroke="white" strokeWidth="0.5" opacity="0.5" />
-                          </svg>
-              </div>
-                        
-                        {/* Video title as subtle text overlay */}
-                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
-                          <p className="text-[10px] text-white opacity-90 font-medium truncate">{link.title}</p>
-                  </div>
-                        
-                        {/* Play button */}
-                        <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-200">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-red-600 ml-0.5">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                  </div>
-                    </div>
-                  </div>
-                )}
-                  
-                  {link.type === 'article' && (
-                    <div className="relative aspect-[3/1] overflow-hidden rounded-t-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center border-b">
-                      <div className="text-blue-500 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-                        </svg>
-              </div>
-                    </div>
-                  )}
-                  
-                  <div className="p-2 flex-1 flex flex-col">
-                    <h4 className="font-medium line-clamp-1 text-xs">{link.title}</h4>
-                    
-                    {link.description && (
-                      <p className="text-muted-foreground text-[10px] line-clamp-1 mb-1">
-                        {link.description}
-                      </p>
-                    )}
-                    
-                    <div className="flex items-center mt-auto pt-1 text-[10px]">
-                      <Badge variant="outline" className={cn(
-                        "mr-1.5 px-1 py-0 text-[9px]",
-                        link.type === 'youtube' ? "bg-red-50 text-red-500 border-red-200" : 
-                        link.type === 'article' ? "bg-blue-50 text-blue-500 border-blue-200" : 
-                        "bg-gray-50 text-gray-500 border-gray-200"
-                      )}>
-                        {link.type === 'youtube' ? 'Video' : 
-                         link.type === 'article' ? 'Article' : 'Resource'}
-                      </Badge>
-                    </div>
-                  </div>
-                </a>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center p-3 bg-muted/20 rounded-md">
-              <p className="text-sm">No links available for this piece.</p>
-            </div>
-        )}
-        </div>
-        
-        <Separator className="my-4" />
-        
-        <div className="mt-4">
-          <div className="flex items-center justify-between gap-2 mb-4">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              <h3 className="font-medium text-lg">Student History</h3>
-            </div>
-                </div>
-                
-              {studentsWithPiece.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Started</TableHead>
-                  <TableHead>Completed</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead className="w-20">Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                    {studentsWithPiece.map((instance, index) => {
-                  // Calculate duration if we have both start and end dates
-                  let duration = '';
-                  if (instance.startDate && instance.endDate) {
-                        // Use a simple calculation for display
-                    const start = new Date(instance.startDate);
-                    const end = new Date(instance.endDate);
-                    const diffTime = Math.abs(end.getTime() - start.getTime());
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    duration = `${diffDays} days`;
-                  }
-                  
-                  return (
-                    <TableRow key={`${instance.studentId}-${index}`}>
-                      <TableCell className="font-medium">
-                        {instance.studentName}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={instance.status === 'current' ? 'outline' : 'default'}>
-                          {instance.status === 'current' ? 'In Progress' : 'Completed'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{instance.startDate}</TableCell>
-                      <TableCell>{instance.endDate || '—'}</TableCell>
-                      <TableCell>{duration || 'Ongoing'}</TableCell>
-                      <TableCell>
-                        {instance.notes && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                {instance.notes}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center p-4 bg-muted/20 rounded-md">
-              <p>No students have worked on this piece yet.</p>
-            </div>
-          )}
-        </div>
-          
-          {/* Notes section if present */}
-        {piece.notes && (
-          <div className="mt-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Info className="h-5 w-5 text-primary" />
-              <h3 className="font-medium">Notes</h3>
-            </div>
-            <div className="p-3 bg-muted/20 rounded-md">
-              <p>{piece.notes}</p>
-            </div>
-          </div>
-        )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-// Function to group repertoire by composer
-  const groupByComposer = (repertoire: RepertoireItemData[]): Record<string, RepertoireItemData[]> => {
-  const grouped: Record<string, RepertoireItemData[]> = {};
-    const { getPieceComposer } = useRepertoire();
-  
-  repertoire.forEach(piece => {
-      const composer = getPieceComposer(convertToLegacyPiece(piece));
-      if (!grouped[composer]) {
-        grouped[composer] = [];
-      }
-      grouped[composer].push(piece);
-    });
-    
-    return grouped;
-};
 
 const RepertoirePage = () => {
+  // State
+  const [studentsList, setStudentsList] = useState<Student[]>([]);
+  const [repertoireList, setRepertoireList] = useState<RepertoireItemData[]>([]);
   const [activeStudent, setActiveStudent] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'current' | 'completed' | 'all'>('current');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState<'title' | 'composer' | 'difficulty'>('title');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [displayMode, setDisplayMode] = useState<'cards' | 'grid' | 'table'>('table');
+  const [viewMode, setViewMode] = useState<'list' | 'composer'>('list');
+  
+  // Dialog states
   const [isAddPieceDialogOpen, setIsAddPieceDialogOpen] = useState(false);
   const [isAssignPieceDialogOpen, setIsAssignPieceDialogOpen] = useState(false);
   const [isPieceDetailDialogOpen, setIsPieceDetailDialogOpen] = useState(false);
   const [selectedPiece, setSelectedPiece] = useState<RepertoireItemData | null>(null);
-  const [repertoireList, setRepertoireList] = useState<RepertoireItemData[]>(masterRepertoire);
-  const [studentsList, setStudentsList] = useState<Student[]>(students);
-  const [activeTab, setActiveTab] = useState('current');
-  const [viewMode, setViewMode] = useState<'list' | 'composer'>('list');
-  const [displayMode, setDisplayMode] = useState<'cards' | 'grid' | 'table'>('table');
-  const [sortField, setSortField] = useState<'title' | 'composer' | 'difficulty' | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-    
-    // Access repertoire context utilities for the component
-    const { getPieceTitle, getPieceComposer, getPieceDifficulty } = useRepertoire();
   
-  // Helper function to determine column count based on container width
-  const gridColumnCount = 3; // Default value, could be responsive
+  // Supabase hooks for data
+  const { data: supabaseStudents, isLoading: isLoadingStudents } = useStudents();
+  const { data: masterRepertoireData, isLoading: isLoadingMasterRepertoire } = useMasterRepertoire();
+  const { data: studentRepertoireData, isLoading: isLoadingStudentRepertoire } = useStudentRepertoire(
+    activeStudent || undefined
+  );
+
+  // For toast notifications
+  const { toast } = useToast();
+  
+  // Helper functions to get pieces information for legacy data
+  const getPieceTitle = (piece: RepertoirePiece | LegacyRepertoirePiece): string => {
+    // For legacy pieces we might need to extract title from id
+    if ('title' in piece) return piece.title;
+    return piece.id.replace(ID_PREFIXES.PIECE, '').split('_').join(' ');
+  };
+  
+  const getPieceComposer = (piece: RepertoirePiece | LegacyRepertoirePiece): string => {
+    if ('composer' in piece) return piece.composer;
+    return 'Unknown Composer';
+  };
+  
+  // Update states when master repertoire data loads
+  useEffect(() => {
+    if (masterRepertoireData) {
+      // Transform the master repertoire data to match the expected format
+      const formattedRepertoire: RepertoireItemData[] = masterRepertoireData.map(piece => {
+        // Map difficulty level to expected values
+        let difficulty: 'beginner' | 'intermediate' | 'advanced' = 'intermediate';
+        if (piece.difficulty === 'beginner' || piece.difficulty === 'advanced') {
+          difficulty = piece.difficulty as 'beginner' | 'advanced';
+        }
+        
+  return {
+          id: piece.id,
+          title: piece.title,
+          composer: piece.composer || 'Unknown',
+          difficulty,
+          startedDate: piece.created_at?.split('T')[0] || new Date().toISOString().split('T')[0]
+        };
+      });
+      setRepertoireList(formattedRepertoire);
+    }
+  }, [masterRepertoireData]);
+
+  // Update states when student data loads
+  useEffect(() => {
+    if (supabaseStudents) {
+      // Transform Supabase students to match the expected format
+      const formattedStudents: Student[] = supabaseStudents.map(student => ({
+        id: student.id,
+        name: student.name,
+        avatarUrl: student.avatar_url || '',
+        level: student.level || 'Intermediate',
+        nextLesson: student.next_lesson || 'No upcoming lesson',
+        unreadMessages: 0, // Default value
+        currentRepertoire: [], // Will be populated from student repertoire data
+        pastRepertoire: [], // Will be populated from student repertoire data
+      }));
+      setStudentsList(formattedStudents);
+    }
+  }, [supabaseStudents]);
+  
+  // Process student repertoire data when it changes or when active student changes
+  useEffect(() => {
+    if (activeStudent && studentRepertoireData && studentsList.length > 0) {
+      // Find the active student in our list
+      const studentIndex = studentsList.findIndex(s => s.id === activeStudent);
+      if (studentIndex === -1) return;
+      
+      // Create updated student data with repertoire
+      const updatedStudents = [...studentsList];
+      const student = {...updatedStudents[studentIndex]};
+      
+      // Separate current and completed repertoire
+      const currentRepertoire: RepertoirePiece[] = [];
+      const pastRepertoire: RepertoirePiece[] = [];
+      
+      studentRepertoireData.forEach(item => {
+        const piece: RepertoirePiece = {
+          id: item.id,
+          masterPieceId: item.master_piece_id,
+          startDate: item.start_date || new Date().toISOString().split('T')[0],
+          status: item.status === 'completed' ? 'completed' : 'current',
+          notes: item.notes || undefined
+        };
+        
+        // Add end date if it exists
+        if (item.end_date) {
+          piece.endDate = item.end_date;
+        }
+        
+        // Categorize by status
+        if (item.status === 'current') {
+          currentRepertoire.push(piece);
+        } else if (item.status === 'completed' || item.status === 'mastered') {
+          pastRepertoire.push(piece);
+        }
+      });
+      
+      // Update the student with repertoire data
+      student.currentRepertoire = currentRepertoire;
+      student.pastRepertoire = pastRepertoire;
+      updatedStudents[studentIndex] = student;
+      
+      // Update the students list with the new data
+      setStudentsList(updatedStudents);
+    }
+  }, [activeStudent, studentRepertoireData]);
   
   // Format composer name to Last name, First initial(s)
   const formatComposerName = (fullName: string): string => {
@@ -1432,8 +243,8 @@ const RepertoirePage = () => {
     return `${lastName}, ${initials}`;
   };
   
-  // Handle sorting when a column header is clicked
-  const handleSort = (field: 'title' | 'composer' | 'difficulty') => {
+  // Handle sorting column headers
+  const handleHeaderClick = (field: 'title' | 'composer' | 'difficulty') => {
     if (sortField === field) {
       // Toggle direction if clicking the same field
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -1444,268 +255,204 @@ const RepertoirePage = () => {
     }
   };
   
-  // Get sorted repertoire
-  const getSortedRepertoire = (items: RepertoireItemData[]): RepertoireItemData[] => {
-    if (!sortField) return items;
-      
-      const { getPieceTitle, getPieceComposer } = useRepertoire();
+  // Filter and sort repertoire based on active student, search query, and active tab
+  const filteredRepertoire = useMemo(() => {
+    let result = [...repertoireList];
     
-    return [...items].sort((a, b) => {
-      let valueA: string | undefined;
-      let valueB: string | undefined;
-      
-      if (sortField === 'title') {
-          valueA = getPieceTitle(convertToLegacyPiece(a)).toLowerCase();
-          valueB = getPieceTitle(convertToLegacyPiece(b)).toLowerCase();
-      } else if (sortField === 'composer') {
-        // Extract last name for sorting
-        const getLastName = (composer: string): string => {
-          // Handle special cases like "J.S. Bach" or "W.A. Mozart"
-          if (composer.includes('.')) {
-            const parts = composer.split(' ');
-            // If we have initials and last name (like "J.S. Bach")
-            if (parts.length >= 2) {
-              return parts[parts.length - 1].toLowerCase();
-            }
-          }
-          
-          // Handle regular names like "Ludwig van Beethoven" or "Claude Debussy"
-          const parts = composer.split(' ');
-          if (parts.length === 1) return composer.toLowerCase();
-          
-          return parts[parts.length - 1].toLowerCase();
-        };
-        
-          valueA = getLastName(getPieceComposer(convertToLegacyPiece(a)));
-          valueB = getLastName(getPieceComposer(convertToLegacyPiece(b)));
-      } else if (sortField === 'difficulty') {
-        // Map difficulty to a numeric value for sorting
-        const difficultyOrder = { beginner: 1, intermediate: 2, advanced: 3 };
-        valueA = a.difficulty ? String(difficultyOrder[a.difficulty] || 0) : '0';
-        valueB = b.difficulty ? String(difficultyOrder[b.difficulty] || 0) : '0';
-      }
-      
-      if (!valueA || !valueB) return 0;
-      
-      // Compare the values based on sort direction
-      if (sortDirection === 'asc') {
-        return valueA.localeCompare(valueB);
-      } else {
-        return valueB.localeCompare(valueA);
-      }
-    });
-  };
-  
-  // Filter repertoire based on active student, search query, and active tab
-  const getFilteredRepertoire = (): RepertoireItemData[] => {
-    let filteredItems: RepertoireItemData[] = [];
-      const { getPieceTitle, getPieceComposer, getPieceDifficulty, masterRepertoire } = useRepertoire();
-    
+    // If we have an active student, filter to show only their repertoire
     if (activeStudent) {
-      // Find the active student
       const student = studentsList.find(s => s.id === activeStudent);
+      if (!student) return [];
       
-      if (student) {
-        // Combine current and past repertoire for the student
-          const studentRepertoire = [
-          ...(student.currentRepertoire || []).map(piece => {
-              // Find the master piece data for this student piece
-              const masterPiece = piece.masterPieceId 
-                ? masterRepertoire.find(mp => mp.id === piece.masterPieceId)
-                : null;
-              
-              // Create a RepertoireItemData object that combines student piece data with master piece data
-                return {
+      // Get all repertoire pieces for this student
+      const pieces: RepertoireItemData[] = [];
+      
+      // Process current pieces
+      student.currentRepertoire.forEach(piece => {
+        // Find the master piece data
+        const masterPiece = repertoireList.find(mp => mp.id === piece.masterPieceId);
+        
+        if (masterPiece || piece.id) {
+          pieces.push({
             id: piece.id,
-                masterPieceId: piece.masterPieceId,
-                status: piece.status,
+            title: masterPiece?.title || getPieceTitle(piece),
+            composer: masterPiece?.composer || getPieceComposer(piece),
+            difficulty: masterPiece?.difficulty || 'intermediate',
+            startedDate: piece.startDate,
+            status: 'current',
+            notes: piece.notes
+          });
+        }
+      });
+      
+      // Process completed pieces
+      student.pastRepertoire.forEach(piece => {
+        // Find the master piece data
+        const masterPiece = repertoireList.find(mp => mp.id === piece.masterPieceId);
+        
+        if (masterPiece || piece.id) {
+          pieces.push({
+            id: piece.id,
+            title: masterPiece?.title || getPieceTitle(piece),
+            composer: masterPiece?.composer || getPieceComposer(piece),
+            difficulty: masterPiece?.difficulty || 'intermediate',
             startedDate: piece.startDate,
                   endDate: piece.endDate,
-                  studentId: student.id,
-                  notes: piece.notes,
-                // Get data from master piece if available, otherwise use placeholder or context utilities
-                title: masterPiece ? masterPiece.title : getPieceTitle(piece as any),
-                composer: masterPiece ? masterPiece.composer : getPieceComposer(piece as any),
-                difficulty: (masterPiece ? masterPiece.difficulty : undefined) as 'beginner' | 'intermediate' | 'advanced' | undefined
-            };
-          }),
-          ...(student.pastRepertoire || []).map(piece => {
-              // Find the master piece data for this student piece
-              const masterPiece = piece.masterPieceId 
-                ? masterRepertoire.find(mp => mp.id === piece.masterPieceId)
-                : null;
-              
-                return {
-                  id: piece.id,
-                masterPieceId: piece.masterPieceId,
-                status: piece.status,
-                  startedDate: piece.startDate,
-                  endDate: piece.endDate,
-                  studentId: student.id,
-                  notes: piece.notes,
-                // Get data from master piece if available, otherwise use placeholder or context utilities
-                title: masterPiece ? masterPiece.title : getPieceTitle(piece as any),
-                composer: masterPiece ? masterPiece.composer : getPieceComposer(piece as any),
-                difficulty: (masterPiece ? masterPiece.difficulty : undefined) as 'beginner' | 'intermediate' | 'advanced' | undefined
-            };
-          })
-        ];
-        
-          filteredItems = studentRepertoire as RepertoireItemData[];
-        
-        // Apply tab filter if not showing "all" tab
+            status: 'completed',
+            notes: piece.notes
+          });
+        }
+      });
+      
+      result = pieces;
+      
+      // Filter by tab
         if (activeTab !== 'all') {
-          filteredItems = filteredItems.filter(item => item.status === activeTab);
+        result = result.filter(item => item.status === activeTab);
         }
       }
-    } else {
-        // Show all master repertoire if no student is selected
-        filteredItems = [...masterRepertoire];
-      }
       
-      // Apply search filter if search query exists
+    // Apply search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        filteredItems = filteredItems.filter(piece => {
-          const title = getPieceTitle(convertToLegacyPiece(piece)).toLowerCase();
-          const composer = getPieceComposer(convertToLegacyPiece(piece)).toLowerCase();
-          return title.includes(query) || composer.includes(query);
-        });
-      }
-      
-      // Return the filtered items
-    return filteredItems;
-  };
+      result = result.filter(item => 
+        item.title.toLowerCase().includes(query) || 
+        item.composer.toLowerCase().includes(query)
+      );
+    }
+    
+    // Sort results
+    if (sortField) {
+      result.sort((a, b) => {
+        let valueA, valueB;
+        
+        switch (sortField) {
+          case 'title':
+            valueA = a.title.toLowerCase();
+            valueB = b.title.toLowerCase();
+            break;
+          case 'composer':
+            valueA = a.composer.toLowerCase();
+            valueB = b.composer.toLowerCase();
+            break;
+          case 'difficulty':
+            // Map difficulty to numeric value for sorting
+            const difficultyMap = { beginner: 1, intermediate: 2, advanced: 3 };
+            valueA = difficultyMap[a.difficulty] || 2;
+            valueB = difficultyMap[b.difficulty] || 2;
+            break;
+          default:
+            return 0;
+        }
+        
+        if (sortDirection === 'asc') {
+          return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
+        } else {
+          return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
+        }
+      });
+    }
+    
+    return result;
+  }, [
+    repertoireList, 
+    activeStudent, 
+    studentsList, 
+    activeTab, 
+    searchQuery, 
+    sortField, 
+    sortDirection,
+    getPieceTitle,
+    getPieceComposer
+  ]);
   
-  const handleAddPiece = (newPiece: { id: string; title: string; composer: string; difficulty: string; notes?: string }) => {
-      // Get the addMasterPiece utility from context
-      const { addMasterPiece } = useRepertoire();
-      
-      // Create a new master repertoire piece using the context utility
-      const masterPiece = addMasterPiece({
+  // Group repertoire by composer (for composer view)
+  const groupedRepertoire = useMemo(() => {
+    const grouped: Record<string, RepertoireItemData[]> = {};
+    
+    filteredRepertoire.forEach(piece => {
+      if (!grouped[piece.composer]) {
+        grouped[piece.composer] = [];
+      }
+      grouped[piece.composer].push(piece);
+    });
+    
+    return grouped;
+  }, [filteredRepertoire]);
+  
+  // Handle adding a new piece to the master repertoire
+  const handleAddPiece = (newPiece: { title: string; composer: string; difficulty: string; notes?: string }) => {
+    // Create a new piece with a temporary ID (would be replaced by database ID)
+    const piece: RepertoireItemData = {
+      id: `temp-${Date.now()}`,
       title: newPiece.title,
       composer: newPiece.composer,
       difficulty: newPiece.difficulty as 'beginner' | 'intermediate' | 'advanced',
-        startedDate: new Date().toISOString().split('T')[0], // Required by RepertoireItemData
+      startedDate: new Date().toISOString().split('T')[0],
       notes: newPiece.notes
-      });
+    };
     
-      // Add to the local repertoire list for UI updates
-      setRepertoireList(prev => [...prev, masterPiece]);
+    // In a real implementation, we would call the useCreateMasterRepertoire hook here
+    // For now, just update the local state
+    setRepertoireList(prev => [...prev, piece]);
+    
+    toast({
+      title: "Piece added",
+      description: `${newPiece.title} has been added to the master repertoire.`,
+    });
   };
   
+  // Handle assigning a piece to a student
   const handleAssignPiece = (pieceId: string, studentId: string) => {
     // Find the piece and student
     const piece = repertoireList.find(p => p.id === pieceId);
+    const student = studentsList.find(s => s.id === studentId);
     
-    if (!piece) return;
+    if (!piece || !student) return;
     
-    // Create a new student repertoire piece that references the master piece
-    const newStudentPiece: RepertoirePiece = {
-      id: createStudentPieceId(studentId, pieceId),
+    // In a real implementation, we would call the useAssignRepertoire hook here
+    // For now, update the local state
+    const newPiece: RepertoirePiece = {
+      id: `student-piece-${Date.now()}`,
       masterPieceId: pieceId,
       startDate: new Date().toISOString().split('T')[0],
       status: 'current'
     };
     
-    // Update the students list
-    setStudentsList(prevStudents => 
-      prevStudents.map(student => {
-        if (student.id === studentId) {
-          return {
-            ...student,
-            currentRepertoire: [...student.currentRepertoire, newStudentPiece]
-          };
-        }
-        return student;
-      })
+    setStudentsList(prev => 
+      prev.map(s => 
+        s.id === studentId
+          ? { ...s, currentRepertoire: [...s.currentRepertoire, newPiece] }
+          : s
+      )
     );
+    
+    toast({
+      title: "Piece assigned",
+      description: `${piece.title} has been assigned to ${student.name}.`,
+    });
   };
   
-  const handleToggleStatus = (pieceId: string, studentId?: string) => {
-    if (studentId) {
-      // Toggle status for a student's piece (this remains unchanged)
-      setStudentsList(prevStudents => 
-        prevStudents.map(student => {
-          if (student.id === studentId) {
-            // Check if piece is in current repertoire
-            const currentIndex = student.currentRepertoire.findIndex(p => p.id === pieceId);
-            
-            if (currentIndex !== -1) {
-              // Move from current to past
-              const piece = student.currentRepertoire[currentIndex];
-              const updatedPiece = { 
-                ...piece, 
-                status: 'completed' as const,
-                endDate: new Date().toISOString().split('T')[0] // Add end date when completing
-              };
-              
-              const newCurrentRepertoire = [...student.currentRepertoire];
-              newCurrentRepertoire.splice(currentIndex, 1);
-              
-              return {
-                ...student,
-                currentRepertoire: newCurrentRepertoire,
-                pastRepertoire: [...(student.pastRepertoire || []), updatedPiece]
-              };
-            }
-            
-            // Check if piece is in past repertoire
-            const pastIndex = student.pastRepertoire?.findIndex(p => p.id === pieceId) ?? -1;
-            
-            if (pastIndex !== -1 && student.pastRepertoire) {
-              // Move from past to current
-              const piece = student.pastRepertoire[pastIndex];
-              const updatedPiece = { ...piece, status: 'current' as const };
-              
-              const newPastRepertoire = [...student.pastRepertoire];
-              newPastRepertoire.splice(pastIndex, 1);
-              
-              return {
-                ...student,
-                currentRepertoire: [...student.currentRepertoire, updatedPiece],
-                pastRepertoire: newPastRepertoire
-              };
-            }
-          }
-          return student;
-        })
-      );
-    } else {
-      // For Master Repertoire, we don't change a status - instead, assign to a student
-      setIsAssignPieceDialogOpen(true);
-    }
-  };
-
+  // Handle opening piece details dialog
   const handleOpenPieceDetail = (piece: RepertoireItemData) => {
-    // Use the original piece temporarily to help with debugging
-    console.log('Opening piece detail with ID:', piece.id);
-    
-    // Pass the piece directly to the dialog - we'll handle the masterPieceId logic inside the dialog
-    setSelectedPiece(piece);
-    setIsPieceDetailDialogOpen(true);
+    // Navigate to piece details page using window.location for reliable navigation
+    window.location.href = `/repertoire/${piece.id}`;
   };
-
-  const filteredRepertoire = getFilteredRepertoire();
-  const sortedRepertoire = getSortedRepertoire(filteredRepertoire);
-  const groupedRepertoire = groupByComposer(sortedRepertoire);
   
   return (
-    <>
       <div>
         <PageHeader 
           title="Repertoire" 
           description="Manage and track all repertoire pieces for students"
         >
-          <div className="flex space-x-2">
             <Button onClick={() => setIsAddPieceDialogOpen(true)}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Piece
             </Button>
-          </div>
         </PageHeader>
         
-        <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 mt-6 relative">
+      <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 mt-6">
+        {/* Sidebar */}
           <div className="w-full">
             <div className="p-4 border rounded-lg bg-card">
               <div className="space-y-2">
@@ -1721,7 +468,22 @@ const RepertoirePage = () => {
                 </Button>
                 
                 <h4 className="text-sm font-medium mt-4 mb-2">Students</h4>
-                {studentsList.map(student => (
+              
+              {isLoadingStudents ? (
+                // Show skeletons while loading
+                Array(3).fill(0).map((_, i) => (
+                  <div key={`skeleton-${i}`} className="w-full h-10 my-1">
+                    <Skeleton className="h-full w-full" />
+                  </div>
+                ))
+              ) : studentsList.length === 0 ? (
+                // Show empty state if no students
+                <div className="text-sm text-muted-foreground p-2">
+                  No students found. Add students in the Students page.
+                </div>
+              ) : (
+                // Show the list of students
+                studentsList.map(student => (
                   <Button 
                     key={student.id} 
                     variant={activeStudent === student.id ? "default" : "outline"} 
@@ -1734,14 +496,17 @@ const RepertoirePage = () => {
                   >
                     {student.name}
                   </Button>
-                ))}
+                ))
+              )}
               </div>
             </div>
           </div>
         
+        {/* Main content */}
           <div className="w-full">
-            <div className="flex items-center gap-3 mb-6 animate-slide-up animate-stagger-2">
-              <div className="relative flex-1">
+          {/* Search bar and controls */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="relative w-full md:w-80 mr-4">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
@@ -1752,22 +517,32 @@ const RepertoirePage = () => {
                 />
               </div>
               
-              {/* View Controls */}
+            <div className="flex items-center gap-2">
+              {!activeStudent ? (
+                <Button variant="outline" size="sm" onClick={() => setIsAddPieceDialogOpen(true)}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Piece
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => setIsAssignPieceDialogOpen(true)}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Assign Piece
+                </Button>
+              )}
+              
+              {/* View controls */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon">
-                    {displayMode === 'cards' ? (
-                      <List className="h-4 w-4" />
-                    ) : displayMode === 'grid' ? (
-                      <Grid className="h-4 w-4" />
-                    ) : (
-                      <ListFilter className="h-4 w-4" />
-                    )}
+                    <Menu className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuGroup>
-                    <DropdownMenuRadioGroup value={displayMode} onValueChange={(value) => setDisplayMode(value as 'cards' | 'grid' | 'table')}>
+                    <DropdownMenuRadioGroup 
+                      value={displayMode} 
+                      onValueChange={(value: string) => setDisplayMode(value as 'cards' | 'grid' | 'table')}
+                    >
                       <DropdownMenuRadioItem value="cards">
                         <List className="mr-2 h-4 w-4" /> Card View
                       </DropdownMenuRadioItem>
@@ -1784,7 +559,10 @@ const RepertoirePage = () => {
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuGroup>
-                        <DropdownMenuRadioGroup value={viewMode} onValueChange={(value) => setViewMode(value as 'list' | 'composer')}>
+                        <DropdownMenuRadioGroup 
+                          value={viewMode} 
+                          onValueChange={(value: string) => setViewMode(value as 'list' | 'composer')}
+                        >
                           <DropdownMenuRadioItem value="list">
                             <List className="mr-2 h-4 w-4" /> List View
                           </DropdownMenuRadioItem>
@@ -1802,459 +580,331 @@ const RepertoirePage = () => {
                 <Filter className="h-4 w-4" />
               </Button>
             </div>
+            </div>
             
-            {/* Only show tabs for student view, not for master repertoire */}
-            {activeStudent ? (
-              <Tabs 
-                value={activeTab} 
-                onValueChange={setActiveTab} 
-                className="animate-slide-up animate-stagger-3"
-              >
-                <TabsList className="mb-4">
+          {/* Student tabs */}
+          {activeStudent && (
+            <Tabs value={activeTab} className="mb-6" onValueChange={(value: string) => {
+              if (value === 'current' || value === 'completed' || value === 'all') {
+                setActiveTab(value);
+              }
+            }}>
+              <TabsList>
                   <TabsTrigger value="current">Current</TabsTrigger>
                   <TabsTrigger value="completed">Completed</TabsTrigger>
                   <TabsTrigger value="all">All</TabsTrigger>
                 </TabsList>
-                
-                <TabsContent value={activeTab} className="mt-0">
-                  {filteredRepertoire.length > 0 ? (
-                    displayMode === 'table' ? (
-                      <div className="rounded-md border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-[40px]"></TableHead>
-                              <TableHead>Piece</TableHead>
-                              <TableHead>Composer</TableHead>
-                              <TableHead>Started</TableHead>
-                              <TableHead>{activeTab === 'completed' ? 'Completed' : 'Difficulty'}</TableHead>
-                              <TableHead className="w-[60px]"></TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {filteredRepertoire.map(item => (
-                              <TableRow 
-                                key={item.id} 
-                                className="cursor-pointer hover:bg-muted/50"
-                                onClick={() => handleOpenPieceDetail(item)}
-                              >
-                                <TableCell>
-                                  <div 
-                                    className={cn(
-                                      "rounded-full p-1.5",
-                                      item.status === 'current' ? 'bg-primary/10 text-primary' : 
-                                      item.status === 'completed' ? 'bg-green-500/10 text-green-500' : 
-                                      'bg-muted text-muted-foreground'
-                                    )}
-                                  >
-                                    {item.status === 'completed' ? (
-                                      <CheckCircle className="h-3.5 w-3.5" />
-                                    ) : (
-                                      <Music className="h-3.5 w-3.5" />
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                    {/* Use context utilities instead of direct access */}
-                                    {getPieceTitle(convertToLegacyPiece(item))}
-                                  {item.notes && (
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Info className="h-3.5 w-3.5 inline ml-2 text-muted-foreground" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p className="max-w-xs">{item.notes}</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  )}
-                                </TableCell>
-                                  <TableCell>{getPieceComposer(convertToLegacyPiece(item))}</TableCell>
-                                <TableCell>{item.startedDate}</TableCell>
-                                <TableCell>
-                                  {activeTab === 'completed' && item.endDate ? (
-                                    item.endDate
-                                  ) : item.difficulty ? (
-                                    <Badge variant="outline">{item.difficulty}</Badge>
-                                  ) : null}
-                                </TableCell>
-                                <TableCell>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
-                                        <PlusCircle className="h-4 w-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => handleToggleStatus(item.id, item.studentId)}>
-                                        {item.status === 'current' ? (
-                                          <>
-                                            <CircleCheck className="mr-2 h-4 w-4" />
-                                            Mark as Completed
-                                          </>
-                                        ) : (
-                                          <>
-                                            <Clock className="mr-2 h-4 w-4" />
-                                            Mark as Current
-                                          </>
-                                        )}
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    ) : displayMode === 'grid' ? (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {filteredRepertoire.map(item => (
-                          <RepertoireItem 
-                            key={item.id} 
-                            item={item} 
-                            layout="grid"
-                            onClick={() => handleOpenPieceDetail(item)}
-                            formatComposerName={!activeStudent ? formatComposerName : undefined}
-                          />
+            </Tabs>
+          )}
+          
+          {/* Loading state */}
+          {(isLoadingMasterRepertoire || (activeStudent && isLoadingStudentRepertoire)) ? (
+            <div className="space-y-4">
+              {Array(5).fill(0).map((_, i) => (
+                <Skeleton key={`skeleton-${i}`} className="w-full h-24" />
                         ))}
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        {filteredRepertoire.map(item => (
-                          <div key={item.id} className="flex items-center">
-                            <div 
-                              className="flex-1 cursor-pointer" 
-                              onClick={() => handleOpenPieceDetail(item)}
+            <>
+              {/* No results state */}
+              {filteredRepertoire.length === 0 ? (
+                <div className="text-center p-10 border rounded-md">
+                  <div className="text-muted-foreground mb-2">
+                    {searchQuery ? 
+                      `No results found for "${searchQuery}"` : 
+                      activeStudent ? 
+                        `No ${activeTab !== 'all' ? activeTab : ''} repertoire found for this student` :
+                        'No repertoire found'
+                    }
+                  </div>
+                  <Button
+                    variant="outline" 
+                    onClick={() => activeStudent ? setIsAssignPieceDialogOpen(true) : setIsAddPieceDialogOpen(true)}
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    {activeStudent ? 'Assign Piece' : 'Add Piece'}
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {/* Group by Composer view */}
+                  {!activeStudent && viewMode === 'composer' ? (
+                    <div className="space-y-4">
+                      <Accordion 
+                        type="multiple" 
+                        className="w-full space-y-4"
+                        defaultValue={Object.keys(groupedRepertoire).map(composer => composer)}
+                      >
+                        {Object.entries(groupedRepertoire)
+                          .sort(([composerA], [composerB]) => composerA.localeCompare(composerB))
+                          .map(([composer, pieces]) => (
+                            <AccordionItem 
+                              key={composer} 
+                              value={composer}
+                              className="border rounded-md px-4 py-2"
                             >
-                              <RepertoireItem 
-                                item={item} 
-                                className="flex-1"
-                                onClick={() => handleOpenPieceDetail(item)}
-                                formatComposerName={!activeStudent ? formatComposerName : undefined}
-                              />
-                            </div>
-                            <div className="flex flex-col gap-2 ml-2">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <PlusCircle className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleToggleStatus(item.id, item.studentId)}>
-                                    {item.status === 'current' ? (
-                                      <>
-                                        <CircleCheck className="mr-2 h-4 w-4" />
-                                        Mark as Completed
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Clock className="mr-2 h-4 w-4" />
-                                        Mark as Current
-                                      </>
-                                    )}
-                                  </DropdownMenuItem>
-                                  {!item.studentId && (
-                                    <>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem onClick={() => setIsAssignPieceDialogOpen(true)}>
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        Assign to Student
-                                      </DropdownMenuItem>
-                                    </>
-                                  )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  ) : (
-                    <Card className="p-6 text-center text-muted-foreground">
-                      <p>No repertoire found. Try changing your search or filters.</p>
-                    </Card>
-                  )}
-                </TabsContent>
-              </Tabs>
-            ) : (
-              /* Master Repertoire View without tabs or status filtering */
-              <div className="animate-slide-up animate-stagger-3">
-                {/* Composer View */}
-                {viewMode === 'composer' && Object.keys(groupedRepertoire).length > 0 ? (
-                  <Accordion type="multiple" className="space-y-4">
-                    {Object.entries(groupedRepertoire).map(([composer, pieces]) => (
-                      <AccordionItem key={composer} value={composer} className="border rounded-lg overflow-hidden">
-                        <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50">
-                          <div className="flex items-center gap-2">
-                            <Music className="h-4 w-4 text-primary" />
-                            <span className="font-medium">{composer}</span>
-                            <Badge variant="outline" className="ml-2">{pieces.length}</Badge>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="px-4 pt-2 pb-4">
-                          {displayMode === 'table' ? (
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead 
-                                    className="cursor-pointer hover:bg-muted/50"
-                                    onClick={() => handleSort('title')}
-                                  >
-                                    Piece
-                                    {sortField === 'title' && (
-                                      <span className="ml-1">
-                                        {sortDirection === 'asc' ? <ChevronUp className="inline h-3.5 w-3.5" /> : <ChevronDown className="inline h-3.5 w-3.5" />}
-                                      </span>
-                                    )}
-                                  </TableHead>
-                                  <TableHead 
-                                    className="cursor-pointer hover:bg-muted/50"
-                                    onClick={() => handleSort('difficulty')}
-                                  >
-                                    Difficulty
-                                    {sortField === 'difficulty' && (
-                                      <span className="ml-1">
-                                        {sortDirection === 'asc' ? <ChevronUp className="inline h-3.5 w-3.5" /> : <ChevronDown className="inline h-3.5 w-3.5" />}
-                                      </span>
-                                    )}
-                                  </TableHead>
-                                  <TableHead className="w-[60px]"></TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {pieces.map(item => (
-                                  <TableRow 
-                                    key={item.id} 
-                                    className="cursor-pointer hover:bg-muted/50"
-                                    onClick={() => handleOpenPieceDetail(item)}
-                                  >
-                                    <TableCell className="font-medium">
-                                      {item.title}
-                                      {item.notes && (
-                                        <TooltipProvider>
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <Info className="h-3.5 w-3.5 inline ml-2 text-muted-foreground" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                              <p className="max-w-xs">{item.notes}</p>
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        </TooltipProvider>
-                                      )}
-                                    </TableCell>
-                                    <TableCell>
-                                      {item.difficulty && (
-                                        <Badge variant="outline">{item.difficulty}</Badge>
-                                      )}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedPiece(item);
-                                          setIsAssignPieceDialogOpen(true);
-                                        }}
-                                      >
-                                        <Plus className="h-4 w-4" />
-                                      </Button>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          ) : displayMode === 'grid' ? (
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-2">
-                              {pieces.map(item => (
-                                <RepertoireItem 
-                                  key={item.id} 
-                                  item={item} 
-                                  layout="grid"
-                                  onClick={() => handleOpenPieceDetail(item)}
-                                  formatComposerName={!activeStudent ? formatComposerName : undefined}
-                                />
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {pieces.map(item => (
-                                <div key={item.id} className="flex items-center">
-                                  <div 
-                                    className="flex-1 cursor-pointer" 
-                                    onClick={() => handleOpenPieceDetail(item)}
-                                  >
-                                    <RepertoireItem 
-                                      item={item} 
-                                      className="flex-1" 
-                                      onClick={() => handleOpenPieceDetail(item)}
-                                      formatComposerName={!activeStudent ? formatComposerName : undefined}
-                                    />
+                              <AccordionTrigger className="hover:no-underline py-2">
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="font-medium text-left flex items-center">
+                                    <Music className="h-4 w-4 mr-2 text-muted-foreground" />
+                                    {formatComposerName(composer)}
+                                    <Badge className="ml-3" variant="outline">{pieces.length}</Badge>
                                   </div>
-                                  <div className="flex flex-col gap-2 ml-2">
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="pt-2 pb-1">
+                                {displayMode === 'table' && (
+                                  <div className="rounded-md border">
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead className="cursor-pointer" onClick={() => handleHeaderClick('title')}>
+                                            Piece {sortField === 'title' && (
+                                              sortDirection === 'asc' ? 
+                                                <ChevronUp className="inline h-3 w-3" /> : 
+                                                <ChevronDown className="inline h-3 w-3" />
+                                            )}
+                                          </TableHead>
+                                          <TableHead className="cursor-pointer" onClick={() => handleHeaderClick('difficulty')}>
+                                            Level {sortField === 'difficulty' && (
+                                              sortDirection === 'asc' ? 
+                                                <ChevronUp className="inline h-3 w-3" /> : 
+                                                <ChevronDown className="inline h-3 w-3" />
+                                            )}
+                                          </TableHead>
+                                          <TableHead></TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {pieces.map(item => (
+                                          <TableRow 
+                                            key={item.id} 
+                                            className="cursor-pointer" 
+                                            onClick={() => handleOpenPieceDetail(item)}
+                                          >
+                                            <TableCell className="font-medium">{item.title}</TableCell>
+                                            <TableCell>
+                                              <Badge variant="outline" className="capitalize">
+                                                {item.difficulty}
+                                              </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleOpenPieceDetail(item); 
+                                                }}
+                                              >
+                                                <ChevronRight className="h-4 w-4" />
+                                              </Button>
+                                            </TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                )}
+                                
+                                {displayMode === 'grid' && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2">
+                                    {pieces.map(item => (
+                                      <Card 
+                                        key={item.id} 
+                                        className="cursor-pointer hover:border-primary transition-colors"
+                                        onClick={() => handleOpenPieceDetail(item)}
+                                      >
+                                        <CardHeader className="pb-2">
+                                          <CardTitle className="text-lg truncate">{item.title}</CardTitle>
+                                        </CardHeader>
+                                        <CardFooter>
+                                          <Badge variant="outline" className="capitalize mr-2">
+                                            {item.difficulty}
+                                          </Badge>
+                                          {item.status === 'completed' && (
+                                            <Badge variant="secondary">Completed</Badge>
+                                          )}
+                                        </CardFooter>
+                                      </Card>
+                                    ))}
+                                  </div>
+                                )}
+                                
+                                {displayMode === 'cards' && (
+                                  <div className="space-y-3 pt-2">
+                                    {pieces.map(item => (
+                                      <Card 
+                                        key={item.id} 
+                                        className="cursor-pointer hover:border-primary transition-colors"
+                                        onClick={() => handleOpenPieceDetail(item)}
+                                      >
+                                        <CardContent className="p-4 flex items-center justify-between">
+                                          <div>
+                                            <div className="font-medium mb-1">{item.title}</div>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <Badge variant="outline" className="capitalize">
+                                              {item.difficulty}
+                                            </Badge>
+                                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                          </div>
+                                        </CardContent>
+                                      </Card>
+                                    ))}
+                                  </div>
+                                )}
+                              </AccordionContent>
+                            </AccordionItem>
+                          ))}
+                      </Accordion>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Table view */}
+                      {displayMode === 'table' && (
+                        <div className="rounded-md border">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead 
+                                  className="cursor-pointer" 
+                                  onClick={() => handleHeaderClick('title')}
+                                >
+                                  Piece {sortField === 'title' && (
+                                    sortDirection === 'asc' ? 
+                                      <ChevronUp className="inline h-3 w-3" /> : 
+                                      <ChevronDown className="inline h-3 w-3" />
+                                  )}
+                                </TableHead>
+                                <TableHead 
+                                  className="cursor-pointer" 
+                                  onClick={() => handleHeaderClick('composer')}
+                                >
+                                  Composer {sortField === 'composer' && (
+                                    sortDirection === 'asc' ? 
+                                      <ChevronUp className="inline h-3 w-3" /> : 
+                                      <ChevronDown className="inline h-3 w-3" />
+                                  )}
+                                </TableHead>
+                                <TableHead 
+                                  className="cursor-pointer" 
+                                  onClick={() => handleHeaderClick('difficulty')}
+                                >
+                                  Level {sortField === 'difficulty' && (
+                                    sortDirection === 'asc' ? 
+                                      <ChevronUp className="inline h-3 w-3" /> : 
+                                      <ChevronDown className="inline h-3 w-3" />
+                                  )}
+                                </TableHead>
+                                <TableHead></TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredRepertoire.map(item => (
+                                <TableRow 
+                                  key={item.id} 
+                                  className="cursor-pointer" 
+                                  onClick={() => handleOpenPieceDetail(item)}
+                                >
+                                  <TableCell className="font-medium">{item.title}</TableCell>
+                                  <TableCell>
+                                    {!activeStudent && viewMode === 'composer' 
+                                      ? formatComposerName(item.composer) 
+                                      : item.composer
+                                    }
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className="capitalize">
+                                      {item.difficulty}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      onClick={() => {
-                                        setSelectedPiece(item);
-                                        setIsAssignPieceDialogOpen(true);
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenPieceDetail(item); 
                                       }}
                                     >
-                                      <Plus className="h-4 w-4" />
+                                      <ChevronRight className="h-4 w-4" />
                                     </Button>
-                                  </div>
-                                </div>
+                                  </TableCell>
+                                </TableRow>
                               ))}
-                            </div>
-                          )}
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                ) : filteredRepertoire.length > 0 ? (
-                  displayMode === 'table' ? (
-                    <div className="rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead 
-                              className="cursor-pointer hover:bg-muted/50"
-                              onClick={() => handleSort('title')}
-                            >
-                              Piece
-                              {sortField === 'title' && (
-                                <span className="ml-1">
-                                  {sortDirection === 'asc' ? <ChevronUp className="inline h-3.5 w-3.5" /> : <ChevronDown className="inline h-3.5 w-3.5" />}
-                                </span>
-                              )}
-                            </TableHead>
-                            <TableHead 
-                              className="cursor-pointer hover:bg-muted/50"
-                              onClick={() => handleSort('composer')}
-                            >
-                              Composer
-                              {sortField === 'composer' && (
-                                <span className="ml-1">
-                                  {sortDirection === 'asc' ? <ChevronUp className="inline h-3.5 w-3.5" /> : <ChevronDown className="inline h-3.5 w-3.5" />}
-                                </span>
-                              )}
-                            </TableHead>
-                            <TableHead 
-                              className="cursor-pointer hover:bg-muted/50"
-                              onClick={() => handleSort('difficulty')}
-                            >
-                              Difficulty
-                              {sortField === 'difficulty' && (
-                                <span className="ml-1">
-                                  {sortDirection === 'asc' ? <ChevronUp className="inline h-3.5 w-3.5" /> : <ChevronDown className="inline h-3.5 w-3.5" />}
-                                </span>
-                              )}
-                            </TableHead>
-                            <TableHead className="w-[60px]"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {sortedRepertoire.map(item => (
-                            <TableRow 
-                              key={item.id} 
-                              className="cursor-pointer hover:bg-muted/50"
-                              onClick={() => handleOpenPieceDetail(item)}
-                            >
-                              <TableCell className="font-medium">
-                                {item.title}
-                                {item.notes && (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Info className="h-3.5 w-3.5 inline ml-2 text-muted-foreground" />
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p className="max-w-xs">{item.notes}</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                )}
-                              </TableCell>
-                              <TableCell>{formatComposerName(item.composer)}</TableCell>
-                              <TableCell>
-                                {item.difficulty && (
-                                  <Badge variant="outline">{item.difficulty}</Badge>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedPiece(item);
-                                    setIsAssignPieceDialogOpen(true);
-                                  }}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  ) : displayMode === 'grid' ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {filteredRepertoire.map(item => (
-                        <RepertoireItem 
-                          key={item.id} 
-                          item={item} 
-                          layout="grid"
-                          onClick={() => handleOpenPieceDetail(item)}
-                          formatComposerName={!activeStudent ? formatComposerName : undefined}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    /* List View */
-                    <div className="space-y-4">
-                      {filteredRepertoire.map(item => (
-                        <div key={item.id} className="flex items-center">
-                          <div 
-                            className="flex-1 cursor-pointer" 
-                            onClick={() => handleOpenPieceDetail(item)}
-                          >
-                            <RepertoireItem 
-                              item={item} 
-                              className="flex-1" 
-                              onClick={() => handleOpenPieceDetail(item)}
-                              formatComposerName={!activeStudent ? formatComposerName : undefined}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2 ml-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setSelectedPiece(item);
-                                setIsAssignPieceDialogOpen(true);
-                              }}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
+                            </TableBody>
+                          </Table>
                         </div>
-                      ))}
-                    </div>
-                  )
-                ) : (
-                  <Card className="p-6 text-center text-muted-foreground">
-                    <p>No repertoire found. Try changing your search or filters.</p>
-                  </Card>
-                )}
-              </div>
+                      )}
+                      
+                      {/* Grid view */}
+                      {displayMode === 'grid' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                          {filteredRepertoire.map(item => (
+                            <Card 
+                              key={item.id} 
+                              className="cursor-pointer hover:border-primary transition-colors"
+                              onClick={() => handleOpenPieceDetail(item)}
+                            >
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-lg truncate">{item.title}</CardTitle>
+                                <CardDescription className="truncate">
+                                  {!activeStudent && viewMode === 'composer' 
+                                    ? formatComposerName(item.composer) 
+                                    : item.composer
+                                  }
+                                </CardDescription>
+                              </CardHeader>
+                              <CardFooter>
+                                <Badge variant="outline" className="capitalize mr-2">
+                                  {item.difficulty}
+                                </Badge>
+                                {item.status === 'completed' && (
+                                  <Badge variant="secondary">Completed</Badge>
+                                )}
+                              </CardFooter>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Card view */}
+                      {displayMode === 'cards' && (
+                        <div className="space-y-3">
+                          {filteredRepertoire.map(item => (
+                            <Card 
+                              key={item.id} 
+                              className="cursor-pointer hover:border-primary transition-colors"
+                                onClick={() => handleOpenPieceDetail(item)}
+                              >
+                              <CardContent className="p-4 flex items-center justify-between">
+                                <div>
+                                  <div className="font-medium mb-1">{item.title}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {!activeStudent && viewMode === 'composer' 
+                                      ? formatComposerName(item.composer) 
+                                      : item.composer
+                                    }
+                              </div>
+                              </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="capitalize">
+                                    {item.difficulty}
+                                  </Badge>
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                    )}
+                    </>
+                  )}
+                </>
+              )}
+            </>
             )}
-          </div>
         </div>
       </div>
       
@@ -2280,8 +930,430 @@ const RepertoirePage = () => {
         students={studentsList}
         repertoire={repertoireList}
       />
-    </>
+    </div>
   );
 };
 
 export default RepertoirePage;
+
+// Dialog components
+interface AddPieceDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onAdd: (piece: { title: string; composer: string; difficulty: string; notes?: string }) => void;
+}
+
+const AddPieceDialog = ({ isOpen, onClose, onAdd }: AddPieceDialogProps) => {
+  const [title, setTitle] = useState('');
+  const [composer, setComposer] = useState('');
+  const [difficulty, setDifficulty] = useState('intermediate');
+  const [notes, setNotes] = useState('');
+
+  const handleSubmit = () => {
+    if (!title || !composer) return;
+    
+    onAdd({
+      title,
+      composer,
+      difficulty,
+      notes: notes || undefined
+    });
+    
+    // Reset form
+    setTitle('');
+    setComposer('');
+    setDifficulty('intermediate');
+    setNotes('');
+    onClose();
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Add New Piece to Master Repertoire</DialogTitle>
+          <DialogDescription>
+            Add a new piece to your master repertoire library.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="title">Piece Title</Label>
+            <Input 
+              id="title" 
+              placeholder="Enter piece title" 
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="composer">Composer</Label>
+            <Input 
+              id="composer" 
+              placeholder="Enter composer name" 
+              value={composer}
+              onChange={(e) => setComposer(e.target.value)}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="difficulty">Difficulty Level</Label>
+            <Select value={difficulty} onValueChange={setDifficulty}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select difficulty level" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="beginner">Beginner</SelectItem>
+                <SelectItem value="intermediate">Intermediate</SelectItem>
+                <SelectItem value="advanced">Advanced</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Textarea 
+              id="notes" 
+              placeholder="Add notes about this piece" 
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+        </div>
+        
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={!title || !composer}>Add Piece</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+interface AssignPieceDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  repertoire: RepertoireItemData[];
+  students: Student[];
+  onAssign: (pieceId: string, studentId: string) => void;
+}
+
+const AssignPieceDialog = ({ isOpen, onClose, repertoire, students, onAssign }: AssignPieceDialogProps) => {
+  const [selectedPieceId, setSelectedPieceId] = useState<string>('');
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Reset selections when dialog opens/closes
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedPieceId('');
+      setSelectedStudentId('');
+      setSearchQuery('');
+    }
+  }, [isOpen]);
+  
+  // Filter repertoire by search query
+  const filteredRepertoire = useMemo(() => {
+    if (!searchQuery) return repertoire;
+    
+    const query = searchQuery.toLowerCase();
+    return repertoire.filter(piece => 
+      piece.title.toLowerCase().includes(query) || 
+      piece.composer.toLowerCase().includes(query)
+    );
+  }, [repertoire, searchQuery]);
+  
+  const handleAssign = () => {
+    if (!selectedPieceId || !selectedStudentId) return;
+    
+    onAssign(selectedPieceId, selectedStudentId);
+    onClose();
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Assign Piece to Student</DialogTitle>
+          <DialogDescription>
+            Select a piece from the repertoire to assign to a student.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="student">Student</Label>
+            <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select student" />
+              </SelectTrigger>
+              <SelectContent>
+                {students.map(student => (
+                  <SelectItem key={student.id} value={student.id}>
+                    {student.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="search">Search Repertoire</Label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input 
+                id="search" 
+                placeholder="Search by title or composer" 
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <div className="border rounded-md max-h-[300px] overflow-y-auto">
+            {filteredRepertoire.length === 0 ? (
+              <div className="p-4 text-center text-muted-foreground">
+                No pieces found. Try a different search term.
+              </div>
+            ) : (
+              <RadioGroup value={selectedPieceId} onValueChange={setSelectedPieceId}>
+                {filteredRepertoire.map(piece => (
+                  <div 
+                    key={piece.id} 
+                    className={cn(
+                      "flex items-center p-3 space-x-2 border-b last:border-0 cursor-pointer hover:bg-accent",
+                      selectedPieceId === piece.id && "bg-accent"
+                    )}
+                    onClick={() => setSelectedPieceId(piece.id)}
+                  >
+                    <RadioGroupItem value={piece.id} id={piece.id} className="mr-2" />
+                    <div className="flex-1">
+                      <div className="font-medium">{piece.title}</div>
+                      <div className="text-sm text-muted-foreground">{piece.composer}</div>
+                    </div>
+                    <Badge variant="outline" className="capitalize">
+                      {piece.difficulty}
+                    </Badge>
+                  </div>
+                ))}
+              </RadioGroup>
+            )}
+          </div>
+        </div>
+        
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button 
+            onClick={handleAssign} 
+            disabled={!selectedPieceId || !selectedStudentId}
+          >
+            Assign Piece
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+interface PieceDetailDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  piece: RepertoireItemData | null;
+  students: Student[];
+  repertoire: RepertoireItemData[];
+}
+
+const PieceDetailDialog = ({ isOpen, onClose, piece, students, repertoire }: PieceDetailDialogProps) => {
+  const [activeTab, setActiveTab] = useState<'details' | 'attachments' | 'students'>('details');
+  const { toast } = useToast();
+  
+  // Reset active tab when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab('details');
+    }
+  }, [isOpen]);
+  
+  // Find students who have this piece assigned
+  const studentsWithPiece = useMemo(() => {
+    if (!piece) return [];
+    
+    return students.filter(student => {
+      // Check if this piece is in current or past repertoire
+      const inCurrent = student.currentRepertoire.some(p => 
+        p.id === piece.id || p.masterPieceId === piece.id
+      );
+      
+      const inPast = student.pastRepertoire.some(p => 
+        p.id === piece.id || p.masterPieceId === piece.id
+      );
+      
+      return inCurrent || inPast;
+    });
+  }, [piece, students]);
+  
+  // Handle piece status change (mark as completed, etc.)
+  const handleStatusChange = (status: 'current' | 'completed') => {
+    if (!piece) return;
+    
+    // In a real implementation, this would call a hook to update the database
+    toast({
+      title: "Status updated",
+      description: `${piece.title} has been marked as ${status}.`,
+    });
+  };
+  
+  if (!piece) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{piece.title}</DialogTitle>
+          <DialogDescription>
+            {piece.composer} • {piece.difficulty} level
+          </DialogDescription>
+        </DialogHeader>
+        
+        <Tabs value={activeTab} onValueChange={(value: string) => {
+          if (value === 'details' || value === 'attachments' || value === 'students') {
+            setActiveTab(value);
+          }
+        }}>
+          <TabsList className="grid grid-cols-3 w-full">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="attachments">Attachments</TabsTrigger>
+            <TabsTrigger value="students">Students</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="details" className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm text-muted-foreground">Title</Label>
+                <div className="font-medium">{piece.title}</div>
+              </div>
+              
+              <div>
+                <Label className="text-sm text-muted-foreground">Composer</Label>
+                <div className="font-medium">{piece.composer}</div>
+              </div>
+              
+              <div>
+                <Label className="text-sm text-muted-foreground">Difficulty</Label>
+                <div className="font-medium capitalize">{piece.difficulty}</div>
+              </div>
+              
+              <div>
+                <Label className="text-sm text-muted-foreground">Status</Label>
+                <div className="font-medium capitalize">{piece.status || 'In Master Repertoire'}</div>
+              </div>
+              
+              {piece.startedDate && (
+                <div>
+                  <Label className="text-sm text-muted-foreground">Started Date</Label>
+                  <div className="font-medium">{piece.startedDate}</div>
+                </div>
+              )}
+              
+              {piece.endDate && (
+                <div>
+                  <Label className="text-sm text-muted-foreground">Completed Date</Label>
+                  <div className="font-medium">{piece.endDate}</div>
+                </div>
+              )}
+            </div>
+            
+            {piece.notes && (
+              <div className="mt-4">
+                <Label className="text-sm text-muted-foreground">Notes</Label>
+                <div className="mt-1 text-sm whitespace-pre-wrap p-3 border rounded-md bg-muted/50">
+                  {piece.notes}
+                </div>
+              </div>
+            )}
+            
+            <div className="flex gap-2 mt-6">
+              {piece.status === 'current' ? (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleStatusChange('completed')}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Mark as Completed
+                </Button>
+              ) : piece.status === 'completed' ? (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleStatusChange('current')}
+                >
+                  <RotateCw className="mr-2 h-4 w-4" />
+                  Move to Current
+                </Button>
+              ) : null}
+              
+              <Button variant="outline" size="sm">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Assign to Student
+              </Button>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="attachments" className="py-4">
+            <AttachmentManager 
+              entityId={piece.id}
+              entityType={AttachmentEntityType.PIECE}
+              allowUpload={true}
+              allowDelete={true}
+              title="Piece Attachments"
+            />
+          </TabsContent>
+          
+          <TabsContent value="students" className="py-4">
+            {studentsWithPiece.length === 0 ? (
+              <div className="text-center p-6 border rounded-md bg-muted/50">
+                <div className="text-muted-foreground mb-2">
+                  This piece has not been assigned to any students yet.
+                </div>
+                <Button variant="outline" size="sm">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Assign to Student
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {studentsWithPiece.map(student => (
+                  <Card key={student.id}>
+                    <CardContent className="p-3 flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <Avatar>
+                          <AvatarImage src={student.avatarUrl} />
+                          <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium">{student.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {student.currentRepertoire.some(p => p.id === piece.id || p.masterPieceId === piece.id) ? 
+                              'Current Repertoire' : 'Completed Repertoire'}
+                          </div>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon">
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+
+
