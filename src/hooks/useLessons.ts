@@ -186,57 +186,113 @@ export function useAllLessons() {
 export function useStudentLessons(studentId: string | undefined) {
   const { userId } = useDevelopmentAuth();
   
-  return useQuery<Lesson[]>({
+  return useQuery<(Lesson & { _source?: 'database' | 'cached' | 'mock' | 'cached-fallback' | 'mock-fallback' })[]>({
     queryKey: ['lessons', 'student', studentId],
     queryFn: async () => {
       if (!studentId) return [];
       
+      console.log(`Fetching lessons for student ${studentId}`);
+      console.log(`Running in ${isDevelopmentMode ? 'DEVELOPMENT' : 'PRODUCTION'} mode`);
+      
       try {
+        // Always try Supabase first, even in development mode
+        console.log('Querying Supabase for student lessons');
+        
         const { data, error } = await supabase
           .from('lessons')
-          .select('*')  // This will include all fields, including transcript and ai_summary
+          .select('*')
           .eq('student_id', studentId)
           .order('date', { ascending: false });
           
-        if (error) throw error;
+        if (error) {
+          console.error(`Error fetching lessons for student ${studentId}:`, error);
+          throw error;
+        }
         
-        // If successful, cache the data
+        // If we get data successfully
         if (data && data.length > 0) {
+          console.log(`Retrieved ${data.length} lessons for student ${studentId} from database`);
+          
+          // Cache the successful response for future fallback
           cacheMockData(`student_lessons_${studentId}`, data);
-          return data;
-        }
-        
-        // Try to get cached data first in development mode
-        if (isDevelopmentMode) {
-          const cachedData = getCachedMockData<Lesson[] | null>(`student_lessons_${studentId}`, null);
-          if (cachedData && cachedData.length > 0) {
-            console.log(`Using cached lessons data for student ${studentId}`);
-            return cachedData;
-          }
           
-          console.log(`No lessons data available for student ${studentId}`);
+          // Return data with source information
+          return data.map(lesson => ({
+            ...lesson,
+            _source: 'database' as const
+          }));
         }
         
-        return [];
+        console.log(`No lessons found in database for student ${studentId}`);
       } catch (err) {
-        console.error(`Error fetching lessons for student ${studentId}:`, err);
+        console.error(`Error fetching lessons for student ${studentId} from Supabase:`, err);
         
-        // In development mode, try to use cached data
-        if (isDevelopmentMode) {
-          const cachedData = getCachedMockData<Lesson[] | null>(`student_lessons_${studentId}`, null);
-          if (cachedData && cachedData.length > 0) {
-            console.log(`Using cached lessons data for student ${studentId} after error`);
-            return cachedData;
-          }
+        // If we're in production, we can't use cached or mock data
+        if (!isDevelopmentMode) throw err;
+        
+        console.log('Will try to use cached data as fallback due to Supabase error');
+      }
+      
+      // If we're here, either:
+      // 1. We're in development mode and hit an error with Supabase
+      // 2. We got no results from Supabase
+      
+      // Try to get data from cache
+      if (isDevelopmentMode) {
+        console.log(`Checking for cached lessons for student ${studentId}...`);
+        const cachedLessons = getCachedMockData<Lesson[]>(`student_lessons_${studentId}`, []);
+        
+        if (cachedLessons && cachedLessons.length > 0) {
+          console.log(`Using ${cachedLessons.length} cached lessons for student ${studentId}`);
           
-          console.log(`No cached lessons data available for student ${studentId}`);
-          return [];
+          // Return cached data with source information
+          return cachedLessons.map(lesson => ({
+            ...lesson,
+            _source: 'cached-fallback' as const
+          }));
         }
         
-        throw err;
+        // As a last resort, use mock data
+        console.log(`No cached lessons found, using mock lessons as final fallback for student ${studentId}`);
+        
+        // Create some mock lessons for this student
+        const today = new Date();
+        const mockLessons: Lesson[] = Array.from({ length: 5 }).map((_, index) => {
+          const lessonDate = new Date();
+          lessonDate.setDate(today.getDate() - (index * 7)); // One lesson per week going back
+          
+          return {
+            id: `mock-lesson-${index}-${studentId}`,
+            student_id: studentId,
+            teacher_id: userId || 'mock-teacher-id',
+            date: lessonDate.toISOString().split('T')[0],
+            start_time: '15:00:00',
+            end_time: '16:00:00',
+            status: 'completed',
+            location: 'Virtual',
+            summary: `Mock lesson ${index + 1} for student`,
+            notes: `These are notes for mock lesson ${index + 1}`,
+            transcript_url: null,
+            ai_summary: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+        });
+        
+        // Cache the mock data for future use
+        cacheMockData(`student_lessons_${studentId}`, mockLessons);
+        
+        // Return mock data with source information
+        return mockLessons.map(lesson => ({
+          ...lesson,
+          _source: 'mock-fallback' as const
+        }));
       }
+      
+      // If we get here in production mode, return empty array
+      return [];
     },
-    enabled: !!studentId && (isDevelopmentMode || !!userId),
+    enabled: !!studentId && (!!userId || isDevelopmentMode),
   });
 }
 
