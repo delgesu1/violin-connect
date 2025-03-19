@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import PageHeader from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { 
@@ -11,9 +11,11 @@ import {
   Music,
   MapPin,
   MoreHorizontal,
-  ArrowRight
+  ArrowRight,
+  Filter,
+  Search
 } from 'lucide-react';
-import { format, addDays, subDays, isSameDay } from 'date-fns';
+import { format, addDays, subDays, isSameDay, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isToday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarEventData } from '@/components/common/CalendarEvent';
@@ -33,6 +35,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 
 // Mock event data
 const events: CalendarEventData[] = [
@@ -94,46 +98,142 @@ const events: CalendarEventData[] = [
     type: 'performance',
     location: 'Concert Hall',
   },
+  {
+    id: '6',
+    title: 'Birthday',
+    startTime: '09:00 AM',
+    endTime: '09:00 PM',
+    type: 'other',
+    location: '',
+    isAllDay: true
+  },
+  {
+    id: '7',
+    title: 'Lunar New Year',
+    startTime: '09:00 AM',
+    endTime: '09:00 PM',
+    type: 'other',
+    location: '',
+    isAllDay: true
+  },
+  {
+    id: '8',
+    title: 'Time Off',
+    startTime: '09:00 AM',
+    endTime: '09:00 PM',
+    type: 'other',
+    location: '',
+    isAllDay: true
+  },
+  {
+    id: '9',
+    title: 'Consult Jenna',
+    startTime: '09:00 AM',
+    endTime: '10:00 AM',
+    type: 'other',
+    location: 'Online',
+  },
+  {
+    id: '10',
+    title: 'Coffee Break',
+    startTime: '10:00 AM',
+    endTime: '10:30 AM',
+    type: 'other',
+    location: '',
+  },
+  {
+    id: '11',
+    title: 'Last Hour Report Submit',
+    startTime: '11:00 AM',
+    endTime: '11:30 AM',
+    type: 'other',
+    location: '',
+  },
+  {
+    id: '12',
+    title: 'HR & Marketing monthly meeting',
+    startTime: '12:00 PM',
+    endTime: '01:00 PM',
+    type: 'other',
+    location: 'Online',
+  },
+  {
+    id: '13',
+    title: 'Strategic planning for upcoming quarter',
+    startTime: '11:30 AM',
+    endTime: '01:00 PM',
+    type: 'other',
+    location: 'Online',
+    description: 'Analyze market trends and competitor strategies'
+  },
+  {
+    id: '14',
+    title: 'Take care of the driver\'s license',
+    startTime: '01:00 PM',
+    endTime: '02:00 PM',
+    type: 'other',
+    location: '',
+  },
+  {
+    id: '15',
+    title: 'Respond to emails and messages',
+    startTime: '12:30 PM',
+    endTime: '02:00 PM',
+    type: 'other',
+    location: 'Online',
+  },
+  {
+    id: '16',
+    title: 'Marketing Div. Follow up',
+    startTime: '02:00 PM',
+    endTime: '03:00 PM',
+    type: 'other',
+    location: '',
+  },
+  {
+    id: '17',
+    title: 'Candidate Interview',
+    startTime: '02:00 PM',
+    endTime: '03:00 PM',
+    type: 'other',
+    location: 'Online',
+  },
+  {
+    id: '18',
+    title: 'One-on-one meeting',
+    startTime: '02:00 PM',
+    endTime: '03:00 PM',
+    type: 'other',
+    location: 'Online',
+  },
 ];
 
-// Helper to get time based color for events
+// Helper to get event colors based on type
 const getEventColors = (type: string) => {
   switch (type) {
     case 'lesson':
-      return {
-        bg: 'bg-blue-50 dark:bg-blue-950/30',
-        border: 'border-blue-200 dark:border-blue-800/50',
-        accent: 'bg-blue-500',
-        text: 'text-blue-700 dark:text-blue-300',
-        icon: 'text-blue-500 dark:text-blue-400',
-        hover: 'hover:bg-blue-100 dark:hover:bg-blue-900/30'
+      return { 
+        bg: 'bg-blue-50 dark:bg-blue-900/20', 
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-900/30',
+        border: 'border-blue-500 dark:border-blue-400' 
       };
     case 'performance':
-      return {
-        bg: 'bg-purple-50 dark:bg-purple-950/30',
-        border: 'border-purple-200 dark:border-purple-800/50',
-        accent: 'bg-purple-500',
-        text: 'text-purple-700 dark:text-purple-300',
-        icon: 'text-purple-500 dark:text-purple-400',
-        hover: 'hover:bg-purple-100 dark:hover:bg-purple-900/30'
+      return { 
+        bg: 'bg-purple-50 dark:bg-purple-900/20', 
+        hover: 'hover:bg-purple-100 dark:hover:bg-purple-900/30',
+        border: 'border-purple-500 dark:border-purple-400' 
       };
     case 'rehearsal':
-      return {
-        bg: 'bg-amber-50 dark:bg-amber-950/30',
-        border: 'border-amber-200 dark:border-amber-800/50',
-        accent: 'bg-amber-500',
-        text: 'text-amber-700 dark:text-amber-300',
-        icon: 'text-amber-500 dark:text-amber-400',
-        hover: 'hover:bg-amber-100 dark:hover:bg-amber-900/30'
+      return { 
+        bg: 'bg-amber-50 dark:bg-amber-900/20', 
+        hover: 'hover:bg-amber-100 dark:hover:bg-amber-900/30',
+        border: 'border-amber-500 dark:border-amber-400' 
       };
     default:
-      return {
-        bg: 'bg-gray-50 dark:bg-gray-800/30',
-        border: 'border-gray-200 dark:border-gray-700',
-        accent: 'bg-gray-500',
-        text: 'text-gray-700 dark:text-gray-300',
-        icon: 'text-gray-500 dark:text-gray-400',
-        hover: 'hover:bg-gray-100 dark:hover:bg-gray-800/50'
+      return { 
+        bg: 'bg-gray-50 dark:bg-gray-800/50', 
+        hover: 'hover:bg-gray-100 dark:hover:bg-gray-800/70',
+        border: 'border-gray-400 dark:border-gray-500' 
       };
   }
 };
@@ -166,9 +266,79 @@ const groupEventsByTime = (events: CalendarEventData[], selectedDate: Date) => {
   });
 };
 
+// Helper to get events for a specific day in the week view
+const getEventsForDay = (events: CalendarEventData[], day: Date) => {
+  // In a real app, you would filter events by day
+  // For this mock, we'll distribute events across the week
+  
+  const dayOfWeek = day.getDay();
+  
+  if (dayOfWeek === 0) { // Sunday
+    return events.filter(e => e.id === '6'); 
+  } else if (dayOfWeek === 1) { // Monday
+    return events.filter(e => ['17', '12'].includes(e.id));
+  } else if (dayOfWeek === 2) { // Tuesday
+    return events.filter(e => ['1', '3', '9', '10', '11', '16'].includes(e.id));
+  } else if (dayOfWeek === 3) { // Wednesday
+    return events.filter(e => ['7', '12'].includes(e.id));
+  } else if (dayOfWeek === 4) { // Thursday
+    return events.filter(e => ['9', '10', '13'].includes(e.id));
+  } else if (dayOfWeek === 5) { // Friday
+    return events.filter(e => ['8', '15'].includes(e.id));
+  } else { // Saturday
+    return events.filter(e => ['18'].includes(e.id));
+  }
+};
+
+// Helper to get all-day events for a specific day
+const getAllDayEventsForDay = (events: CalendarEventData[], day: Date) => {
+  // In a real app, you would filter events by day and all-day flag
+  // For this mock, we'll distribute all-day events across the week
+  
+  const dayOfWeek = day.getDay();
+  
+  if (dayOfWeek === 0) { // Sunday
+    return events.filter(e => e.id === '6' && e.isAllDay); 
+  } else if (dayOfWeek === 4) { // Thursday
+    return events.filter(e => e.id === '7' && e.isAllDay);
+  } else if (dayOfWeek === 5) { // Friday
+    return events.filter(e => e.id === '8' && e.isAllDay);
+  } else {
+    return [];
+  }
+};
+
+// Helper to group events by time for the week view
+const groupEventsByTimeForWeek = (events: CalendarEventData[], startDate: Date) => {
+  const timeSlots = [
+    '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', 
+    '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', 
+    '6:00 PM', '7:00 PM', '8:00 PM', '9:00 PM'
+  ];
+  
+  const daysOfWeek = eachDayOfInterval({
+    start: startDate,
+    end: endOfWeek(startDate)
+  });
+  
+  // Create a time-based grid for the week
+  return timeSlots.map(time => {
+    return {
+      time,
+      days: daysOfWeek.map(day => {
+        const dayEvents = getEventsForDay(events, day);
+        return {
+          date: day,
+          events: dayEvents.filter(event => event.startTime === time)
+        };
+      })
+    };
+  });
+};
+
 const CalendarPage = () => {
   const [date, setDate] = useState<Date>(new Date());
-  const [view, setView] = useState<'day' | 'week' | 'month'>('day');
+  const [view, setView] = useState<'day' | 'week' | 'month'>('week'); // Default to week view
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [selectedEventType, setSelectedEventType] = useState<'lesson' | 'performance' | 'rehearsal' | 'other'>('lesson');
   const [selectedEvent, setSelectedEvent] = useState<Partial<CalendarEventData> | undefined>(undefined);
@@ -176,9 +346,46 @@ const CalendarPage = () => {
   // Group events by time for day view
   const timeSlots = groupEventsByTime(events, date);
   
+  // Week view: Get the start and end of the current week
+  const weekStart = useMemo(() => startOfWeek(date, { weekStartsOn: 0 }), [date]);
+  const weekEnd = useMemo(() => endOfWeek(date, { weekStartsOn: 0 }), [date]);
+  const daysOfWeek = useMemo(() => 
+    eachDayOfInterval({ start: weekStart, end: weekEnd }), 
+    [weekStart, weekEnd]
+  );
+  
+  // Generate time-based grid for week view
+  const weekTimeSlots = useMemo(() => 
+    groupEventsByTimeForWeek(events, weekStart), 
+    [events, weekStart]
+  );
+
+  // Get all-day events for the week
+  const allDayEvents = useMemo(() => 
+    daysOfWeek.map(day => ({
+      date: day,
+      events: getAllDayEventsForDay(events, day)
+    })),
+    [daysOfWeek]
+  );
+  
   const navigateToday = () => setDate(new Date());
-  const navigatePrevious = () => setDate(prev => view === 'day' ? subDays(prev, 1) : prev);
-  const navigateNext = () => setDate(prev => view === 'day' ? addDays(prev, 1) : prev);
+  
+  const navigatePrevious = () => {
+    if (view === 'day') {
+      setDate(prev => subDays(prev, 1));
+    } else if (view === 'week') {
+      setDate(prev => subWeeks(prev, 1));
+    }
+  };
+  
+  const navigateNext = () => {
+    if (view === 'day') {
+      setDate(prev => addDays(prev, 1));
+    } else if (view === 'week') {
+      setDate(prev => addWeeks(prev, 1));
+    }
+  };
   
   const openNewEventModal = (type: 'lesson' | 'performance' | 'rehearsal' | 'other') => {
     setSelectedEventType(type);
@@ -197,11 +404,24 @@ const CalendarPage = () => {
     setIsEventModalOpen(false);
   };
   
+  // Format the date range for week view
+  const formatDateRange = () => {
+    if (view === 'day') {
+      return format(date, 'EEEE, MMMM d');
+    } else if (view === 'week') {
+      const start = format(weekStart, 'MMM d');
+      const end = format(weekEnd, 'MMM d, yyyy');
+      return `${start} - ${end}`;
+    } else {
+      return format(date, 'MMMM yyyy');
+    }
+  };
+  
   return (
     <div>
       <PageHeader 
         title="Calendar" 
-        description={`Schedule for ${format(date, 'MMMM d, yyyy')}`}
+        description={`Schedule for ${formatDateRange()}`}
       >
         <Button 
           className="bg-blue-600 hover:bg-blue-700 text-sm shadow-sm"
@@ -255,33 +475,61 @@ const CalendarPage = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  
-                  <div>
-                    <h3 className="font-medium mb-3 text-gray-700 dark:text-gray-300">Quick Add</h3>
-                    <div className="space-y-2 flex flex-col sm:flex-row sm:space-y-0 sm:space-x-2 md:flex-col md:space-x-0 md:space-y-2">
+                  <div className="space-y-2">
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start text-left font-normal border-gray-200 dark:border-gray-700 h-9"
+                      size="sm"
+                    >
+                      <Filter className="mr-2 h-4 w-4 text-gray-500" />
+                      <span>Filter Events</span>
+                    </Button>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2 h-4 w-4 text-gray-500" />
+                      <Input 
+                        placeholder="Search events" 
+                        className="pl-9 h-9 text-sm border-gray-200 dark:border-gray-700"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    <h4 className="font-medium mb-2">Quick Add:</h4>
+                    <div className="grid grid-cols-2 gap-2">
                       <Button 
+                        size="sm" 
                         variant="outline" 
-                        className="w-full justify-start text-sm h-9 border-gray-200 dark:border-gray-700 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 hover:border-blue-200"
+                        className="h-8 text-xs justify-start border-gray-200 dark:border-gray-700"
                         onClick={() => openNewEventModal('lesson')}
                       >
-                        <User className="mr-2 h-4 w-4 text-blue-500" />
+                        <User className="mr-1.5 h-3.5 w-3.5 text-blue-500" />
                         Lesson
                       </Button>
                       <Button 
+                        size="sm" 
                         variant="outline" 
-                        className="w-full justify-start text-sm h-9 border-gray-200 dark:border-gray-700 hover:bg-purple-50 hover:text-purple-700 dark:hover:bg-purple-900/20 dark:hover:text-purple-400 hover:border-purple-200"
+                        className="h-8 text-xs justify-start border-gray-200 dark:border-gray-700"
                         onClick={() => openNewEventModal('performance')}
                       >
-                        <Music className="mr-2 h-4 w-4 text-purple-500" />
+                        <Music className="mr-1.5 h-3.5 w-3.5 text-purple-500" />
                         Performance
                       </Button>
                       <Button 
+                        size="sm" 
                         variant="outline" 
-                        className="w-full justify-start text-sm h-9 border-gray-200 dark:border-gray-700 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-900/20 dark:hover:text-amber-400 hover:border-amber-200"
+                        className="h-8 text-xs justify-start border-gray-200 dark:border-gray-700"
+                        onClick={() => openNewEventModal('rehearsal')}
+                      >
+                        <User className="mr-1.5 h-3.5 w-3.5 text-amber-500" />
+                        Rehearsal
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-8 text-xs justify-start border-gray-200 dark:border-gray-700"
                         onClick={() => openNewEventModal('other')}
                       >
-                        <Clock className="mr-2 h-4 w-4 text-amber-500" />
-                        Other Event
+                        <Clock className="mr-1.5 h-3.5 w-3.5 text-gray-500" />
+                        Other
                       </Button>
                     </div>
                   </div>
@@ -303,7 +551,7 @@ const CalendarPage = () => {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div className="font-medium text-lg text-gray-800 dark:text-gray-200 truncate">
-                {format(date, view === 'day' ? 'EEEE, MMMM d' : view === 'week' ? 'MMMM d - 7' : 'MMMM yyyy')}
+                {formatDateRange()}
               </div>
               <Button 
                 variant="ghost" 
@@ -314,14 +562,51 @@ const CalendarPage = () => {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={navigateToday}
-              className="text-sm border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 mt-2 md:mt-0"
-            >
-              Today
-            </Button>
+            <div className="flex items-center gap-2 mt-2 md:mt-0">
+              <div className="flex rounded-lg border border-gray-200/70 dark:border-gray-700/70 overflow-hidden">
+                <Button 
+                  variant={view === 'week' ? "default" : "ghost"} 
+                  size="sm" 
+                  onClick={() => setView('week')}
+                  className={cn(
+                    "rounded-none h-8",
+                    view === 'week' ? "bg-blue-600 text-white hover:bg-blue-700" : "text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  Week
+                </Button>
+                <Button 
+                  variant={view === 'month' ? "default" : "ghost"} 
+                  size="sm" 
+                  onClick={() => setView('month')}
+                  className={cn(
+                    "rounded-none h-8",
+                    view === 'month' ? "bg-blue-600 text-white hover:bg-blue-700" : "text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  Month
+                </Button>
+                <Button 
+                  variant={view === 'day' ? "default" : "ghost"} 
+                  size="sm" 
+                  onClick={() => setView('day')}
+                  className={cn(
+                    "rounded-none h-8",
+                    view === 'day' ? "bg-blue-600 text-white hover:bg-blue-700" : "text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  Day
+                </Button>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={navigateToday}
+                className="text-sm border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 h-8"
+              >
+                Today
+              </Button>
+            </div>
           </div>
           
           {view === 'day' && (
@@ -343,61 +628,69 @@ const CalendarPage = () => {
                     <div className="w-16 sm:w-20 text-gray-500 dark:text-gray-400 text-xs pr-2 sm:pr-4 pt-3 text-right">
                       {slot.time}
                     </div>
-                    <div className="flex-1 min-h-[70px] py-1 relative overflow-x-auto">
-                      {!slot.events.length && (
+                    
+                    <div className="flex-1 min-w-0 py-2 pl-2 pr-3 relative">
+                      {slot.events.length === 0 && (
                         <Button 
                           variant="ghost" 
-                          className="absolute inset-0 w-full h-full justify-start rounded-none p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => openNewEventModal('lesson')}
+                          size="sm" 
+                          className="hidden group-hover:flex items-center h-6 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 absolute right-3 top-2"
+                          onClick={() => openNewEventModal('other')}
                         >
-                          <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-3 flex items-center">
-                            <Plus className="h-3 w-3 mr-1 text-blue-500" />
-                            Add event
-                          </span>
+                          <Plus className="h-3 w-3 mr-1" />
+                          <span>Add</span>
                         </Button>
                       )}
                       
-                      {slot.events.map(event => {
-                        const colors = getEventColors(event.type);
-                        
-                        return (
-                          <div 
-                            key={event.id}
-                            className={cn(
-                              "px-3 py-2.5 my-1 rounded-lg transition-all duration-150 cursor-pointer",
-                              colors.bg,
-                              colors.hover,
-                              "border-l-[3px]",
-                              colors.border,
-                              "shadow-sm hover:shadow",
-                              "min-w-[280px] md:min-w-0"
-                            )}
-                            onClick={() => openEditEventModal(event)}
-                          >
-                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
-                              <h4 className="font-medium text-sm text-gray-800 dark:text-gray-200">{event.title}</h4>
-                              <div className="text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
-                                {event.startTime} - {event.endTime}
+                      <div className="space-y-2 min-h-[3rem]">
+                        {slot.events.map(event => {
+                          const colors = getEventColors(event.type);
+                          
+                          return (
+                            <div 
+                              key={event.id}
+                              className={cn(
+                                "px-3 py-2.5 my-1 rounded-lg transition-all duration-150 cursor-pointer",
+                                colors.bg,
+                                colors.hover,
+                                "border-l-[3px]",
+                                colors.border,
+                                "shadow-sm hover:shadow",
+                                "min-w-[280px] md:min-w-0"
+                              )}
+                              onClick={() => openEditEventModal(event)}
+                            >
+                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
+                                <h4 className="font-medium text-sm text-gray-800 dark:text-gray-200">{event.title}</h4>
+                                <div className="text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
+                                  {event.startTime} - {event.endTime}
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-3 mt-2">
+                                {event.student && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Avatar className="h-5 w-5">
+                                      <AvatarImage src={event.student.avatarUrl} alt={event.student.name} />
+                                      <AvatarFallback className="text-[10px]">
+                                        {event.student.name.split(' ').map(n => n[0]).join('')}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-xs text-gray-600 dark:text-gray-400">{event.student.name}</span>
+                                  </div>
+                                )}
+                                
+                                {event.location && (
+                                  <div className="flex items-center gap-1.5">
+                                    <MapPin className="h-3 w-3 text-gray-500 dark:text-gray-400" />
+                                    <span className="text-xs text-gray-600 dark:text-gray-400">{event.location}</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
-                            
-                            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
-                              {event.location && (
-                                <div className="flex items-center text-gray-600 dark:text-gray-400">
-                                  <MapPin className={cn("h-3 w-3 mr-1 flex-shrink-0", colors.icon)} />
-                                  <span className="truncate">{event.location}</span>
-                                </div>
-                              )}
-                              {event.repertoire && (
-                                <div className="flex items-center text-gray-600 dark:text-gray-400">
-                                  <Music className={cn("h-3 w-3 mr-1 flex-shrink-0", colors.icon)} />
-                                  <span className="truncate">{event.repertoire}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 );
@@ -406,18 +699,141 @@ const CalendarPage = () => {
           )}
           
           {view === 'week' && (
-            <div className="text-center py-12 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/70 dark:border-gray-700/70">
-              <CalendarIcon className="h-10 w-10 mx-auto mb-3 text-gray-400 dark:text-gray-500" />
-              <p className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-1">Week View</p>
-              <p className="text-sm mb-5">Coming soon in the next update!</p>
-              <Button 
-                variant="outline" 
-                className="text-sm border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
-                onClick={() => setView('day')}
-              >
-                Switch to Day View
-                <ArrowRight className="ml-2 h-3.5 w-3.5" />
-              </Button>
+            <div className="space-y-0 border border-gray-200/70 dark:border-gray-700/70 rounded-xl overflow-hidden shadow-sm">
+              {/* Week header */}
+              <div className="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                <div className="w-16 sm:w-20"></div>
+                {daysOfWeek.map((day, index) => (
+                  <div 
+                    key={index} 
+                    className={cn(
+                      "flex-1 text-center py-3 px-1",
+                      isToday(day) ? "bg-blue-50 dark:bg-blue-900/20" : ""
+                    )}
+                  >
+                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                      {format(day, 'EEE')}
+                    </div>
+                    <div className={cn(
+                      "text-sm mt-1 font-medium",
+                      isToday(day) ? "text-blue-600 dark:text-blue-400" : "text-gray-700 dark:text-gray-300"
+                    )}>
+                      {format(day, 'd')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* All-day events */}
+              <div className="flex border-b border-gray-200 dark:border-gray-700">
+                <div className="w-16 sm:w-20 py-2 px-2 text-xs text-gray-500 dark:text-gray-400 text-right">
+                  All-day
+                </div>
+                {allDayEvents.map((day, dayIndex) => (
+                  <div 
+                    key={dayIndex} 
+                    className={cn(
+                      "flex-1 min-h-[3rem] p-1 border-l border-gray-100 dark:border-gray-800",
+                      isToday(day.date) ? "bg-blue-50/30 dark:bg-blue-900/10" : ""
+                    )}
+                  >
+                    {day.events.map(event => {
+                      const colors = getEventColors(event.type);
+                      
+                      return (
+                        <div 
+                          key={event.id}
+                          className={cn(
+                            "px-2 py-1 my-1 rounded text-xs font-medium",
+                            colors.bg,
+                            colors.hover,
+                            "border-l-[3px]",
+                            colors.border,
+                            "shadow-sm cursor-pointer"
+                          )}
+                          onClick={() => openEditEventModal(event)}
+                        >
+                          {event.title}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Time slots */}
+              {weekTimeSlots.map((timeSlot, timeIndex) => (
+                <div 
+                  key={timeIndex}
+                  className="flex border-t border-gray-100 dark:border-gray-800"
+                >
+                  <div className="w-16 sm:w-20 text-gray-500 dark:text-gray-400 text-xs pr-2 sm:pr-4 pt-3 text-right">
+                    {timeSlot.time}
+                  </div>
+                  
+                  {timeSlot.days.map((day, dayIndex) => (
+                    <div 
+                      key={dayIndex} 
+                      className={cn(
+                        "flex-1 min-h-[5rem] p-1 relative border-l border-gray-100 dark:border-gray-800",
+                        isToday(day.date) ? "bg-blue-50/30 dark:bg-blue-900/10" : ""
+                      )}
+                    >
+                      {day.events.map(event => {
+                        const colors = getEventColors(event.type);
+                        
+                        return (
+                          <div 
+                            key={event.id}
+                            className={cn(
+                              "px-2 py-2 my-1 rounded-lg",
+                              colors.bg,
+                              colors.hover,
+                              "border-l-[3px]",
+                              colors.border,
+                              "shadow-sm cursor-pointer"
+                            )}
+                            onClick={() => openEditEventModal(event)}
+                          >
+                            <h4 className="font-medium text-xs text-gray-800 dark:text-gray-200 mb-1 truncate">
+                              {event.title}
+                            </h4>
+                            
+                            <div className="flex flex-col gap-1">
+                              <div className="text-[10px] text-gray-600 dark:text-gray-400">
+                                {event.startTime} - {event.endTime}
+                              </div>
+                              
+                              {event.location && (
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="h-2.5 w-2.5 text-gray-500 dark:text-gray-400" />
+                                  <span className="text-[10px] text-gray-600 dark:text-gray-400 truncate">
+                                    {event.location}
+                                  </span>
+                                </div>
+                              )}
+                              
+                              {event.student && (
+                                <div className="flex items-center gap-1">
+                                  <Avatar className="h-4 w-4">
+                                    <AvatarImage src={event.student.avatarUrl} alt={event.student.name} />
+                                    <AvatarFallback className="text-[8px]">
+                                      {event.student.name.split(' ').map(n => n[0]).join('')}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-[10px] text-gray-600 dark:text-gray-400 truncate">
+                                    {event.student.name}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
           )}
           
@@ -429,9 +845,9 @@ const CalendarPage = () => {
               <Button 
                 variant="outline" 
                 className="text-sm border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
-                onClick={() => setView('day')}
+                onClick={() => setView('week')}
               >
-                Switch to Day View
+                Switch to Week View
                 <ArrowRight className="ml-2 h-3.5 w-3.5" />
               </Button>
             </div>

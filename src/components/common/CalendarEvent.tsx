@@ -16,6 +16,8 @@ export interface CalendarEventData {
   };
   location?: string;
   repertoire?: string;
+  isAllDay?: boolean;
+  description?: string;
 }
 
 interface CalendarEventProps {
