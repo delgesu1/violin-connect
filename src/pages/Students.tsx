@@ -16,7 +16,9 @@ import {
   CheckCircle2,
   Users,
   Mail,
-  Calendar
+  Calendar,
+  LayoutGrid,
+  ListFilter
 } from 'lucide-react';
 
 import PageHeader from '@/components/common/PageHeader';
@@ -84,6 +86,7 @@ import {
 } from '@/hooks/useStudents';
 import { StudentDebugInfo } from './StudentDebug';
 import AllLessonsTable from '@/components/lessons/AllLessonsTable';
+import StudentTable from '@/components/students/StudentTable';
 
 // Define development mode and UUID constants
 const isDevelopmentMode = import.meta.env.VITE_DEV_MODE === 'true';
@@ -441,33 +444,57 @@ const Students: React.FC = () => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
-            </div>
-                <Select
-                  value={skillFilter}
-                  onValueChange={setSkillFilter}
-                >
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filter by level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Levels</SelectItem>
-                    <SelectItem value="Beginner">Beginner</SelectItem>
-                    <SelectItem value="Intermediate">Intermediate</SelectItem>
-                    <SelectItem value="Advanced">Advanced</SelectItem>
-                  </SelectContent>
-                </Select>
-          </div>
-          
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={skillFilter}
+                    onValueChange={setSkillFilter}
+                  >
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="Filter by level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Levels</SelectItem>
+                      <SelectItem value="Beginner">Beginner</SelectItem>
+                      <SelectItem value="Intermediate">Intermediate</SelectItem>
+                      <SelectItem value="Advanced">Advanced</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center border rounded-md overflow-hidden">
+                    <Button
+                      variant={displayMode === 'grid' ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-9 rounded-none px-3"
+                      onClick={() => setDisplayMode('grid')}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={displayMode === 'table' ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-9 rounded-none px-3"
+                      onClick={() => setDisplayMode('table')}
+                    >
+                      <ListFilter className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              
               {isLoading ? (
                 <div className="flex justify-center items-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+                </div>
               ) : filteredStudents.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredStudents.map((student) => (
-                    <StudentCard key={student.id} student={student} />
-                  ))}
-          </div>
+                displayMode === 'grid' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredStudents.map((student) => (
+                      <StudentCard key={student.id} student={student} />
+                    ))}
+                  </div>
+                ) : (
+                  <StudentTable />
+                )
               ) : (
                 <EmptyState
                   icon={<Users className="h-10 w-10" />}
