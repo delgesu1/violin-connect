@@ -13,60 +13,86 @@ import {
   Home,
   ChevronRight,
   HelpCircle,
+  Book,
+  GraduationCap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
-
-const navItems = [
-  { 
-    name: 'Dashboard', 
-    path: '/', 
-    icon: Home,
-  },
-  { 
-    name: 'Repertoire', 
-    path: '/repertoire', 
-    icon: Music,
-  },
-  { 
-    name: 'Files', 
-    path: '/files', 
-    icon: FileText,
-  },
-  { 
-    name: 'Messages', 
-    path: '/messages', 
-    icon: MessageSquare,
-    badge: 3
-  },
-  { 
-    name: 'Discussions', 
-    path: '/discussions', 
-    icon: MessageSquare,
-  },
-  { 
-    name: 'Calendar', 
-    path: '/calendar', 
-    icon: Calendar,
-  },
-  { 
-    name: 'Students', 
-    path: '/students', 
-    icon: Users,
-  },
-  { 
-    name: 'Settings', 
-    path: '/settings', 
-    icon: Settings,
-  },
-];
+import { useUserRoles } from '@/hooks/useUserRoles';
 
 const Sidebar = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(!isMobile);
+  const { isTeacher, isStudent } = useUserRoles();
+  
+  // Dynamic navigation items based on user role
+  const navItems = [
+    { 
+      name: 'Dashboard', 
+      path: '/', 
+      icon: Home,
+      show: true  // Show to everyone
+    },
+    ...(isStudent ? [
+      { 
+        name: 'My Dashboard', 
+        path: '/student-dashboard', 
+        icon: GraduationCap,
+        show: true
+      }
+    ] : []),
+    { 
+      name: 'Journal', 
+      path: '/journal', 
+      icon: Book,
+      show: true  // Show to everyone
+    },
+    { 
+      name: 'Students', 
+      path: '/students', 
+      icon: Users,
+      show: import.meta.env.DEV || isTeacher  // Always show in development mode
+    },
+    { 
+      name: 'Calendar', 
+      path: '/calendar', 
+      icon: Calendar,
+      show: true  // Show to everyone
+    },
+    { 
+      name: 'Repertoire', 
+      path: '/repertoire', 
+      icon: Music,
+      show: true  // Show to everyone
+    },
+    { 
+      name: 'Messages', 
+      path: '/messages', 
+      icon: MessageSquare,
+      badge: 3,
+      show: true  // Show to everyone
+    },
+    { 
+      name: 'Discussions', 
+      path: '/discussions', 
+      icon: MessageSquare,
+      show: true  // Show to everyone
+    },
+    { 
+      name: 'Files', 
+      path: '/files', 
+      icon: FileText,
+      show: true  // Show to everyone
+    },
+    { 
+      name: 'Settings', 
+      path: '/settings', 
+      icon: Settings,
+      show: true  // Show to everyone
+    },
+  ];
   
   // Handle mobile sidebar
   useEffect(() => {
@@ -116,7 +142,7 @@ const Sidebar = () => {
         {/* Navigation */}
         <nav className="mt-2 px-3 flex-1 overflow-y-auto">
           <ul className="space-y-2.5">
-            {navItems.map((item) => {
+            {navItems.filter(item => item.show).map((item) => {
               const isActive = location.pathname === item.path;
               const Icon = item.icon;
               
@@ -155,25 +181,22 @@ const Sidebar = () => {
           </ul>
         </nav>
         
-        {/* User profile at bottom */}
-        <div className="p-5 border-t border-gray-800 mt-auto">
-          <div className={cn(
-            "flex items-center transition-all",
-            isOpen ? "gap-3" : "justify-center"
-          )}>
-            <Avatar className="h-9 w-9 border-2 border-gray-800">
-              <AvatarImage src="/placeholder.svg" />
-              <AvatarFallback className="bg-blue-600 text-white">TC</AvatarFallback>
-            </Avatar>
-            
-            {isOpen && (
-              <div className="flex-1">
-                <p className="text-sm font-medium text-white">Teacher Name</p>
-                <p className="text-xs text-gray-400">Violin Instructor</p>
+        {/* Role Debug Info - only in development */}
+        {isOpen && import.meta.env.DEV && (
+          <div className="px-4 py-3 border-t border-gray-800 text-xs">
+            <div className="text-gray-400 mb-1">Role Debug:</div>
+            <div className="flex flex-col">
+              <div className="flex items-center">
+                <span className={cn("w-3 h-3 rounded-full mr-2", isTeacher ? "bg-green-500" : "bg-red-500")}></span>
+                <span>Teacher: {isTeacher ? "Yes" : "No"}</span>
               </div>
-            )}
+              <div className="flex items-center mt-1">
+                <span className={cn("w-3 h-3 rounded-full mr-2", isStudent ? "bg-green-500" : "bg-red-500")}></span>
+                <span>Student: {isStudent ? "Yes" : "No"}</span>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
       
       {/* Backdrop for mobile */}
