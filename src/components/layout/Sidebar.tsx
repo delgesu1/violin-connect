@@ -44,12 +44,6 @@ const Sidebar = () => {
       }
     ] : []),
     { 
-      name: 'Journal', 
-      path: '/journal', 
-      icon: Book,
-      show: true  // Show to everyone
-    },
-    { 
       name: 'Students', 
       path: '/students', 
       icon: Users,
@@ -78,6 +72,12 @@ const Sidebar = () => {
       name: 'Discussions', 
       path: '/discussions', 
       icon: MessageSquare,
+      show: true  // Show to everyone
+    },
+    { 
+      name: 'Journal', 
+      path: '/journal', 
+      icon: Book,
       show: true  // Show to everyone
     },
     { 
