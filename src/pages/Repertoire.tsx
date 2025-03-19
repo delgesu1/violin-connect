@@ -11,7 +11,7 @@ import { Calendar, CheckCircle, Clock, Filter, LucideIcon, Menu, Music, PlusCirc
          ListFilter, Grid, User, Search, ChevronRight, ChevronLeft, Download, 
          ExternalLink, Trash, Trash2, Upload, BookMarked, Bookmark, File as FileIcon, 
          Paperclip, X, Youtube, LinkIcon, Plus, Eye, Share, RotateCw, FileArchive, 
-         FileText, ChevronDown, ChevronUp, Users, Info, BookText, List, Check as CircleCheck, Star, MessageSquare } from 'lucide-react';
+         FileText, ChevronDown, ChevronUp, Users, Info, BookText, List, Check as CircleCheck, Star, MessageSquare, MoreHorizontal } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -30,7 +30,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
   DropdownMenuSub, 
   DropdownMenuSubContent, 
   DropdownMenuSubTrigger, 
-  DropdownMenuPortal } from '@/components/ui/dropdown-menu';
+  DropdownMenuPortal, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -61,7 +61,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 // Import Supabase hooks
 import { useStudents } from '@/hooks/useStudents';
-import { useMasterRepertoire, useStudentRepertoire } from '@/hooks/useRepertoire';
+import { useMasterRepertoire, useStudentRepertoire, useUpdateStudentRepertoire, useDeleteStudentRepertoire } from '@/hooks/useRepertoire';
 
 // Import types for Supabase data
 import type { Database } from '@/types/supabase';
@@ -90,6 +90,98 @@ interface LinkResource {
   createdAt: string;
 }
 
+// Add a new component for student repertoire actions
+interface StudentRepertoireActionsProps {
+  piece: RepertoireItemData;
+  onStatusChange: (id: string, status: 'current' | 'completed') => void;
+  onDelete: (id: string) => void;
+}
+
+const StudentRepertoireActions: React.FC<StudentRepertoireActionsProps> = ({ 
+  piece, 
+  onStatusChange,
+  onDelete
+}) => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="icon">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          
+          {piece.status === 'current' ? (
+            <DropdownMenuItem 
+              onClick={(e) => {
+                e.stopPropagation();
+                onStatusChange(piece.id, 'completed');
+              }}
+            >
+              <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+              Mark as Completed
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem 
+              onClick={(e) => {
+                e.stopPropagation();
+                onStatusChange(piece.id, 'current');
+              }}
+            >
+              <RotateCw className="mr-2 h-4 w-4 text-blue-500" />
+              Mark as Current
+            </DropdownMenuItem>
+          )}
+          
+          <DropdownMenuSeparator />
+          
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDeleteConfirm(true);
+            }}
+            className="text-red-500"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Remove from Student
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove "{piece.title}" from this student's repertoire? 
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                onDelete(piece.id);
+                setShowDeleteConfirm(false);
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
 const RepertoirePage = () => {
   // State
   const [studentsList, setStudentsList] = useState<Student[]>([]);
@@ -114,6 +206,10 @@ const RepertoirePage = () => {
   const { data: studentRepertoireData, isLoading: isLoadingStudentRepertoire } = useStudentRepertoire(
     activeStudent || undefined
   );
+  
+  // Mutation hooks for updating and deleting student repertoire
+  const updateRepertoireMutation = useUpdateStudentRepertoire();
+  const deleteRepertoireMutation = useDeleteStudentRepertoire();
 
   // For toast notifications
   const { toast } = useToast();
@@ -439,6 +535,149 @@ const RepertoirePage = () => {
     window.location.href = `/repertoire/${piece.id}`;
   };
   
+  // Handler for changing repertoire status
+  const handleStatusChange = (id: string, status: 'current' | 'completed') => {
+    if (!activeStudent) return;
+    
+    // Optimistic UI update - find the piece in the studentsList and update its status
+    const updatedStudents = [...studentsList];
+    const studentIndex = updatedStudents.findIndex(s => s.id === activeStudent);
+    
+    if (studentIndex !== -1) {
+      const student = {...updatedStudents[studentIndex]};
+      
+      // Try to find the piece in current repertoire first
+      let pieceFound = false;
+      const currentPieces = [...student.currentRepertoire];
+      const completedPieces = [...student.pastRepertoire];
+      
+      if (status === 'completed') {
+        // Moving from current to completed
+        const pieceIndex = currentPieces.findIndex(p => p.id === id);
+        if (pieceIndex !== -1) {
+          const piece = {...currentPieces[pieceIndex]};
+          piece.status = 'completed';
+          piece.endDate = new Date().toISOString().split('T')[0];
+          
+          // Remove from current and add to completed
+          currentPieces.splice(pieceIndex, 1);
+          completedPieces.push(piece);
+          pieceFound = true;
+        }
+      } else {
+        // Moving from completed to current
+        const pieceIndex = completedPieces.findIndex(p => p.id === id);
+        if (pieceIndex !== -1) {
+          const piece = {...completedPieces[pieceIndex]};
+          piece.status = 'current';
+          delete piece.endDate;
+          
+          // Remove from completed and add to current
+          completedPieces.splice(pieceIndex, 1);
+          currentPieces.push(piece);
+          pieceFound = true;
+        }
+      }
+      
+      if (pieceFound) {
+        student.currentRepertoire = currentPieces;
+        student.pastRepertoire = completedPieces;
+        updatedStudents[studentIndex] = student;
+        setStudentsList(updatedStudents);
+      }
+    }
+    
+    // Call the mutation
+    updateRepertoireMutation.mutate(
+      { id, status },
+      {
+        onSuccess: () => {
+          toast({
+            title: `Piece marked as ${status}`,
+            description: `The piece has been ${status === 'completed' ? 'completed' : 'moved back to current repertoire'}.`,
+            variant: "default"
+          });
+        },
+        onError: (error) => {
+          toast({
+            title: "Error updating status",
+            description: `${error}`,
+            variant: "destructive"
+          });
+          
+          // Revert the optimistic update
+          // This would require refetching the data
+          // But for simplicity, we'll just show an error message
+        }
+      }
+    );
+  };
+  
+  // Handler for deleting a piece from student repertoire
+  const handleDeleteRepertoire = (id: string) => {
+    if (!activeStudent) return;
+    
+    // Optimistic UI update - find the piece in the studentsList and remove it
+    const updatedStudents = [...studentsList];
+    const studentIndex = updatedStudents.findIndex(s => s.id === activeStudent);
+    
+    if (studentIndex !== -1) {
+      const student = {...updatedStudents[studentIndex]};
+      
+      // Try to find the piece in current repertoire first
+      let pieceFound = false;
+      let pieceTitle = "";
+      
+      // Check current repertoire
+      const pieceIndexCurrent = student.currentRepertoire.findIndex(p => p.id === id);
+      if (pieceIndexCurrent !== -1) {
+        pieceTitle = repertoireList.find(p => p.id === student.currentRepertoire[pieceIndexCurrent].masterPieceId)?.title || "piece";
+        student.currentRepertoire.splice(pieceIndexCurrent, 1);
+        pieceFound = true;
+      }
+      
+      // Check completed repertoire
+      if (!pieceFound) {
+        const pieceIndexCompleted = student.pastRepertoire.findIndex(p => p.id === id);
+        if (pieceIndexCompleted !== -1) {
+          pieceTitle = repertoireList.find(p => p.id === student.pastRepertoire[pieceIndexCompleted].masterPieceId)?.title || "piece";
+          student.pastRepertoire.splice(pieceIndexCompleted, 1);
+          pieceFound = true;
+        }
+      }
+      
+      if (pieceFound) {
+        updatedStudents[studentIndex] = student;
+        setStudentsList(updatedStudents);
+      }
+    }
+    
+    // Call the mutation
+    deleteRepertoireMutation.mutate(
+      { id, studentId: activeStudent },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Piece removed",
+            description: "The piece has been removed from this student's repertoire.",
+            variant: "default"
+          });
+        },
+        onError: (error) => {
+          toast({
+            title: "Error removing piece",
+            description: `${error}`,
+            variant: "destructive"
+          });
+          
+          // Revert the optimistic update
+          // This would require refetching the data
+          // But for simplicity, we'll just show an error message
+        }
+      }
+    );
+  };
+  
   return (
       <div>
         <PageHeader 
@@ -689,16 +928,24 @@ const RepertoirePage = () => {
                                               </Badge>
                                             </TableCell>
                                             <TableCell>
-                                              <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleOpenPieceDetail(item); 
-                                                }}
-                                              >
-                                                <ChevronRight className="h-4 w-4" />
-                                              </Button>
+                                              {activeStudent ? (
+                                                <StudentRepertoireActions 
+                                                  piece={item}
+                                                  onStatusChange={handleStatusChange}
+                                                  onDelete={handleDeleteRepertoire}
+                                                />
+                                              ) : (
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleOpenPieceDetail(item); 
+                                                  }}
+                                                >
+                                                  <ChevronRight className="h-4 w-4" />
+                                                </Button>
+                                              )}
                                             </TableCell>
                                           </TableRow>
                                         ))}
@@ -722,8 +969,23 @@ const RepertoirePage = () => {
                                           <Badge variant="outline" className="capitalize mr-2">
                                             {item.difficulty}
                                           </Badge>
-                                          {item.status === 'completed' && (
-                                            <Badge variant="secondary">Completed</Badge>
+                                          {activeStudent ? (
+                                            <StudentRepertoireActions 
+                                              piece={item}
+                                              onStatusChange={handleStatusChange}
+                                              onDelete={handleDeleteRepertoire}
+                                            />
+                                          ) : (
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleOpenPieceDetail(item); 
+                                              }}
+                                            >
+                                              <ChevronRight className="h-4 w-4" />
+                                            </Button>
                                           )}
                                         </CardFooter>
                                       </Card>
@@ -747,7 +1009,24 @@ const RepertoirePage = () => {
                                             <Badge variant="outline" className="capitalize">
                                               {item.difficulty}
                                             </Badge>
-                                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                            {activeStudent ? (
+                                              <StudentRepertoireActions 
+                                                piece={item}
+                                                onStatusChange={handleStatusChange}
+                                                onDelete={handleDeleteRepertoire}
+                                              />
+                                            ) : (
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleOpenPieceDetail(item); 
+                                                }}
+                                              >
+                                                <ChevronRight className="h-4 w-4" />
+                                              </Button>
+                                            )}
                                           </div>
                                         </CardContent>
                                       </Card>
@@ -820,16 +1099,24 @@ const RepertoirePage = () => {
                                     </Badge>
                                   </TableCell>
                                   <TableCell>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleOpenPieceDetail(item); 
-                                      }}
-                                    >
-                                      <ChevronRight className="h-4 w-4" />
-                                    </Button>
+                                    {activeStudent ? (
+                                      <StudentRepertoireActions 
+                                        piece={item}
+                                        onStatusChange={handleStatusChange}
+                                        onDelete={handleDeleteRepertoire}
+                                      />
+                                    ) : (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenPieceDetail(item); 
+                                        }}
+                                      >
+                                        <ChevronRight className="h-4 w-4" />
+                                      </Button>
+                                    )}
                                   </TableCell>
                                 </TableRow>
                               ))}
@@ -860,8 +1147,23 @@ const RepertoirePage = () => {
                                 <Badge variant="outline" className="capitalize mr-2">
                                   {item.difficulty}
                                 </Badge>
-                                {item.status === 'completed' && (
-                                  <Badge variant="secondary">Completed</Badge>
+                                {activeStudent ? (
+                                  <StudentRepertoireActions 
+                                    piece={item}
+                                    onStatusChange={handleStatusChange}
+                                    onDelete={handleDeleteRepertoire}
+                                  />
+                                ) : (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenPieceDetail(item); 
+                                    }}
+                                  >
+                                    <ChevronRight className="h-4 w-4" />
+                                  </Button>
                                 )}
                               </CardFooter>
                             </Card>
@@ -892,7 +1194,24 @@ const RepertoirePage = () => {
                                   <Badge variant="outline" className="capitalize">
                                     {item.difficulty}
                                   </Badge>
-                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                  {activeStudent ? (
+                                    <StudentRepertoireActions 
+                                      piece={item}
+                                      onStatusChange={handleStatusChange}
+                                      onDelete={handleDeleteRepertoire}
+                                    />
+                                  ) : (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenPieceDetail(item); 
+                                      }}
+                                    >
+                                      <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                  )}
                             </div>
                               </CardContent>
                             </Card>
