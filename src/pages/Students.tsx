@@ -245,7 +245,7 @@ const Students: React.FC = () => {
   const handleDialogClose = () => {
     form.reset();
     setEditingStudent(null);
-    setShowAddDialog(false);
+    setShowStudentForm(false);
   };
   
   // Open edit dialog with student data
@@ -265,7 +265,7 @@ const Students: React.FC = () => {
       difficulty_level: student.difficulty_level || '',
       notes: ''
     });
-    setShowAddDialog(true);
+    setShowStudentForm(true);
   };
   
   // Confirm delete dialog
@@ -493,7 +493,7 @@ const Students: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <StudentTable />
+                  <StudentTable students={filteredStudents} />
                 )
               ) : (
                 <EmptyState
@@ -504,7 +504,7 @@ const Students: React.FC = () => {
                     isTeacher
                       ? {
                           label: 'Invite student',
-                          onClick: () => setShowAddDialog(true),
+                          onClick: () => setShowStudentForm(true),
                         }
                       : undefined
                   }
@@ -539,9 +539,9 @@ const Students: React.FC = () => {
           )}
           
       {/* Add/Edit Student Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={(open) => {
+      <Dialog open={showStudentForm} onOpenChange={(open) => {
         if (!open) handleDialogClose();
-        setShowAddDialog(open);
+        setShowStudentForm(open);
       }}>
         <DialogContent className="max-w-xl max-h-[90vh]">
           <DialogHeader>

@@ -42,14 +42,15 @@ import { useStudentColor, StudentColorDot } from '@/hooks/useStudentColor';
 type SortField = 'name' | 'level' | 'email' | 'nextLesson';
 type SortDirection = 'asc' | 'desc';
 
-const StudentTable: React.FC = () => {
+interface StudentTableProps {
+  students: Student[];
+}
+
+const StudentTable: React.FC<StudentTableProps> = ({ students }) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  
-  // Fetch students data
-  const { data: students = [], isLoading, error } = useStudents();
   
   // Handle sort column click
   const handleSortClick = (field: SortField) => {
@@ -149,11 +150,7 @@ const StudentTable: React.FC = () => {
         <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
       </div>
       
-      {isLoading ? (
-        <div className="flex justify-center items-center py-8">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-        </div>
-      ) : filteredAndSortedStudents.length === 0 ? (
+      {filteredAndSortedStudents.length === 0 ? (
         <EmptyState 
           title="No students found"
           description="No students match your search criteria"
