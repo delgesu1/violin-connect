@@ -493,7 +493,11 @@ const Students: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <StudentTable students={filteredStudents} />
+                  <StudentTable 
+                    students={filteredStudents} 
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                  />
                 )
               ) : (
                 <EmptyState

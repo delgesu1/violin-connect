@@ -44,11 +44,16 @@ type SortDirection = 'asc' | 'desc';
 
 interface StudentTableProps {
   students: Student[];
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
 }
 
-const StudentTable: React.FC<StudentTableProps> = ({ students }) => {
+const StudentTable: React.FC<StudentTableProps> = ({ 
+  students, 
+  searchQuery,
+  setSearchQuery 
+}) => {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   
@@ -62,22 +67,10 @@ const StudentTable: React.FC<StudentTableProps> = ({ students }) => {
     }
   };
   
-  // Filter and sort the students
-  const filteredAndSortedStudents = React.useMemo(() => {
-    // Filter by search query
-    const filtered = students.filter(student => {
-      if (!searchQuery) return true;
-      
-      const lowercaseQuery = searchQuery.toLowerCase();
-      return (
-        student.name?.toLowerCase().includes(lowercaseQuery) ||
-        student.email?.toLowerCase().includes(lowercaseQuery) ||
-        student.level?.toLowerCase().includes(lowercaseQuery)
-      );
-    });
-    
-    // Sort the filtered results
-    return filtered.sort((a, b) => {
+  // Sort the students (filtering is handled by parent)
+  const sortedStudents = React.useMemo(() => {
+    // Take the already filtered students from props and just sort them
+    return [...students].sort((a, b) => {
       let valueA: string | null | undefined = '';
       let valueB: string | null | undefined = '';
       
@@ -104,7 +97,7 @@ const StudentTable: React.FC<StudentTableProps> = ({ students }) => {
         ? valueA.localeCompare(valueB)
         : valueB.localeCompare(valueA);
     });
-  }, [students, searchQuery, sortField, sortDirection]);
+  }, [students, sortField, sortDirection]);
   
   // Handle row click to navigate to student detail
   const handleRowClick = (studentId: string) => {
@@ -139,18 +132,7 @@ const StudentTable: React.FC<StudentTableProps> = ({ students }) => {
   
   return (
     <div className="space-y-4">
-      {/* Search bar */}
-      <div className="relative">
-        <Input
-          placeholder="Search students..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-        <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-      </div>
-      
-      {filteredAndSortedStudents.length === 0 ? (
+      {sortedStudents.length === 0 ? (
         <EmptyState 
           title="No students found"
           description="No students match your search criteria"
@@ -205,7 +187,7 @@ const StudentTable: React.FC<StudentTableProps> = ({ students }) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAndSortedStudents.map((student) => (
+              {sortedStudents.map((student) => (
                 <TableRow 
                   key={student.id}
                   className="cursor-pointer"
