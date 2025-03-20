@@ -32,6 +32,12 @@ export interface RepertoirePiece {
    * Direct composer access will be removed in a future version
    */
   composer?: string;
+
+  /**
+   * Tracks where the data came from (API, cache, or mock)
+   * Used for debugging purposes
+   */
+  _source?: 'api' | 'cache' | 'mock';
 }
 
 /**
@@ -59,6 +65,8 @@ export interface Lesson {
   transcriptUrl?: string;
   summary?: string;
   notes?: string;
+  transcript?: string;  // Added property for the full lesson transcript
+  aiSummary?: string;   // Added property for the AI-generated summary
 }
 
 export interface Student {
@@ -75,6 +83,7 @@ export interface Student {
   phone?: string;
   startDate?: string;
   lastLesson?: string;
+  academicYear?: string; // e.g., "1st year Bachelor", "2nd year Masters", "1st year DMA"
 }
 
 interface StudentCardProps {
@@ -127,7 +136,16 @@ const StudentCard: React.FC<StudentCardProps> = ({ student, className, masterRep
           </div>
           <div>
             <CardTitle className="text-base">{student.name}</CardTitle>
-            {student.level && <CardDescription className="text-xs">{student.level}</CardDescription>}
+            <div className="flex flex-col items-end gap-1">
+              {student.academicYear && (
+                <Badge 
+                  variant="outline" 
+                  className="text-xs font-normal bg-amber-50 text-amber-700 border-amber-200"
+                >
+                  {student.academicYear}
+                </Badge>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>

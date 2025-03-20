@@ -46,11 +46,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 // Import hooks and utils
-import { useAllLessons, Lesson } from '@/hooks/useLessons';
+// import { useAllLessons, Lesson } from '@/features/calendar/hooks';
+import { loadAllLessons } from './AllLessonsLoader';
+import { useAuth } from '@/lib/auth-wrapper';
+import { clerkIdToUuid } from '@/lib/auth-utils';
+import { useQuery } from '@tanstack/react-query';
 
-// Define the Lesson type including student details
-type LessonWithStudent = Lesson & {
-  student: {
+// Define additional student properties that may be included in some lesson records
+type LessonWithStudent = {
+  id: string;
+  teacher_id: string;
+  student_id: string;
+  date: string;
+  start_time: string | null;
+  end_time: string | null;
+  location: string | null;
+  notes: string | null;
+  summary: string | null;
+  status: string | null;
+  created_at: string;
+  updated_at: string;
+  student?: {
     id: string;
     name: string;
     avatar_url: string | null;
@@ -68,61 +84,34 @@ const AllLessonsTable: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   
+  // Use auth to get user ID
+  const { userId } = useAuth();
+  const isDevelopmentMode = import.meta.env.VITE_DEV_MODE === 'true';
+  
   // Fetch all lessons with student details
-  const { data: lessons = [], isLoading, error } = useAllLessons();
+  const { data: lessons = [], isLoading, error } = useQuery({
+    queryKey: ['allLessons'],
+    queryFn: async () => {
+      if (!userId && !isDevelopmentMode) return [];
+      
+      // Get teacher ID (using DEV_UUID if in development mode)
+      const teacherId = isDevelopmentMode 
+        ? 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' 
+        : await clerkIdToUuid(userId!);
+      
+      // Load all lessons with student info
+      return loadAllLessons(teacherId);
+    },
+    enabled: !!userId || isDevelopmentMode,
+  });
   
-  // Handle sort column click
-  const handleSortClick = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
+  // Debug logging in development mode
+  React.useEffect(() => {
+    if (isDevelopmentMode && lessons.length > 0) {
+      console.log(`Rendering ${lessons.length} lessons in AllLessonsTable`);
+      console.log('First few lessons:', lessons.slice(0, 3));
     }
-  };
-  
-  // Filter and sort the lessons
-  const filteredAndSortedLessons = React.useMemo(() => {
-    // Filter by search query and status
-    let filtered = lessons.filter(lesson => {
-      const matchesSearch = !searchQuery || 
-        lesson.student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (lesson.summary && lesson.summary.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (lesson.notes && lesson.notes.toLowerCase().includes(searchQuery.toLowerCase()));
-      
-      const matchesStatus = statusFilter === 'all' || 
-        (lesson.status && lesson.status === statusFilter);
-      
-      return matchesSearch && matchesStatus;
-    });
-    
-    // Sort the filtered results
-    filtered.sort((a, b) => {
-      if (sortField === 'date') {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
-      } else if (sortField === 'student') {
-        return sortDirection === 'asc' 
-          ? a.student.name.localeCompare(b.student.name)
-          : b.student.name.localeCompare(a.student.name);
-      } else if (sortField === 'status') {
-        const statusA = a.status || '';
-        const statusB = b.status || '';
-        return sortDirection === 'asc'
-          ? statusA.localeCompare(statusB)
-          : statusB.localeCompare(statusA);
-      }
-      return 0;
-    });
-    
-    return filtered;
-  }, [lessons, searchQuery, sortField, sortDirection, statusFilter]);
-  
-  // Handle row click to navigate to lesson detail
-  const handleRowClick = (lessonId: string) => {
-    navigate(`/lessons/${lessonId}`);
-  };
+  }, [lessons, isDevelopmentMode]);
   
   // Format the date
   const formatDate = (dateString: string) => {
@@ -198,6 +187,88 @@ const AllLessonsTable: React.FC = () => {
       default:
         return <Badge variant="outline">Scheduled</Badge>;
     }
+  };
+  
+  // In the existing component, update the getSourceBadge function to show more info
+  const getSourceBadge = (lesson: any) => {
+    if (!isDevelopmentMode) return null;
+    
+    // Return a badge with different styles based on the source
+    const sourceType = lesson._source || 'unknown';
+    const badgeProps = {
+      database: { variant: "default", label: "API" },
+      cached: { variant: "secondary", label: "Cached" },
+      mock: { variant: "outline", label: "Mock" },
+      unknown: { variant: "outline", label: "Unknown" }
+    }[sourceType];
+    
+    // Add lesson ID as title for debugging
+    return (
+      <Badge 
+        variant={badgeProps.variant as any} 
+        className="ml-2 text-xs cursor-help"
+        title={`ID: ${lesson.id} | Source: ${sourceType}`}
+      >
+        {badgeProps.label}
+      </Badge>
+    );
+  };
+  
+  // Handle sort column click
+  const handleSortClick = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+  
+  // Filter and sort the lessons
+  const filteredAndSortedLessons = React.useMemo(() => {
+    // Filter by search query and status
+    let filtered = lessons.filter(lesson => {
+      const studentName = getStudentName(lesson);
+      
+      const matchesSearch = !searchQuery || 
+        studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (lesson.summary && lesson.summary.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (lesson.notes && lesson.notes.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const matchesStatus = statusFilter === 'all' || 
+        (lesson.status && lesson.status === statusFilter);
+      
+      return matchesSearch && matchesStatus;
+    });
+    
+    // Sort the filtered results
+    filtered.sort((a, b) => {
+      if (sortField === 'date') {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+      } else if (sortField === 'student') {
+        const nameA = getStudentName(a);
+        const nameB = getStudentName(b);
+        return sortDirection === 'asc' 
+          ? nameA.localeCompare(nameB)
+          : nameB.localeCompare(nameA);
+      } else if (sortField === 'status') {
+        const statusA = a.status || '';
+        const statusB = b.status || '';
+        return sortDirection === 'asc'
+          ? statusA.localeCompare(statusB)
+          : statusB.localeCompare(statusA);
+      }
+      return 0;
+    });
+    
+    return filtered;
+  }, [lessons, searchQuery, sortField, sortDirection, statusFilter]);
+  
+  // Handle row click to navigate to lesson detail
+  const handleRowClick = (lessonId: string) => {
+    navigate(`/lessons/${lessonId}`);
   };
   
   if (isLoading) {
@@ -306,11 +377,11 @@ const AllLessonsTable: React.FC = () => {
               }}
             />
           ) : (
-            <div className="rounded-md border">
-              <Table>
+            <div className="rounded-md border overflow-auto">
+              <Table className="min-w-[750px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>
+                    <TableHead className="w-[120px] min-w-[100px]">
                       <Button
                         variant="ghost"
                         onClick={() => handleSortClick('date')}
@@ -320,7 +391,7 @@ const AllLessonsTable: React.FC = () => {
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </Button>
                     </TableHead>
-                    <TableHead>
+                    <TableHead className="min-w-[140px]">
                       <Button
                         variant="ghost"
                         onClick={() => handleSortClick('student')}
@@ -330,8 +401,8 @@ const AllLessonsTable: React.FC = () => {
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </Button>
                     </TableHead>
-                    <TableHead className="hidden md:table-cell">Time</TableHead>
-                    <TableHead className="hidden md:table-cell">
+                    <TableHead className="hidden md:table-cell w-[140px] min-w-[140px]">Time</TableHead>
+                    <TableHead className="hidden md:table-cell w-[100px] min-w-[100px]">
                       <Button
                         variant="ghost"
                         onClick={() => handleSortClick('status')}
@@ -341,7 +412,7 @@ const AllLessonsTable: React.FC = () => {
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </Button>
                     </TableHead>
-                    <TableHead className="hidden md:table-cell">Summary</TableHead>
+                    <TableHead className="hidden md:table-cell min-w-[180px] w-full">Summary</TableHead>
                     <TableHead className="w-[60px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -352,28 +423,29 @@ const AllLessonsTable: React.FC = () => {
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => handleRowClick(lesson.id)}
                     >
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium whitespace-nowrap">
                         {formatDate(lesson.date)}
+                        {getSourceBadge(lesson)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="min-w-[140px]">
                         <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
+                          <Avatar className="h-8 w-8 flex-shrink-0">
                             <AvatarImage src={getStudentAvatar(lesson) || ''} alt={getStudentName(lesson)} />
                             <AvatarFallback>
                               {getInitials(getStudentName(lesson))}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{getStudentName(lesson)}</span>
-                            <span className="text-xs text-muted-foreground">
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-medium truncate">{getStudentName(lesson)}</span>
+                            <span className="text-xs text-muted-foreground truncate">
                               Student ID: {getStudentId(lesson).substring(0, 8)}...
                             </span>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">
+                      <TableCell className="hidden md:table-cell whitespace-nowrap">
                         <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                           <span>
                             {lesson.start_time ? format(new Date(`2000-01-01T${lesson.start_time}`), 'h:mm a') : 'N/A'}
                             {lesson.end_time ? ` - ${format(new Date(`2000-01-01T${lesson.end_time}`), 'h:mm a')}` : ''}
@@ -383,8 +455,10 @@ const AllLessonsTable: React.FC = () => {
                       <TableCell className="hidden md:table-cell">
                         {getStatusBadge(lesson.status)}
                       </TableCell>
-                      <TableCell className="hidden md:table-cell max-w-[200px] truncate">
-                        {lesson.summary || 'No summary available'}
+                      <TableCell className="hidden md:table-cell">
+                        <div className="w-full max-w-full overflow-hidden text-ellipsis whitespace-nowrap" title={lesson.summary || 'No summary available'}>
+                          {lesson.summary || 'No summary available'}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>

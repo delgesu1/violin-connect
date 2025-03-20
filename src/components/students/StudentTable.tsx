@@ -143,6 +143,7 @@ const StudentTable: React.FC<StudentTableProps> = ({
           <Table className="min-w-[800px]">
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10"></TableHead>
                 <TableHead className="min-w-[200px]">
                   <Button
                     variant="ghost"
@@ -193,9 +194,13 @@ const StudentTable: React.FC<StudentTableProps> = ({
                   className="cursor-pointer"
                   onClick={() => handleRowClick(student.id)}
                 >
+                  <TableCell className="w-10">
+                    <div className="flex justify-center">
+                      <StudentColorDot userId={student.user_id} size="lg" />
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <StudentColorDot userId={student.user_id} size="md" className="mr-1" />
                       <Avatar className="h-8 w-8 flex-shrink-0">
                         <AvatarImage src={student.avatar_url || ''} alt={student.name || ''} />
                         <AvatarFallback>

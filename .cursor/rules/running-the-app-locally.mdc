@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+For future launches, follow these exact steps:
+First, start Supabase locally using npx:
+   npx supabase start
+
+Then start the Vite development server:
+   npm run dev
+
+Avoid attempting global installations of Supabase CLI and always use npx to leverage your project's local dependencies. If we need to run any database migrations or commands, I'll use:
+npx supabase [command]
+
+This approach ensures proper compatibility with your project setup and avoids permission issues with global installations.

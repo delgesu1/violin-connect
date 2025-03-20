@@ -1,71 +1,115 @@
-# Repertoire Migration Progress Report
+# Feature Migration Progress
 
-## Overview
-This document tracks the progress of migrating from direct title/composer properties to using masterPieceId references in the Violin Connect application. The migration aims to improve data normalization, consistency, and maintainability.
+This document tracks our progress in migrating to a feature-based architecture.
 
-## Completed Tasks
+## Phases Overview
 
-### Core Infrastructure
-- ✅ Created `RepertoireContext` for centralized access to piece data
-- ✅ Implemented utility functions for accessing piece information (`getPieceTitle`, `getPieceComposer`, etc.)
-- ✅ Added runtime warnings for deprecated property usage
-- ✅ Created migration utilities for converting pieces to use masterPieceId
+- ✅ **Phase 1: Initial Setup** - Directory structure, path aliases, configuration
+- ✅ **Phase 2: Core Refactoring** - UI components, utilities, hooks moved to core
+- ✅ **Phase 3: Feature Migration** - Pages moved into feature directories
+- 🔄 **Phase 4: Cleanup** - Remove old files, update documentation (in progress)
 
-### Components Updated
-- ✅ Created `PieceDisplay` component for standardized piece display
-- ✅ Updated `LessonHistory` component to use `PieceDisplay`
-- ✅ Updated `RepertoireDisplay` component to use `PieceDisplay`
-- ✅ Updated `PieceDetailDialog` in Repertoire.tsx to use `PieceDisplay` while preserving original layout
-- ✅ Created `PieceDisplayAdapter` to bridge between `RepertoireItemData` and `PieceDisplay`
-- ✅ Fixed type issues in Index.tsx to support both `RepertoirePiece` and `LegacyRepertoirePiece`
+## Phase 4 Progress
 
-### Bug Fixes
-- ✅ Fixed React Hooks Order violation in PieceDetailDialog by ensuring hooks are called before any conditional returns
-- ✅ Fixed hook usage in non-component functions by passing context utilities as parameters
-- ✅ Fixed ReferenceError by moving function definitions before their usage
-- ✅ Restored original layout for PieceDetailDialog while using new components
+We've made significant progress on the cleanup phase:
 
-### Documentation
-- ✅ Created comprehensive migration guide in `REPERTOIRE_MIGRATION_GUIDE.md`
-- ✅ Added JSDoc comments for deprecated properties
-- ✅ Created this migration progress report
+1. ✅ Created a detailed cleanup plan (see CLEANUP_PLAN.md)
 
-## Remaining Tasks
+2. ✅ Implemented real hook files with proper hybrid caching:
+   - **Repertoire Feature**:
+     - `useMasterRepertoire.ts` and `useStudentRepertoire.ts` with full implementations
+     - Properly updates cached data after mutations
+     - Source tracking with `_source` property
 
-### Component Updates
-- ❌ Update remaining components that directly access title/composer properties:
-  - Student.tsx
-  - StudentDetail.tsx
-  - RepertoireItem.tsx
-  - Any other components using direct property access
+   - **Journal Feature**:
+     - `useJournalInsights.ts` with complete implementation
+     - Updated TypeScript types for better type safety
 
-### Type Refinement
-- ❌ Refine type definitions to better handle the transition period
-- ❌ Create more robust adapter patterns for different data structures
+   - **Calendar Feature**:
+     - `useLessons.ts` with all lesson hooks including `useCreateLessonWithEvent`
+     - Fixed AllLessonsTable integration with source tracking badges
 
-### Testing
-- ❌ Test all components with both legacy and new data structures
-- ❌ Verify that migrations run correctly on application startup
-- ❌ Create automated tests for migration utilities
+   - **Files Feature**:
+     - Enhanced `useAttachments.ts` with hybrid caching approach
+     - Added proper error handling and fallbacks
 
-### Final Cleanup
-- ❌ Remove deprecated properties when all components are updated
-- ❌ Remove adapter components when no longer needed
-- ❌ Update documentation to reflect final state
+3. ✅ Successfully removed 3 old hook files:
+   - `src/hooks/useRepertoire.ts` → Migrated to feature-specific hooks
+   - `src/hooks/useJournalInsights.ts` → Migrated to feature-specific hooks
+   - `src/hooks/useLessons.ts` → Migrated to feature-specific hooks
 
-## Known Issues
-- Console warnings about "Using deprecated direct title/composer property" indicate components still using the old pattern
-- React Fragment warning in Dashboard component (Index.tsx) - may be related to a development tool
-- Some components may need additional type adapters for full compatibility
-- ✅ ~React Hooks order violation in PieceDetailDialog~ (Fixed)
-- ✅ ~ReferenceError in Repertoire.tsx~ (Fixed)
-- ✅ ~PieceDetailDialog layout issues~ (Fixed)
+4. 🔄 Next steps:
+   - Continue implementing real hook files for other features
+   - Update remaining imports to use feature-specific hooks
+   - Remove deprecated files after thorough testing
+   - Document the architecture for future developers
 
-## Next Steps
-1. Continue updating remaining components to use context utilities
-2. Address any console warnings about deprecated property usage
-3. Test thoroughly across the application
-4. Remove deprecated properties when all components are updated
+## Features Migration Status
 
-## Conclusion
-The migration is well underway with core infrastructure in place and several key components updated. The remaining work focuses on updating additional components and finalizing the migration by removing deprecated properties. 
+| Feature | Pages | Hooks | Components | Types | Utils | Complete |
+|---------|-------|-------|------------|-------|-------|----------|
+| Auth | ✅ | 🔄 | ✅ | ✅ | 🔄 | 🔄 |
+| Dashboard | ✅ | 🔄 | ✅ | ✅ | 🔄 | 🔄 |
+| Students | ✅ | 🔄 | 🔄 | 🔄 | 🔄 | 🔄 |
+| Repertoire | ✅ | ✅ | ✅ | ✅ | ✅ | 🔄 |
+| Journal | ✅ | ✅ | ✅ | ✅ | 🔄 | 🔄 |
+| Calendar | ✅ | ✅ | ✅ | ✅ | 🔄 | 🔄 |
+| Files | ✅ | ✅ | 🔄 | ✅ | 🔄 | 🔄 |
+| Messages | ✅ | ✅ | ✅ | ✅ | 🔄 | 🔄 |
+| Discussions | ✅ | ✅ | ✅ | ✅ | 🔄 | 🔄 |
+| User | ✅ | ✅ | ✅ | ✅ | 🔄 | 🔄 |
+| Common | ✅ | ✅ | 🔄 | 🔄 | 🔄 | 🔄 |
+
+## Migration Notes
+
+### Recent Progress
+- **Hybrid Caching Implementation**: Successfully implemented our enhanced hybrid caching approach across several features:
+  1. Always attempt real API calls first
+  2. Cache successful responses
+  3. Fall back to cached data when API fails
+  4. Use schema-consistent mock data as final fallback
+  5. Track data sources with `_source` property for debugging
+
+- **Source Tracking Debug UI**: Added badges in development mode showing data sources (API/Cached/Mock)
+
+- **AllLessonsTable Component**: Fixed the Supabase integration and table display with proper student information
+
+- **File Removals**: Successfully removed and migrated 3 major hook files:
+  - useRepertoire.ts → Migrated to feature-specific files
+  - useJournalInsights.ts → Migrated to feature-specific files
+  - useLessons.ts → Migrated to feature-specific files
+
+### Current Status
+- ✅ **All page components** migrated to feature directories
+- ✅ **Core feature hooks** implemented with hybrid caching
+- ✅ **Supabase integration** working with proper data loading patterns
+- 🔄 **File removals** in progress (3 completed, 22 remaining)
+- 🔄 **Component migrations** in progress
+- 🔄 **Remaining hooks** need implementation with hybrid caching
+
+### Next Steps
+1. Continue implementing remaining hooks for students feature
+2. Verify all imports using grep_search before removing old files
+3. Update documentation for the hybrid caching pattern
+4. Begin more comprehensive testing across features
+5. Complete final documentation for the architecture
+
+## Benefits Realized
+
+- ✅ **Improved organization**: Related code is grouped by feature
+- ✅ **Better maintainability**: Changes to one feature don't affect others
+- ✅ **Enhanced reliability**: Hybrid caching provides fallbacks when API is unavailable
+- ✅ **Development flexibility**: Works in both connected and disconnected states
+- ✅ **Debugging transparency**: Source tracking shows where data comes from
+
+## Issues Addressed
+- ✅ Fixed AllLessonsTable functionality with proper student information
+- ✅ Implemented proper data source tracking for debugging
+- ✅ Ensured feature-specific hooks follow the DATABASE_WORKFLOW.md guidelines
+- ✅ Fixed TypeScript typing issues in various components
+
+## Phase 4 Planning
+1. Continue removing files according to CLEANUP_PLAN.md
+2. Verify each removal with thorough testing
+3. Document all architecture decisions
+4. Create final tests for the hybrid caching approach 

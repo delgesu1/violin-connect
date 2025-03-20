@@ -1,0 +1,418 @@
+-- ============================================================
+-- DROP EXISTING TABLES (if any) and CASCADE dependent objects
+-- ============================================================
+DROP TABLE IF EXISTS user_roles CASCADE;
+DROP TABLE IF EXISTS upcoming_lessons CASCADE;
+DROP TABLE IF EXISTS students CASCADE;
+DROP TABLE IF EXISTS student_repertoire CASCADE;
+DROP TABLE IF EXISTS student_performance_history CASCADE;
+DROP TABLE IF EXISTS repertoire_links CASCADE;
+DROP TABLE IF EXISTS repertoire_files CASCADE;
+DROP TABLE IF EXISTS profiles CASCADE;
+DROP TABLE IF EXISTS master_repertoire CASCADE;
+DROP TABLE IF EXISTS lessons CASCADE;
+DROP TABLE IF EXISTS lesson_repertoire CASCADE;
+DROP TABLE IF EXISTS lesson_history_with_repertoire CASCADE;
+DROP TABLE IF EXISTS lesson_events CASCADE;
+DROP TABLE IF EXISTS journal_insights CASCADE;
+DROP TABLE IF EXISTS journal_entries CASCADE;
+DROP TABLE IF EXISTS invitations CASCADE;
+DROP TABLE IF EXISTS calendar_events CASCADE;
+DROP TABLE IF EXISTS attachments CASCADE;
+DROP TABLE IF EXISTS attachment_associations CASCADE;
+
+-- ============================================================
+-- Enable necessary extensions
+-- ============================================================
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- ============================================================
+-- TABLE DEFINITIONS
+-- ============================================================
+
+------------------------------
+-- Table: attachment_associations
+------------------------------
+CREATE TABLE attachment_associations (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  attachment_id uuid NOT NULL,
+  entity_type text NOT NULL,
+  entity_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  PRIMARY KEY (id)
+);
+
+------------------------------
+-- Table: attachments
+------------------------------
+CREATE TABLE attachments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  type text NOT NULL,
+  url text NOT NULL,
+  size integer,
+  mime_type text,
+  description text,
+  is_public boolean DEFAULT false,
+  uploaded_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  PRIMARY KEY (id)
+);
+
+------------------------------
+-- Table: calendar_events
+------------------------------
+CREATE TABLE calendar_events (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  teacher_id uuid NOT NULL,
+  title text NOT NULL,
+  event_type text NOT NULL,
+  start_time timestamp with time zone NOT NULL,
+  end_time timestamp with time zone NOT NULL,
+  all_day boolean DEFAULT false,
+  location text,
+  description text,
+  student_id uuid,
+  lesson_id uuid,
+  recurrence_rule text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  PRIMARY KEY (id)
+);
+
+------------------------------
+-- Table: invitations
+------------------------------
+CREATE TABLE invitations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  teacher_id uuid NOT NULL,
+  email text NOT NULL,
+  token text NOT NULL,
+  status text NOT NULL DEFAULT 'pending',
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  expires_at timestamp with time zone NOT NULL DEFAULT (now() + interval '7 days'),
+  student_id uuid,
+  student_name text,
+  metadata jsonb,
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  PRIMARY KEY (id)
+);
+
+------------------------------
+-- Table: journal_entries
+------------------------------
+CREATE TABLE journal_entries (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  date date NOT NULL,
+  practice_goals text,
+  notes text,
+  went_well text,
+  beautified text,
+  frustrations text,
+  improvements text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  PRIMARY KEY (id)
+);
+
+------------------------------
+-- Table: journal_insights
+------------------------------
+CREATE TABLE journal_insights (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  strengths jsonb DEFAULT '[]'::jsonb,
+  challenges jsonb DEFAULT '[]'::jsonb,
+  last_generated_at timestamp with time zone,
+  generation_method text,
+  PRIMARY KEY (id)
+);
+
+------------------------------
+-- Table: lesson_events
+------------------------------
+CREATE TABLE lesson_events (
+  lesson_id uuid,
+  calendar_event_id uuid,
+  student_id uuid,
+  student_name text,
+  student_avatar text,
+  start_time timestamp with time zone,
+  end_time timestamp with time zone,
+  location text,
+  summary text,
+  notes text,
+  user_id uuid
+);
+
+------------------------------
+-- Table: lesson_history_with_repertoire
+------------------------------
+CREATE TABLE lesson_history_with_repertoire (
+  lesson_id uuid,
+  lesson_date date,
+  start_time time without time zone,
+  end_time time without time zone,
+  student_id uuid,
+  student_name text,
+  repertoire_pieces text[]
+);
+
+------------------------------
+-- Table: lesson_repertoire
+------------------------------
+CREATE TABLE lesson_repertoire (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  lesson_id uuid NOT NULL,
+  student_piece_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  notes text,
+  progress text,
+  PRIMARY KEY (id)
+);
+
+------------------------------
+-- Table: lessons
+------------------------------
+CREATE TABLE lessons (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  student_id uuid NOT NULL,
+  date date NOT NULL,
+  summary text,
+  transcript_url text,
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  teacher_id uuid,
+  start_time time without time zone,
+  end_time time without time zone,
+  location text,
+  status text DEFAULT 'scheduled',
+  ai_summary text,
+  PRIMARY KEY (id)
+);
+
+------------------------------
+-- Table: master_repertoire
+------------------------------
+CREATE TABLE master_repertoire (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  title text NOT NULL,
+  composer text,
+  difficulty text,
+  notes text,
+  started_date date,
+  period text,
+  instrument text DEFAULT 'violin',
+  level text,
+  genre text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  PRIMARY KEY (id)
+);
+
+------------------------------
+-- Table: profiles
+------------------------------
+CREATE TABLE profiles (
+  id uuid NOT NULL,
+  name text,
+  avatar_url text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  PRIMARY KEY (id)
+);
+
+------------------------------
+-- Table: repertoire_files
+------------------------------
+CREATE TABLE repertoire_files (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  master_piece_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  file_name text NOT NULL,
+  file_url text NOT NULL,
+  file_type text,
+  file_size integer,
+  description text,
+  uploaded_at timestamp with time zone NOT NULL DEFAULT now(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  PRIMARY KEY (id)
+);
+
+------------------------------
+-- Table: repertoire_links
+------------------------------
+CREATE TABLE repertoire_links (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  master_piece_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  title text NOT NULL,
+  url text NOT NULL,
+  link_type text,
+  description text,
+  thumbnail_url text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  PRIMARY KEY (id)
+);
+
+------------------------------
+-- Table: student_performance_history
+------------------------------
+CREATE TABLE student_performance_history (
+  student_id uuid,
+  student_name text,
+  repertoire_id uuid,
+  title text,
+  composer text,
+  status text,
+  assigned_date date,
+  completed_date date
+);
+
+------------------------------
+-- Table: student_repertoire
+------------------------------
+CREATE TABLE student_repertoire (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  student_id uuid NOT NULL,
+  master_piece_id uuid NOT NULL,
+  start_date date,
+  end_date date,
+  status text NOT NULL,
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  performance_date date,
+  performance_location text,
+  PRIMARY KEY (id)
+);
+
+------------------------------
+-- Table: students
+------------------------------
+CREATE TABLE students (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  avatar_url text,
+  level text,
+  email text,
+  phone text,
+  academic_year text,
+  start_date date,
+  last_lesson_date date,
+  next_lesson text,
+  unread_messages integer DEFAULT 0,
+  difficulty_level text,
+  next_lesson_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  PRIMARY KEY (id)
+);
+
+------------------------------
+-- Table: upcoming_lessons
+------------------------------
+CREATE TABLE upcoming_lessons (
+  id uuid,
+  date date,
+  start_time time without time zone,
+  end_time time without time zone,
+  status text,
+  student_id uuid,
+  student_name text,
+  avatar_url text,
+  location text,
+  notes text
+);
+
+------------------------------
+-- Table: user_roles
+------------------------------
+CREATE TABLE user_roles (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  role text NOT NULL DEFAULT 'student',
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  PRIMARY KEY (id)
+);
+
+-- ============================================================
+-- SAMPLE DATA INSERTION
+-- ============================================================
+
+-- Insert sample student data (new integrated data)
+INSERT INTO students 
+  (id, user_id, name, avatar_url, level, email, phone, academic_year, start_date, last_lesson_date, next_lesson, unread_messages, created_at, updated_at, difficulty_level, next_lesson_id)
+VALUES
+  ('3481cf4f-4e41-4ee5-9ca7-90a58633b0e9', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', 'James Wilson', '/images/boy3.jpg', 'Beginner', 'james.wilson@example.com', '283-505-1372 x344', '7th Grade', '2023-08-08', '2025-02-28', 'Saturday, 11:44 PM', 0, '2025-03-14 02:15:49.441169+00', '2025-03-14 03:44:35.008173+00', 'beginner', NULL),
+  ('1333665c-ec92-47f1-adb1-99bfaecf25c1', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', 'Emma Thompson', '/images/girl1.jpg', 'Advanced', 'emma.thompson@example.com', '210.737.9429 x1087', '1st year Masters', '2022-05-06', '2025-03-03', 'Tuesday, 3:30 PM', 2, '2025-03-13 09:34:54.819469+00', '2025-03-14 03:47:29.09169+00', NULL, NULL),
+  ('9e905663-a2b6-4b57-b002-e009cf20b7db', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', 'Maya Johnson', 'https://i.pravatar.cc/150?img=47', 'Advanced', 'maya.j@example.com', '555-567-8901', 'Graduate School', '2025-02-11', '2025-02-28', 'Tuesday, 11:58 PM', 0, '2025-03-13 22:34:21.686146+00', '2025-03-14 03:58:59.581385+00', NULL, NULL),
+  ('e1c9c475-871d-4266-837d-80ec1c4fa379', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', 'Sophia Chen', 'https://i.pravatar.cc/150?img=32', 'Advanced', 'sophia.chen@example.com', '555-123-4567', 'College Junior', '2025-03-04', '2025-03-06', 'Thursday, 11:59 PM', 0, '2025-03-13 22:34:21.636564+00', '2025-03-14 03:59:00.61394+00', NULL, NULL),
+  ('c5d71b10-d95d-4476-b64f-4a1e71bb265d', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', 'William Taylor', '/images/boy3.jpg', 'Beginner', 'william.taylor@example.com', '945.375.3651', '1st year DMA', '2023-05-01', '2025-03-05', 'Sunday, 11:59 PM', 0, '2025-03-13 09:34:54.819469+00', '2025-03-14 03:59:02.477782+00', NULL, NULL),
+  ('984370b3-5f6d-448b-9f6b-f249f23a4ad6', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', 'Jackson Miller', 'https://i.pravatar.cc/150?img=12', 'Beginner', 'jackson.m@example.com', '555-234-5678', '4th Grade', '2025-03-12', '2025-02-28', 'Tuesday, 11:59 PM', 0, '2025-03-13 22:34:21.657155+00', '2025-03-14 03:59:04.294169+00', NULL, NULL),
+  ('921e16df-3f73-4207-998b-f76998caf75e', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', 'Elena Rodriguez', 'https://i.pravatar.cc/150?img=25', 'Intermediate', 'elena.r@example.com', '555-345-6789', 'Adult', '2025-03-05', '2025-03-02', 'Saturday, 11:59 PM', 0, '2025-03-13 22:34:21.672668+00', '2025-03-14 03:59:05.541339+00', NULL, NULL),
+  ('2d4b6c20-ecc9-4b90-a6e2-7e4de544b44b', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', 'Ethan Williams', 'https://i.pravatar.cc/150?img=15', 'Intermediate-Advanced', 'ethan.w@example.com', '555-456-7890', 'High School Junior', '2024-12-27', '2025-03-06', 'Thursday, 11:59 PM', 0, '2025-03-13 22:34:21.680654+00', '2025-03-14 03:59:06.852971+00', NULL, NULL);
+
+-- Insert updated lesson data (24 records)
+INSERT INTO lessons 
+  (id, student_id, date, summary, notes, created_at, updated_at, teacher_id, start_time, end_time, location, status, ai_summary, transcript_url)
+VALUES
+  ('4afd4fa0-47b1-4817-bb64-fc18a0fd33ba', '1333665c-ec92-47f1-adb1-99bfaecf25c1', '2023-10-15', 'Worked on B Major scale with focus on intonation of thirds. Discussed fingering options.', '', '2025-03-13 09:34:54.834421+00', '2025-03-13 09:34:54.834421+00', NULL, NULL, NULL, NULL, 'scheduled', NULL, NULL),
+  ('168b9309-ce32-4591-9505-a47f2b9febaf', 'c5d71b10-d95d-4476-b64f-4a1e71bb265d', '2023-10-16', 'Practiced bow distribution for even tone. Discussed proper left hand position.', '', '2025-03-13 09:34:54.834421+00', '2025-03-13 09:34:54.834421+00', NULL, NULL, NULL, NULL, 'scheduled', NULL, NULL),
+  ('1383975b-ee40-4f8c-8f64-6e0bbf0b800c', '1333665c-ec92-47f1-adb1-99bfaecf25c1', '2023-09-15', 'Worked on Mendelssohn Violin Concerto first movement.', 'Emma is progressing well with the technical challenges. Need to focus on the cadenza next week.', '2025-03-14 02:15:49.441169+00', '2025-03-14 02:15:49.441169+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '09:00:00', '10:00:00', 'Studio A', 'scheduled', 'Student demonstrated good progress on the Mendelssohn concerto. Technical passages in the exposition are mostly secure, but the cadenza needs more work. Intonation in higher positions is improving. Next steps include refining the cadenza and working on dynamic contrast.', NULL),
+  ('22adcff5-0372-47c6-a076-b1053bb39463', '1333665c-ec92-47f1-adb1-99bfaecf25c1', '2023-09-22', 'Continued work on Mendelssohn Violin Concerto, focusing on the cadenza.', 'Made significant progress on the cadenza. Emma is gaining confidence with the technical challenges.', '2025-03-14 02:15:49.441169+00', '2025-03-14 02:15:49.441169+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '09:00:00', '10:00:00', 'Studio A', 'scheduled', 'Focused on the cadenza in Mendelssohn''s Violin Concerto. Student has shown marked improvement since last week. Technical passages are more fluid, though some intonation issues persist in the highest register. Worked on emphasizing the dramatic character of the cadenza through rubato and dynamic contrasts. Student shows good musical instincts when freed from technical concerns.', NULL),
+  ('4997dc3a-0148-4b33-80be-ec2638e3964e', '1333665c-ec92-47f1-adb1-99bfaecf25c1', '2023-09-29', 'Started work on the second movement of the Mendelssohn Concerto.', 'After completing work on the first movement, we moved on to the Andante. Focused on establishing the lyrical character.', '2025-03-14 02:15:49.441169+00', '2025-03-14 02:15:49.441169+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '09:00:00', '10:00:00', 'Studio A', 'scheduled', 'Transitioned to the second movement of the Mendelssohn Concerto after good progress on the first movement. Initial reading revealed a good understanding of the basic notes and rhythms. Worked extensively on tone production appropriate for the lyrical character, including bow distribution and contact point. Discussed the importance of maintaining the melodic line across string changes. Student shows natural affinity for expressive playing.', NULL),
+  ('2f8ad785-16a3-4f9d-b80a-4c2c65caf5b0', '1333665c-ec92-47f1-adb1-99bfaecf25c1', '2023-11-15', 'Scheduled review of full Mendelssohn Concerto', 'Plan to review all three movements in preparation for winter showcase', '2025-03-14 02:15:49.441169+00', '2025-03-14 02:15:49.441169+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', NULL, NULL, NULL, 'scheduled', NULL, NULL),
+  ('62b6bd7d-e1ae-45d3-948d-7b8acc8bbb0e', '3481cf4f-4e41-4ee5-9ca7-90a58633b0e9', '2023-09-15', 'Introduction to shifting positions.', 'James had his first experience with 3rd position today. We worked on the proper hand frame and practiced simple exercises.', '2025-03-14 02:15:49.441169+00', '2025-03-14 02:15:49.441169+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '11:00:00', '12:00:00', 'Studio A', 'scheduled', 'Introduced 3rd position shifting for the first time. Student showed initial hesitation but improved by the end of the lesson. Worked on maintaining proper hand position and finger spacing. Assigned simple exercises to practice at home focusing on smooth transitions between 1st and 3rd positions.', NULL),
+  ('5b912ab9-c8a5-47a3-8ef3-f8266b663aad', '3481cf4f-4e41-4ee5-9ca7-90a58633b0e9', '2023-09-22', 'Continued work on 3rd position shifting.', 'James is becoming more comfortable with shifting. We began applying this to a simple piece with shifts between 1st and 3rd positions.', '2025-03-14 02:15:49.441169+00', '2025-03-14 02:15:49.441169+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '11:00:00', '12:00:00', 'Studio A', 'scheduled', 'Second lesson on position shifting showed significant improvement. Student is now able to shift between 1st and 3rd positions with greater accuracy, though still needing occasional guidance. Introduced a simple melody that incorporates these positions. Student expressed enthusiasm about the expanded range of notes now accessible. Emphasized importance of relaxed left hand during shifts.', NULL),
+  ('4190607b-558d-43a6-856d-48206048be28', '3481cf4f-4e41-4ee5-9ca7-90a58633b0e9', '2023-10-06', 'Introduction to vibrato concepts.', 'Began preliminary exercises for developing vibrato. James needs to work on flexibility in the left hand.', '2025-03-14 02:15:49.441169+00', '2025-03-14 02:15:49.441169+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '11:00:00', '12:00:00', 'Studio A', 'scheduled', NULL, NULL),
+  ('02443cfd-ccd6-44fe-9f06-f57e75892a6f', 'e1c9c475-871d-4266-837d-80ec1c4fa379', '2023-09-15', 'Prepared Bach Partita No. 2 for upcoming recital.', 'Focused on the Chaconne. Sophia is making excellent progress, but needs to work on maintaining consistent tempo.', '2025-03-14 02:15:49.441169+00', '2025-03-14 02:15:49.441169+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '14:00:00', '15:00:00', 'Studio B', 'scheduled', 'Preparation for upcoming recital is on track. The Chaconne from Bach''s Partita No. 2 is technically secure, but there are still tempo inconsistencies, particularly in the more challenging variations. Advised recording practice sessions to monitor tempo. Also worked on creating more distinct character for each variation through articulation and dynamic choices.', NULL),
+  ('739dd42d-280c-4999-8e07-53c56ba3679d', 'e1c9c475-871d-4266-837d-80ec1c4fa379', '2023-09-22', 'Final preparation for weekend recital.', 'Run-through of the entire Bach program. Sophia is well-prepared and confident.', '2025-03-14 02:15:49.441169+00', '2025-03-14 02:15:49.441169+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '14:00:00', '15:00:00', 'Recital Hall', 'scheduled', 'Final rehearsal before recital demonstrated excellent preparation. The complete Bach program was performed with technical security and musical maturity. Minor suggestions were made regarding pacing between movements and stage presence. Student is fully prepared for the upcoming performance and displays appropriate confidence. Discussed performance anxiety management techniques as a precautionary measure.', NULL),
+  ('05cd9721-e318-4c22-b62b-23434fee0884', 'e1c9c475-871d-4266-837d-80ec1c4fa379', '2023-10-06', 'Post-recital assessment and planning next repertoire.', 'Discussed the successful recital performance and areas for future development. Selected Tchaikovsky Violin Concerto as the next major project.', '2025-03-14 02:15:49.441169+00', '2025-03-14 02:15:49.441169+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '14:00:00', '15:00:00', 'Studio B', 'scheduled', NULL, NULL),
+  ('c9f48353-0771-40c9-975e-11c0541404a0', '9e905663-a2b6-4b57-b002-e009cf20b7db', '2025-02-19', 'Addressed rhythm issues in the development section. Started new étude.', 'Aspernatur caveo consequuntur turbo ver vergo creta totidem. Temeritas quisquam unde vel vulticulus caterva facere. Thesis tamdiu cubitum viduo sopor hic derideo vicinus.', '2025-03-14 03:58:58.666147+00', '2025-03-14 03:58:58.666147+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '17:00:00', '17:30:00', 'Room 401', 'completed', NULL, NULL),
+  ('a3217394-fdcf-4d3f-9ba0-11013af4d008', '9e905663-a2b6-4b57-b002-e009cf20b7db', '2025-02-11', 'Reviewed jury repertoire. Made progress on technical passages.', 'Cubitum vinum suggero cunae sodalitas teneo. Anser utrum vorax trepide nihil arma earum ara adeo. Acceptus tamen adversus sodalitas repudiandae arceo decretum.', '2025-03-14 03:58:58.887961+00', '2025-03-14 03:58:58.887961+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '12:45:00', '13:45:00', 'Practice Room 3', 'completed', NULL, NULL),
+  ('df0b5989-aba5-4239-b0cd-50150d057b5e', '9e905663-a2b6-4b57-b002-e009cf20b7db', '2025-02-13', 'Addressed rhythm issues in the development section. Started new étude.', 'Deorsum cui ut eos dolores patrocinor paulatim. Vis vito claro. Suus tero cogo speciosus viridis depopulo.', '2025-03-14 03:58:59.327718+00', '2025-03-14 03:58:59.327718+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '12:00:00', '13:00:00', 'Studio A', 'completed', NULL, NULL),
+  ('bc0b9ce2-e91c-4caf-a9f3-b6143a4a13be', 'e1c9c475-871d-4266-837d-80ec1c4fa379', '2025-01-31', 'Addressed rhythm issues in the development section. Started new étude.', 'Reprehenderit nesciunt deprimo civitas angulus absque et validus solvo laudantium. Suscipit ater socius articulus tabula apto annus amplexus. Saepe ab comminor vis et deprimo valde.', '2025-03-14 03:59:00.149411+00', '2025-03-14 03:59:00.149411+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '10:45:00', '11:30:00', 'Teacher''s Office', 'completed', NULL, NULL),
+  ('0781a00a-0ce6-42b6-b69e-6f18559d0107', 'e1c9c475-871d-4266-837d-80ec1c4fa379', '2025-01-08', 'Focused on vibrato technique. Assigned new scale routine.', 'Comparo sint tredecim. Ceno tabella trans vito benevolentia templum creptio. Combibo callide antea demoror.', '2025-03-14 03:59:00.367859+00', '2025-03-14 03:59:00.367859+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '09:30:00', '10:00:00', 'Virtual/Zoom', 'completed', NULL, NULL),
+  ('d2755f3e-ee4d-43f6-a41c-541fbf13ede4', 'c5d71b10-d95d-4476-b64f-4a1e71bb265d', '2025-01-17', 'Focused on vibrato technique. Assigned new scale routine.', 'Advoco stipes error vae arto usus utrum. Commodi tertius alo talus utrum vos. Thesaurus acies texo asporto.', '2025-03-14 03:59:01.811988+00', '2025-03-14 03:59:01.811988+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '14:45:00', '15:45:00', 'Main Hall', 'completed', NULL, NULL),
+  ('69196ca3-3460-4eb7-a23d-81ba40cd7641', 'c5d71b10-d95d-4476-b64f-4a1e71bb265d', '2025-02-18', 'Addressed posture and hand position. Made progress on difficult passages.', 'Ara caelum sumptus vado. Talus curatio decipio succurro cupressus deprecator ademptio. Adipiscor recusandae modi credo tergum caute verbum.', '2025-03-14 03:59:02.02441+00', '2025-03-14 03:59:02.02441+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '15:45:00', '16:30:00', 'Practice Room 3', 'completed', NULL, NULL),
+  ('423f4e19-3867-4d44-bd5d-840a78d32c24', 'c5d71b10-d95d-4476-b64f-4a1e71bb265d', '2025-03-01', 'Focused on memorization strategies. Reviewed concert etiquette.', 'Illo textus quibusdam trepide anser ascisco quidem nostrum ancilla. Pecto chirographum corona agnitio contego taceo volutabrum canis usus tener. Tolero decet tepidus.', '2025-03-14 03:59:02.251243+00', '2025-03-14 03:59:02.251243+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '16:00:00', '16:45:00', 'Studio A', 'completed', NULL, NULL),
+  ('b9ddfbe1-8f3d-45c5-a134-189be36bf4c8', '984370b3-5f6d-448b-9f6b-f249f23a4ad6', '2025-02-16', 'Worked on tone production. Discussed interpretation of phrase endings.', 'Solum abduco quia thorax. Admiratio alias contigo curvo pecus eaque. Timor corrumpo coniecto demulceo curto cariosus suasoria tracto eveniet.', '2025-03-14 03:59:03.631695+00', '2025-03-14 03:59:03.631695+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '11:30:00', '12:30:00', 'Practice Room 3', 'completed', NULL, NULL),
+  ('9ab9310c-07f3-4bf4-b56c-8466411ed554', '984370b3-5f6d-448b-9f6b-f249f23a4ad6', '2025-01-16', 'Reviewed jury repertoire. Made progress on technical passages.', 'Virgo adipisci animi auditor attonbitus cado anser accusantium vomer. Tabesco aperte antiquus abscido sustineo ipsam vindico peccatus vos. Corrigo casus eligendi vestrum aestas amita hic aperte.', '2025-03-14 03:59:03.846023+00', '2025-03-14 03:59:03.846023+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '15:30:00', '16:15:00', 'Main Hall', 'completed', NULL, NULL),
+  ('1651aaf9-dab4-484e-a7e5-b94737ce4ee2', '984370b3-5f6d-448b-9f6b-f249f23a4ad6', '2024-12-28', 'Reviewed jury repertoire. Made progress on technical passages.', 'Venia defleo tener aer cicuta temporibus. Agnitio complectus decet peior undique adhuc aequus. Acidus angelus verecundia dicta testimonium reiciendis.', '2025-03-14 03:59:04.068798+00', '2025-03-14 03:59:04.068798+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '19:00:00', '20:00:00', 'Practice Room 3', 'completed', NULL, NULL),
+  ('c359303c-1cfb-47e9-8ff2-4f6a7e884b39', '2d4b6c20-ecc9-4b90-a6e2-7e4de544b44b', '2025-02-08', 'Worked on tone production. Discussed interpretation of phrase endings.', 'Thymbra officiis verbum nihil usus timidus deleniti. Angulus voco subvenio curto spargo cunctatio a. Subiungo vobis et patrocinor comedo a.', '2025-03-14 03:59:06.609625+00', '2025-03-14 03:59:06.609625+00', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '19:30:00', '20:00:00', 'Main Hall', 'completed', NULL, NULL);
+
+-- Insert new user_roles entry (update)
+INSERT INTO user_roles (id, user_id, role, created_at, updated_at)
+VALUES
+  ('6467c54e-1fc0-434d-b3a2-47f903d7df11', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', 'teacher', now(), now());
+
+-- Insert sample journal_entries data
+INSERT INTO journal_entries 
+  (id, user_id, date, practice_goals, notes, went_well, beautified, frustrations, improvements, created_at, updated_at)
+VALUES
+  ('cf2d04a3-cbcb-4524-a262-50e58b758091', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '2025-03-13', 'Work on the Tchaikovsky concerto, focusing on intonation in the development section', 'Practiced for 2 hours today. Started with scales and arpeggios for warm-up.', 'My double stops are sounding much cleaner after focused practice.', 'The lyrical section in the second movement - worked on varied vibrato.', 'Still struggling with consistent intonation in the highest positions.', 'Need to practice the difficult passages with drone tones tomorrow.', '2025-03-13 07:36:08.269158+00', '2025-03-13 07:36:08.269158+00'),
+  ('d012f319-8797-4ef1-8409-56e894de2fe4', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '2025-03-12', 'Bach Partita - memorize the first page', 'Focused solely on the Bach today for 90 minutes.', 'Successfully memorized the first page and can play it reliably.', 'The dance-like quality in the opening section.', 'Having trouble with consistent tempo when playing from memory.', 'Record myself tomorrow to check tempo consistency.', '2025-03-13 07:36:08.269158+00', '2025-03-13 07:36:08.269158+00'),
+  ('30aa99da-a137-492a-aa85-4bf2a09a58ed', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '2025-03-13', 'Work on the Tchaikovsky concerto, focusing on intonation in the development section', 'Practiced for 2 hours today. Started with scales and arpeggios for warm-up.', 'My double stops are sounding much cleaner after focused practice.', 'The lyrical section in the second movement - worked on varied vibrato.', 'Still struggling with consistent intonation in the highest positions.', 'Need to practice the difficult passages with drone tones tomorrow.', '2025-03-13 07:37:27.148822+00', '2025-03-13 07:37:27.148822+00'),
+  ('401fc5c1-1e3e-425c-97ae-88cbd65e6d7d', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '2025-03-12', 'Bach Partita - memorize the first page', 'Focused solely on the Bach today for 90 minutes.', 'Successfully memorized the first page and can play it reliably.', 'The dance-like quality in the opening section.', 'Having trouble with consistent tempo when playing from memory.', 'Record myself tomorrow to check tempo consistency.', '2025-03-13 07:37:27.148822+00', '2025-03-13 07:37:27.148822+00'),
+  ('6663d2d9-b03c-400c-99b2-63c2929125de', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '2025-03-13', 'Work on the Tchaikovsky concerto, focusing on intonation in the development section', 'Practiced for 2 hours today. Started with scales and arpeggios for warm-up.', 'My double stops are sounding much cleaner after focused practice.', 'The lyrical section in the second movement - worked on varied vibrato.', 'Still struggling with consistent intonation in the highest positions.', 'Need to practice the difficult passages with drone tones tomorrow.', '2025-03-13 08:26:13.879805+00', '2025-03-13 08:26:13.879805+00'),
+  ('ea4e0d8e-59ce-4f0b-bc12-375bf4358907', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '2025-03-12', 'Bach Partita - memorize the first page', 'Focused solely on the Bach today for 90 minutes.', 'Successfully memorized the first page and can play it reliably.', 'The dance-like quality in the opening section.', 'Having trouble with consistent tempo when playing from memory.', 'Record myself tomorrow to check tempo consistency.', '2025-03-13 08:26:13.879805+00', '2025-03-13 08:26:13.879805+00'),
+  ('72952d6c-5284-4c39-a311-aaf0025f9939', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '2025-03-13', 'Work on the Tchaikovsky concerto, focusing on intonation in the development section', 'Practiced for 2 hours today. Started with scales and arpeggios for warm-up.', 'My double stops are sounding much cleaner after focused practice.', 'The lyrical section in the second movement - worked on varied vibrato.', 'Still struggling with consistent intonation in the highest positions.', 'Need to practice the difficult passages with drone tones tomorrow.', '2025-03-13 09:31:56.285142+00', '2025-03-13 09:31:56.285142+00'),
+  ('b9fd5cae-699d-4395-be0b-441031d0fe7c', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '2025-03-12', 'Bach Partita - memorize the first page', 'Focused solely on the Bach today for 90 minutes.', 'Successfully memorized the first page and can play it reliably.', 'The dance-like quality in the opening section.', 'Having trouble with consistent tempo when playing from memory.', 'Record myself tomorrow to check tempo consistency.', '2025-03-13 09:31:56.285142+00', '2025-03-13 09:31:56.285142+00'),
+  ('41a8e72c-c0ac-43df-85a8-ffea598e54e3', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '2025-03-13', 'Work on the Tchaikovsky concerto, focusing on intonation in the development section', 'Practiced for 2 hours today. Started with scales and arpeggios for warm-up.', 'My double stops are sounding much cleaner after focused practice.', 'The lyrical section in the second movement - worked on varied vibrato.', 'Still struggling with consistent intonation in the highest positions.', 'Need to practice the difficult passages with drone tones tomorrow.', '2025-03-13 09:34:54.83993+00', '2025-03-13 09:34:54.83993+00'),
+  ('1ebb2395-4a4d-4e66-a3ff-9b38a8b3bc65', '771ab2f3-ffbd-4ced-a36a-46f07f7a2b59', '2025-03-12', 'Bach Partita - memorize the first page', 'Focused solely on the Bach today for 90 minutes.', 'Successfully memorized the first page and can play it reliably.', 'The dance-like quality in the opening section.', 'Having trouble with consistent tempo when playing from memory.', 'Record myself tomorrow to check tempo consistency.', '2025-03-13 09:34:54.83993+00', '2025-03-13 09:34:54.83993+00');
+
+-- ============================================================
+-- END OF SCRIPT
+-- ============================================================
