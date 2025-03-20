@@ -1,7 +1,14 @@
 // ID utility functions
 // This file provides consistent ID generation and validation for the application
 
-// Prefix constants
+/**
+ * DEPRECATED: ID Prefixes
+ * 
+ * WARNING: The prefixed ID system is being phased out in favor of UUIDs.
+ * New code should use the UUID system from dev-uuids.ts instead.
+ * 
+ * This system is maintained for backward compatibility but will be removed in a future version.
+ */
 export const ID_PREFIXES = {
   STUDENT: 's-',   // Student: s-1, s-2, etc.
   PIECE: 'p-',     // Master repertoire piece: p-1, p-2, etc.
@@ -13,12 +20,26 @@ export const ID_PREFIXES = {
 };
 
 /**
- * Creates a new ID with the appropriate prefix
+ * Checks if a string is a valid UUID
+ * @param id String to validate
+ * @returns True if the string is a valid UUID
+ */
+export const isValidUUID = (id: string): boolean => {
+  if (!id) return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+};
+
+/**
+ * DEPRECATED: Creates a new ID with the appropriate prefix
+ * @deprecated Use UUIDs from dev-uuids.ts instead
  * @param type The entity type (use ID_PREFIXES constant)
  * @param id The numeric ID or string ID
  * @returns A properly formatted ID string
  */
 export const createPrefixedId = (type: string, id: string | number): string => {
+  console.warn('createPrefixedId is deprecated. Use UUIDs from dev-uuids.ts instead.');
+  
   // If the ID already has this prefix, return it as is
   if (typeof id === 'string' && id.startsWith(type)) {
     return id;
