@@ -1,257 +1,276 @@
 #!/bin/bash
-# Comprehensive audit script for Violin Connect data layer
-# This script searches for potential issues in the data layer implementation
-# that might not conform to the patterns in DATABASE_WORKFLOW.md
 
-echo "🔍 Running Violin Connect Data Layer Audit"
-echo "==========================================="
+# UUID Validation Project - Data Layer Audit Script
+# This script scans the codebase for potential UUID validation issues
+# and generates a report to help prioritize fixes.
+
+# Set your project directory
+PROJECT_DIR="$(pwd)"
+SRC_DIR="$PROJECT_DIR/src"
+
+# ANSI color codes for output formatting
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+NC='\033[0m' # No Color
+
+# Output file
+REPORT_FILE="$PROJECT_DIR/uuid-validation-audit-report.md"
+
+echo "# UUID Validation Audit Report" > $REPORT_FILE
+echo "Generated on $(date)" >> $REPORT_FILE
+echo "" >> $REPORT_FILE
+
+# Function to check for a specific pattern and append results to the report
+check_pattern() {
+  local pattern=$1
+  local description=$2
+  local severity=$3
+  local count=0
+  
+  echo -e "${BLUE}Checking for $description...${NC}"
+  
+  # Find occurrences
+  local results=$(grep -r --include="*.ts" --include="*.tsx" "$pattern" $SRC_DIR)
+  local count=$(echo "$results" | grep -v "^$" | wc -l)
+  
+  # Group by file
+  local files_affected=$(echo "$results" | grep -v "^$" | cut -d: -f1 | sort | uniq | wc -l)
+  
+  # Print to terminal
+  if [ $count -gt 0 ]; then
+    echo -e "${YELLOW}Found $count occurrences in $files_affected files${NC}"
+  else
+    echo -e "${GREEN}No issues found${NC}"
+  fi
+  
+  # Add to report
+  echo "## $description" >> $REPORT_FILE
+  echo "" >> $REPORT_FILE
+  
+  if [ "$severity" = "high" ]; then
+    echo "**Severity: HIGH**" >> $REPORT_FILE
+  elif [ "$severity" = "medium" ]; then
+    echo "**Severity: MEDIUM**" >> $REPORT_FILE
+  else
+    echo "**Severity: LOW**" >> $REPORT_FILE
+  fi
+  
+  echo "" >> $REPORT_FILE
+  echo "Found $count occurrences in $files_affected files." >> $REPORT_FILE
+  echo "" >> $REPORT_FILE
+  
+  if [ $count -gt 0 ]; then
+    echo "### Files with issues:" >> $REPORT_FILE
+    echo "" >> $REPORT_FILE
+    echo "$results" | grep -v "^$" | cut -d: -f1 | sort | uniq | while read -r file; do
+      local file_count=$(echo "$results" | grep -v "^$" | grep -c "$file")
+      echo "- $file ($file_count occurrences)" >> $REPORT_FILE
+    done
+    echo "" >> $REPORT_FILE
+    
+    echo "### Sample occurrences:" >> $REPORT_FILE
+    echo "" >> $REPORT_FILE
+    echo '```' >> $REPORT_FILE
+    echo "$results" | grep -v "^$" | head -5 >> $REPORT_FILE
+    echo '```' >> $REPORT_FILE
+    echo "" >> $REPORT_FILE
+  fi
+  
+  return $count
+}
+
+# Function to check for missing imports
+check_missing_import() {
+  local import_pattern=$1
+  local file_pattern=$2
+  local description=$3
+  local severity=$4
+  local count=0
+  
+  echo -e "${BLUE}Checking for $description...${NC}"
+  
+  # Find files matching the pattern
+  local matching_files=$(find $SRC_DIR -type f -name "$file_pattern" | xargs grep -l "from '@tanstack/react-query'" | sort)
+  local matching_count=$(echo "$matching_files" | grep -v "^$" | wc -l)
+  
+  # Count files missing the import
+  local missing_import_files=()
+  local missing_count=0
+  
+  echo "$matching_files" | while read -r file; do
+    if [ ! -z "$file" ] && ! grep -q "$import_pattern" "$file"; then
+      missing_import_files+=("$file")
+      missing_count=$((missing_count + 1))
+    fi
+  done
+  
+  # Print to terminal
+  if [ $missing_count -gt 0 ]; then
+    echo -e "${YELLOW}Found $missing_count out of $matching_count files missing the import${NC}"
+  else
+    echo -e "${GREEN}No issues found${NC}"
+  fi
+  
+  # Add to report
+  echo "## $description" >> $REPORT_FILE
+  echo "" >> $REPORT_FILE
+  
+  if [ "$severity" = "high" ]; then
+    echo "**Severity: HIGH**" >> $REPORT_FILE
+  elif [ "$severity" = "medium" ]; then
+    echo "**Severity: MEDIUM**" >> $REPORT_FILE
+  else
+    echo "**Severity: LOW**" >> $REPORT_FILE
+  fi
+  
+  echo "" >> $REPORT_FILE
+  echo "Found $missing_count out of $matching_count files missing the import." >> $REPORT_FILE
+  echo "" >> $REPORT_FILE
+  
+  if [ $missing_count -gt 0 ]; then
+    echo "### Files missing the import:" >> $REPORT_FILE
+    echo "" >> $REPORT_FILE
+    for file in "${missing_import_files[@]}"; do
+      echo "- $file" >> $REPORT_FILE
+    done
+    echo "" >> $REPORT_FILE
+  fi
+  
+  return $missing_count
+}
+
+echo -e "${YELLOW}==============================================${NC}"
+echo -e "${YELLOW}UUID VALIDATION PROJECT - DATA LAYER AUDIT${NC}"
+echo -e "${YELLOW}==============================================${NC}"
 echo ""
 
-# Set variables
-SRC_DIR="src"
-BASE_DIR=$(pwd)
-RESULTS_DIR="$BASE_DIR/audit-results"
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-RESULTS_FILE="$RESULTS_DIR/data_layer_audit_$TIMESTAMP.md"
+# Introduction to the report
+cat << EOF >> $REPORT_FILE
+## Introduction
 
-# Create results directory if it doesn't exist
-mkdir -p "$RESULTS_DIR"
+This report identifies potential issues related to UUID validation in the codebase. The audit checks for:
 
-# Initialize results file
-cat > "$RESULTS_FILE" << EOL
-# Violin Connect Data Layer Audit
-**Generated on:** $(date)
+1. Non-UUID string IDs
+2. Usage of ID prefixes (e.g., "s-" for students)
+3. Missing UUID validation in database operations
+4. Missing imports of key utilities
+5. Inconsistent development mode handling
+6. Missing source tracking
 
-This audit helps identify potential issues with the data layer implementation
-that might not conform to the patterns described in DATABASE_WORKFLOW.md.
+Each issue is categorized by severity (HIGH, MEDIUM, LOW) to help prioritize fixes.
 
 ## Summary
 
-EOL
+EOF
 
-# -----------------------------------------
-# PART 1: Check for non-UUID string IDs
-# -----------------------------------------
-echo "Checking for non-UUID string IDs..."
-echo "## 1. Non-UUID String IDs" >> "$RESULTS_FILE"
-echo "These patterns suggest the code might be using simple string IDs instead of proper UUIDs:" >> "$RESULTS_FILE"
-echo "" >> "$RESULTS_FILE"
-
-# Common string ID patterns
-patterns=(
-  "'student-[0-9]"
-  "\"student-[0-9]"
-  "'teacher-[0-9]"
-  "\"teacher-[0-9]"
-  "'lesson-[0-9]"
-  "\"lesson-[0-9]"
-  "'s-[0-9]"
-  "\"s-[0-9]"
-  "'p-[0-9]"
-  "\"p-[0-9]"
-  "'l-[0-9]"
-  "\"l-[0-9]"
-)
-
-for pattern in "${patterns[@]}"; do
-  COUNT=$(grep -r $pattern --include="*.ts" --include="*.tsx" $SRC_DIR | grep -v "test" | wc -l)
-  echo "Found $COUNT occurrences of $pattern" 
-  
-  if [ $COUNT -gt 0 ]; then
-    echo "### Pattern: $pattern" >> "$RESULTS_FILE"
-    echo "\`\`\`" >> "$RESULTS_FILE"
-    grep -r $pattern --include="*.ts" --include="*.tsx" $SRC_DIR | grep -v "test" >> "$RESULTS_FILE"
-    echo "\`\`\`" >> "$RESULTS_FILE"
-    echo "" >> "$RESULTS_FILE"
-  fi
-done
-
-# -----------------------------------------
-# PART 2: Check for ID prefix creation instead of real UUIDs
-# -----------------------------------------
-echo "Checking for ID prefix usage..."
-echo "## 2. ID Prefix Creation" >> "$RESULTS_FILE"
-echo "These functions create prefixed IDs which might not be compatible with the database schema:" >> "$RESULTS_FILE"
-echo "" >> "$RESULTS_FILE"
-
-# ID prefix patterns
-id_patterns=(
-  "createPrefixedId"
-  "ID_PREFIXES"
-  "getIdWithoutPrefix"
-)
-
-for pattern in "${id_patterns[@]}"; do
-  COUNT=$(grep -r $pattern --include="*.ts" --include="*.tsx" $SRC_DIR | grep -v "test" | grep -v "id-utils.ts" | wc -l)
-  echo "Found $COUNT occurrences of $pattern"
-  
-  if [ $COUNT -gt 0 ]; then
-    echo "### Pattern: $pattern" >> "$RESULTS_FILE"
-    echo "\`\`\`" >> "$RESULTS_FILE"
-    grep -r $pattern --include="*.ts" --include="*.tsx" $SRC_DIR | grep -v "test" | grep -v "id-utils.ts" >> "$RESULTS_FILE"
-    echo "\`\`\`" >> "$RESULTS_FILE"
-    echo "" >> "$RESULTS_FILE"
-  fi
-done
-
-# -----------------------------------------
-# PART 3: Check for proper dev-uuids.ts usage
-# -----------------------------------------
-echo "Checking for dev-uuids.ts usage..."
-echo "## 3. UUID Usage" >> "$RESULTS_FILE"
-echo "Components should import and use UUIDs from dev-uuids.ts:" >> "$RESULTS_FILE"
-echo "" >> "$RESULTS_FILE"
-
-# Count hooks that DON'T import the dev UUIDs
-HOOK_FILES=$(find $SRC_DIR -name "use*.ts" -type f | grep -v "test")
-MISSING_UUID_IMPORTS=0
-
-echo "### Hooks missing dev-uuid imports" >> "$RESULTS_FILE"
-echo "\`\`\`" >> "$RESULTS_FILE"
-
-for hook in $HOOK_FILES; do
-  if ! grep -q "dev-uuids" "$hook"; then
-    echo "Missing dev-uuids import: $hook"
-    echo "$hook" >> "$RESULTS_FILE"
-    ((MISSING_UUID_IMPORTS++))
-  fi
-done
-
-echo "\`\`\`" >> "$RESULTS_FILE"
-echo "Total hooks missing dev-uuid imports: $MISSING_UUID_IMPORTS" >> "$RESULTS_FILE"
-echo "" >> "$RESULTS_FILE"
-
-# -----------------------------------------
-# PART 4: Check for hybrid caching approach
-# -----------------------------------------
-echo "Checking for hybrid caching implementation..."
-echo "## 4. Hybrid Caching Approach" >> "$RESULTS_FILE"
-echo "Hooks should follow the database → cache → mock data pattern:" >> "$RESULTS_FILE"
-echo "" >> "$RESULTS_FILE"
-
-# Hybrid caching related functions
-cache_patterns=(
-  "setCachedMockData"
-  "getCachedMockData"
-)
-
-for pattern in "${cache_patterns[@]}"; do
-  COUNT=$(grep -r $pattern --include="*.ts" --include="*.tsx" $SRC_DIR | grep -v "test" | grep -v "mockDataCache.ts" | wc -l)
-  echo "Found $COUNT occurrences of $pattern"
-  
-  if [ $COUNT -gt 0 ]; then
-    echo "### Pattern: $pattern" >> "$RESULTS_FILE"
-    echo "\`\`\`" >> "$RESULTS_FILE"
-    grep -r $pattern --include="*.ts" --include="*.tsx" $SRC_DIR | grep -v "test" | grep -v "mockDataCache.ts" >> "$RESULTS_FILE"
-    echo "\`\`\`" >> "$RESULTS_FILE"
-    echo "" >> "$RESULTS_FILE"
-  fi
-done
-
-# Hooks that should use caching but don't
-echo "### Hooks potentially missing hybrid caching" >> "$RESULTS_FILE"
-echo "\`\`\`" >> "$RESULTS_FILE"
-
-MISSING_CACHE_HOOKS=0
-for hook in $HOOK_FILES; do
-  if grep -q "useQuery" "$hook" && grep -q "supabase" "$hook" && ! grep -q "getCachedMockData" "$hook"; then
-    echo "Missing cache implementation: $hook"
-    echo "$hook" >> "$RESULTS_FILE"
-    ((MISSING_CACHE_HOOKS++))
-  fi
-done
-
-echo "\`\`\`" >> "$RESULTS_FILE"
-echo "Total hooks potentially missing caching: $MISSING_CACHE_HOOKS" >> "$RESULTS_FILE"
-echo "" >> "$RESULTS_FILE"
-
-# -----------------------------------------
-# PART 5: Check for isValidUUID usage
-# -----------------------------------------
-echo "Checking for UUID validation..."
-echo "## 5. UUID Validation" >> "$RESULTS_FILE"
-echo "Hooks should validate UUIDs before querying Supabase:" >> "$RESULTS_FILE" 
-echo "" >> "$RESULTS_FILE"
-
-COUNT=$(grep -r "isValidUUID" --include="*.ts" --include="*.tsx" $SRC_DIR | grep -v "test" | grep -v "id-utils.ts" | wc -l)
-echo "Found $COUNT occurrences of isValidUUID"
-
-echo "### isValidUUID usage" >> "$RESULTS_FILE"
-echo "\`\`\`" >> "$RESULTS_FILE"
-grep -r "isValidUUID" --include="*.ts" --include="*.tsx" $SRC_DIR | grep -v "test" | grep -v "id-utils.ts" >> "$RESULTS_FILE"
-echo "\`\`\`" >> "$RESULTS_FILE"
-echo "" >> "$RESULTS_FILE"
-
-# Check hooks that use Supabase but don't validate UUIDs
-echo "### Hooks potentially missing UUID validation" >> "$RESULTS_FILE"
-echo "\`\`\`" >> "$RESULTS_FILE"
-
-MISSING_VALIDATION=0
-for hook in $HOOK_FILES; do
-  if grep -q "supabase" "$hook" && grep -q "id.*=" "$hook" && ! grep -q "isValidUUID" "$hook"; then
-    echo "Missing UUID validation: $hook"
-    echo "$hook" >> "$RESULTS_FILE"
-    ((MISSING_VALIDATION++))
-  fi
-done
-
-echo "\`\`\`" >> "$RESULTS_FILE"
-echo "Total hooks potentially missing UUID validation: $MISSING_VALIDATION" >> "$RESULTS_FILE"
-echo "" >> "$RESULTS_FILE"
-
-# -----------------------------------------
-# PART 6: Data source tracking
-# -----------------------------------------
-echo "Checking for data source tracking..."
-echo "## 6. Data Source Tracking" >> "$RESULTS_FILE"
-echo "Components should track the data source (database, cache, mock) for debugging:" >> "$RESULTS_FILE"
-echo "" >> "$RESULTS_FILE"
-
-# Source tracking pattern
-COUNT=$(grep -r "_source" --include="*.ts" --include="*.tsx" $SRC_DIR | grep -v "test" | wc -l)
-echo "Found $COUNT occurrences of _source tracking"
-
-echo "### _source tracking usage" >> "$RESULTS_FILE"
-echo "\`\`\`" >> "$RESULTS_FILE"
-grep -r "_source" --include="*.ts" --include="*.tsx" $SRC_DIR | grep -v "test" >> "$RESULTS_FILE"
-echo "\`\`\`" >> "$RESULTS_FILE"
-echo "" >> "$RESULTS_FILE"
-
-# Check hooks that might need source tracking
-echo "### Hooks potentially missing source tracking" >> "$RESULTS_FILE"
-echo "\`\`\`" >> "$RESULTS_FILE"
-
-MISSING_SOURCE=0
-for hook in $HOOK_FILES; do
-  if grep -q "return data" "$hook" && ! grep -q "_source" "$hook"; then
-    echo "Missing source tracking: $hook"
-    echo "$hook" >> "$RESULTS_FILE"
-    ((MISSING_SOURCE++))
-  fi
-done
-
-echo "\`\`\`" >> "$RESULTS_FILE"
-echo "Total hooks potentially missing source tracking: $MISSING_SOURCE" >> "$RESULTS_FILE"
-
-# -----------------------------------------
-# Summary
-# -----------------------------------------
-echo "" >> "$RESULTS_FILE"
-echo "## Audit Summary" >> "$RESULTS_FILE"
-echo "" >> "$RESULTS_FILE"
-echo "| Category | Potential Issues |" >> "$RESULTS_FILE"
-echo "|----------|------------------|" >> "$RESULTS_FILE"
-echo "| Non-UUID String IDs | $(grep -r "'student-[0-9]\|\"student-[0-9]\|'s-[0-9]\|\"s-[0-9]" --include="*.ts" --include="*.tsx" $SRC_DIR | grep -v "test" | wc -l | xargs) |" >> "$RESULTS_FILE"
-echo "| ID Prefix Creation | $(grep -r "createPrefixedId\|ID_PREFIXES" --include="*.ts" --include="*.tsx" $SRC_DIR | grep -v "test" | grep -v "id-utils.ts" | wc -l | xargs) |" >> "$RESULTS_FILE"
-echo "| Missing UUID Imports | $MISSING_UUID_IMPORTS |" >> "$RESULTS_FILE"
-echo "| Missing Hybrid Caching | $MISSING_CACHE_HOOKS |" >> "$RESULTS_FILE"
-echo "| Missing UUID Validation | $MISSING_VALIDATION |" >> "$RESULTS_FILE"
-echo "| Missing Source Tracking | $MISSING_SOURCE |" >> "$RESULTS_FILE"
-echo "" >> "$RESULTS_FILE"
-
-echo "Audit complete! Results saved to: $RESULTS_FILE"
+# Perform all checks
+echo -e "${PURPLE}Analyzing ID formats and patterns...${NC}"
 echo ""
-echo "Next steps:"
-echo "1. Review the audit results"
-echo "2. Fix the identified issues according to DATABASE_WORKFLOW.md"
-echo "3. Re-run the audit to track progress" 
+
+# 1. Check for string-based ID patterns instead of UUIDs
+check_pattern "ID_PREFIXES\." "ID_PREFIX usage" "high"
+id_prefixes_count=$?
+
+check_pattern "createPrefixedId" "createPrefixedId usage" "high" 
+prefix_id_count=$?
+
+check_pattern "\"s-[0-9]" "Student ID string format (s-N)" "high"
+student_id_string_count=$?
+
+check_pattern "\"p-[0-9]" "Piece ID string format (p-N)" "high"
+piece_id_string_count=$?
+
+check_pattern "\"l-[0-9]" "Lesson ID string format (l-N)" "high"
+lesson_id_string_count=$?
+
+# 2. Check for consistent development mode handling
+check_pattern "DEV_UUID\s*=" "Hard-coded DEV_UUID definitions" "medium"
+dev_uuid_count=$?
+
+check_pattern "isDev\s*\?" "Development mode conditional checks" "low"
+is_dev_count=$?
+
+# 3. Check for missing validation
+echo ""
+echo -e "${PURPLE}Analyzing database operations...${NC}"
+echo ""
+
+check_pattern "\.eq\('id'" "Database ID equality operations" "medium"
+db_id_eq_count=$?
+
+check_pattern "isValidUUID" "UUID validation checks" "high"
+uuid_validation_count=$?
+
+check_pattern "\.eq\('student_id'" "Student ID database operations" "medium"
+student_id_db_count=$?
+
+check_pattern "\.eq\('teacher_id'" "Teacher ID database operations" "medium"
+teacher_id_db_count=$?
+
+# 4. Check for missing imports
+echo ""
+echo -e "${PURPLE}Analyzing imports and dependencies...${NC}"
+echo ""
+
+check_missing_import "import.*isValidUUID" "*.ts" "Missing isValidUUID import in hooks" "high"
+missing_validation_import_count=$?
+
+check_missing_import "import.*from '@/lib/dev-uuids'" "use*.ts" "Missing dev-uuids import in hooks" "medium"
+missing_dev_uuids_import_count=$?
+
+check_missing_import "_source:" "use*.ts" "Missing source tracking in hooks" "medium"
+missing_source_tracking_count=$?
+
+# 5. Check for direct Clerk imports that should use the wrapper
+echo ""
+echo -e "${PURPLE}Analyzing authentication patterns...${NC}"
+echo ""
+
+check_pattern "import.*useAuth.*from '@clerk/clerk-react'" "Direct Clerk useAuth imports" "high"
+direct_clerk_imports_count=$?
+
+# Summary statistics
+total_issues=$((id_prefixes_count + prefix_id_count + student_id_string_count + piece_id_string_count + lesson_id_string_count + dev_uuid_count + is_dev_count + db_id_eq_count - uuid_validation_count + student_id_db_count + teacher_id_db_count + missing_validation_import_count + missing_dev_uuids_import_count + missing_source_tracking_count + direct_clerk_imports_count))
+
+echo ""
+echo -e "${PURPLE}Generating summary...${NC}"
+echo ""
+
+# Add summary statistics to the report
+cat << EOF >> $REPORT_FILE
+- **Total potential issues identified**: $total_issues
+- **ID prefix usage**: $id_prefixes_count occurrences
+- **String IDs instead of UUIDs**: $((student_id_string_count + piece_id_string_count + lesson_id_string_count)) occurrences
+  - Student IDs: $student_id_string_count
+  - Piece IDs: $piece_id_string_count
+  - Lesson IDs: $lesson_id_string_count
+- **Hard-coded DEV_UUID definitions**: $dev_uuid_count occurrences
+- **Database ID operations**: $db_id_eq_count occurrences
+- **UUID validation checks**: $uuid_validation_count occurrences
+- **Missing validation imports**: $missing_validation_import_count hooks
+- **Missing dev-uuids imports**: $missing_dev_uuids_import_count hooks
+- **Missing source tracking**: $missing_source_tracking_count hooks
+- **Direct Clerk useAuth imports**: $direct_clerk_imports_count occurrences
+
+## Next Steps
+
+1. Start with hooks that have the most database operations
+2. Prioritize components with string IDs that interact with the database
+3. Update all hard-coded DEV_UUID references to use the central definition
+4. Add UUID validation to all ID parameters in hooks
+5. Implement source tracking consistently across all data-fetching hooks
+
+For implementation guidance, refer to the UUID_VALIDATION_GUIDE.md document.
+EOF
+
+echo -e "${GREEN}Audit completed!${NC}"
+echo -e "${GREEN}Report generated at:${NC} $REPORT_FILE"
+echo ""
+echo -e "${BLUE}Next steps:${NC}"
+echo "1. Review the report to identify priority areas"
+echo "2. Start updating high-priority components"
+echo "3. Re-run this script after making changes to track progress"
+echo "" 
