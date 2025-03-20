@@ -40,6 +40,22 @@ export const DEV_REPERTOIRE_UUIDS = {
   PIECE_8: '6ba7b81d-9dad-11d1-80b4-00c04fd430c8',
   PIECE_9: '6ba7b81e-9dad-11d1-80b4-00c04fd430c8',
   PIECE_10: '6ba7b81f-9dad-11d1-80b4-00c04fd430c8',
+  PIECE_11: 'ebc3fa32-7fc1-4621-ac42-86f2213f3f72',
+  PIECE_12: 'e25937c3-c4bc-490f-a7c7-2e0ad9dce5eb',
+  PIECE_13: '4a3ca1e1-7c71-47b9-a9b5-6d9ada3c9587',
+  PIECE_14: 'b8ce9b0b-4cc2-46ea-8afa-e56ef6c3bc63',
+  PIECE_15: 'dc76d03b-df78-4716-ac19-23c96d0a65be',
+  PIECE_16: 'b4b4d62e-47dd-4c18-a9f0-55f6a98ba3b0',
+  PIECE_17: '7c6bfe79-5cae-4cc0-ad7c-15723359e3dc',
+  PIECE_18: 'c01ee528-324f-4e9d-a7cf-cc8e1e5d3930',
+  PIECE_19: '8d04ad9a-4cd3-4d86-9c3a-8c11b3c5cdb2',
+  PIECE_20: '0e8407e6-7f7a-47c3-8e31-9df37e8ae9c2',
+  PIECE_21: '5e8fb9e7-30dc-42ee-a1f4-e8c7bf5a9345',
+  PIECE_22: '3c7eba19-d150-4d4a-a609-a974211d7e38',
+  PIECE_23: 'a92e290c-53e8-4c6d-a9c8-93f6b7d5adcd',
+  PIECE_24: 'cf89293f-9ead-47b6-8afc-b64a454214e9',
+  PIECE_25: 'f9b8ea69-6d90-4f5c-85c7-c7a6d44436c7',
+  PIECE_26: 'e0b15f31-ec8d-4c5c-a790-c3e08ae30b76',
 };
 
 // Journal Entry UUIDs

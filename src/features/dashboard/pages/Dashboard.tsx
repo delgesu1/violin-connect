@@ -29,7 +29,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format, parseISO } from 'date-fns';
 import { Student, RepertoirePiece, LegacyRepertoirePiece } from '@/components/common/StudentCard';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ID_PREFIXES, createPrefixedId } from '@/lib/id-utils';
+import { ID_PREFIXES, createPrefixedId, isValidUUID } from '@/lib/id-utils';
+import { DEV_REPERTOIRE_UUIDS, DEV_STUDENT_UUIDS } from '@/lib/dev-uuids';
 import PieceDisplay from '@/components/common/PieceDisplay';
 import { useRepertoire } from '@/contexts/RepertoireContext';
 import StudentCard from '@/components/common/StudentCard';
@@ -41,17 +42,17 @@ import { convertToSupabaseLesson } from '@/utils/dataConverters';
 import TranscriptDialog from '@/components/dialogs/TranscriptDialog';
 import AISummaryDialog from '@/components/dialogs/AISummaryDialog';
 
-// Mock data for master repertoire (simplified version)
+// Update the masterRepertoire array to use UUIDs
 const masterRepertoire: RepertoireItemData[] = [
   {
-    id: 'p-1',
+    id: DEV_REPERTOIRE_UUIDS.PIECE_1,
     title: 'Partita No. 2 in D minor, BWV 1004',
     composer: 'J.S. Bach',
     startedDate: '2023-10-15',
     difficulty: 'advanced'
   },
   {
-    id: 'p-9',
+    id: DEV_REPERTOIRE_UUIDS.PIECE_9,
     title: 'Violin Concerto in E minor, Op. 64',
     composer: 'F. Mendelssohn',
     startedDate: '2023-04-20',

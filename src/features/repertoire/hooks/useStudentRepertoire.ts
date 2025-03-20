@@ -6,6 +6,8 @@ import { getCachedMockData, setCachedMockData } from '@/lib/mockDataCache';
 import { clerkIdToUuid } from '@/lib/auth-utils';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { isDevelopment } from '@/lib/environment';
+import { isValidUUID } from '@/lib/id-utils';
+import { DEV_REPERTOIRE_UUIDS, DEV_STUDENT_UUIDS } from '@/lib/dev-uuids';
 
 // For development, use a consistent UUID that works with RLS policies
 const DEV_UUID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
@@ -39,37 +41,39 @@ export function useStudentRepertoire(studentId: string | undefined) {
         console.log(`🔍 Fetching repertoire for student ${studentId} from Supabase...`);
         
         // For UUID student IDs, we want to query Supabase directly
-        // We need to handle different ID formats - the database uses UUIDs
-        const studentIdForQuery = isUuid(studentId) ? studentId : studentId;
-        
-        const { data, error } = await supabase
-          .from('student_repertoire')
-          .select('*')
-          .eq('student_id', studentIdForQuery);
+        // Skip the API call if we don't have a valid UUID
+        if (isValidUUID(studentId)) {
+          const { data, error } = await supabase
+            .from('student_repertoire')
+            .select('*')
+            .eq('student_id', studentId);
+            
+          // If we get a successful response, cache it and return with source tracking
+          if (!error && data) {
+            console.log(`✅ Supabase returned ${data.length} repertoire pieces for student ${studentId}`);
+            setCachedData(data);
+            return data.map(item => ({ ...item, _source: 'database' }));
+          }
           
-        // If we get a successful response, cache it and return with source tracking
-        if (!error && data) {
-          console.log(`✅ Supabase returned ${data.length} repertoire pieces for student ${studentId}`);
-          setCachedData(data);
-          return data.map(item => ({ ...item, _source: 'api' }));
-        }
-        
-        // If API call failed, log the error
-        if (error) {
-          console.error(`Error fetching repertoire for student ${studentId}:`, error);
+          // If API call failed, log the error
+          if (error) {
+            console.error(`Error fetching repertoire for student ${studentId}:`, error);
+          }
+        } else {
+          console.log(`⚠️ Skipping API call for student ${studentId} - not a valid UUID`);
         }
         
         // STEP 2: Fall back to cached data if available
         if (cachedData && cachedData.length > 0) {
           console.log(`📦 Using ${cachedData.length} cached repertoire pieces for student ${studentId}`);
-          return cachedData.map(item => ({ ...item, _source: 'cache' }));
+          return cachedData.map(item => ({ ...item, _source: 'cached' }));
         }
       } catch (error) {
         console.error(`Error in useStudentRepertoire for student ${studentId}:`, error);
         
         // Fall back to cached data if available
         if (cachedData && cachedData.length > 0) {
-          return cachedData.map(item => ({ ...item, _source: 'cache' }));
+          return cachedData.map(item => ({ ...item, _source: 'cached' }));
         }
       }
       
@@ -89,7 +93,7 @@ export function useStudentRepertoire(studentId: string | undefined) {
           {
             id: 'sr-1',
             student_id: studentId,
-            master_piece_id: 'p-1',
+            master_piece_id: DEV_REPERTOIRE_UUIDS.PIECE_1,
             status: 'current',
             start_date: '2023-01-15',
             end_date: null,
@@ -102,7 +106,7 @@ export function useStudentRepertoire(studentId: string | undefined) {
           {
             id: 'sr-2',
             student_id: studentId,
-            master_piece_id: 'p-2',
+            master_piece_id: DEV_REPERTOIRE_UUIDS.PIECE_2,
             status: 'completed',
             start_date: '2022-10-01',
             end_date: '2022-12-15',
@@ -115,7 +119,7 @@ export function useStudentRepertoire(studentId: string | undefined) {
           {
             id: 'sr-3',
             student_id: studentId,
-            master_piece_id: 'p-3',
+            master_piece_id: DEV_REPERTOIRE_UUIDS.PIECE_3,
             status: 'current',
             start_date: '2023-02-01',
             end_date: null,

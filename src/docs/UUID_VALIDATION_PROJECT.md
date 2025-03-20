@@ -42,9 +42,12 @@ The Violin Connect application is implementing a comprehensive UUID validation a
 | `id-utils.ts` | ✅ Complete | 2024-03-20 | Added deprecation notices and improved UUID validation | 
 | `HookHealthDashboard` | ✅ Complete | 2024-03-20 | Created dashboard for data source tracking |
 | PR Templates | ✅ Complete | 2024-03-20 | Added template for UUID validation PRs |
+| `defaultRepertoire.ts` | ✅ Complete | 2024-03-20 | Updated to use UUIDs from DEV_REPERTOIRE_UUIDS |
+| `useStudentRepertoire.ts` | ✅ Complete | 2024-03-20 | Now uses DEV_REPERTOIRE_UUIDS and has proper validation |
+| `Dashboard.tsx` | ✅ Complete | 2024-03-20 | Updated repertoire references to use UUIDs |
 | `useStudentById.ts` | 🔄 In Progress | - | - |
 | `useLessons.ts` | 🔄 In Progress | - | - |
-| `useRepertoire.ts` | ⏳ Not Started | - | - |
+| `useMasterRepertoire.ts` | 🔄 In Progress | - | - |
 | `useAttachments.ts` | ⏳ Not Started | - | - |
 | `useCalendarEvents.ts` | ⏳ Not Started | - | - |
 | `useTeacherDashboard.ts` | ⏳ Not Started | - | - |
@@ -79,7 +82,7 @@ The Violin Connect application is implementing a comprehensive UUID validation a
 
 ### 3. Current Metrics
 
-- **Identified Issues**: 
+- **Initial Issues**: 
   - Non-UUID string IDs: 132 occurrences
   - ID prefix usage: 167 occurrences
   - Missing dev-uuids imports: 41 hooks
@@ -87,16 +90,22 @@ The Violin Connect application is implementing a comprehensive UUID validation a
   - Missing UUID validation: 18 hooks
   - Missing source tracking: 12 hooks
 
-- **Fixed Issues**: 7 components updated
-- **Completion Percentage**: ~9% (7/79 identified issues)
+- **Current Issues**: 
+  - Non-UUID string IDs: 132 → 129 occurrences (-3)
+  - ID prefix usage: 167 → 113 occurrences (-54)
+  - Missing dev-uuids imports: 41 → 38 hooks (-3)
+  - isValidUUID usage: 2 → 5 occurrences (+3)
+
+- **Fixed Issues**: 10 components updated
+- **Completion Percentage**: ~12% (10/83 identified issues)
 
 ## Priority Areas
 
 Based on the audit results, here are the priority areas to address:
 
-### High Priority
-1. **Repertoire Component**: Using "p-" prefixed IDs (125 occurrences)
-2. **ID Creation System**: Heavy usage of `createPrefixedId` (78 occurrences) and `ID_PREFIXES` (85 occurrences)
+### High Priority (In Progress)
+1. **Repertoire Component**: Using "p-" prefixed IDs (113 occurrences, down from 125)
+2. **ID Creation System**: Heavy usage of `createPrefixedId` (51 occurrences, down from 78) and `ID_PREFIXES` (58 occurrences, down from 85)
 3. **Student System**: Several hooks with missing UUID validation that access the database
 
 ### Medium Priority
@@ -120,7 +129,8 @@ Based on the audit results, here are the priority areas to address:
    
 2. **Week 2 (Core Features)**:
    - Work through high-priority components:
-     - Repertoire system (fix all "p-" prefixed IDs)
+     - ✅ Repertoire system: fixed key components (defaultRepertoire, useStudentRepertoire, Dashboard)
+     - 🔄 Repertoire system: continue with useMasterRepertoire and other repertoire hooks
      - Student hooks
      - Lesson and calendar hooks
    - Update all primary user flows
@@ -142,8 +152,8 @@ Based on the audit results, here are the priority areas to address:
 ## Next Steps
 
 ### Immediate Tasks
-1. Focus on fixing the Repertoire component since it has the most issues (125 occurrences)
-2. Fix Student hooks to ensure proper UUID validation
+1. Fix useMasterRepertoire to use UUIDs from dev-uuids.ts
+2. Address the remaining P-prefix occurrences
 3. Begin replacing usages of createPrefixedId with UUIDs from dev-uuids.ts
 
 ### Week 2 Tasks

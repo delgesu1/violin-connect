@@ -4,37 +4,13 @@ import { useAuth } from '@clerk/clerk-react';
 import type { Database } from '@/types/supabase';
 import { defaultMasterRepertoire } from '@/data/defaultRepertoire'; // Used for fallback/testing
 import { getCachedMockData, setCachedMockData } from '@/lib/mockDataCache';
-import { ID_PREFIXES, getIdWithoutPrefix } from '@/lib/id-utils';
+import { isValidUUID } from '@/lib/id-utils';
+import { DEV_TEACHER_UUID, DEV_REPERTOIRE_UUIDS } from '@/lib/dev-uuids';
 
 // Check if we're in development mode
 const isDevelopmentMode = import.meta.env.VITE_DEV_MODE === 'true';
-// For development, use a consistent UUID that works with RLS policies
-const DEV_UUID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
-/**
- * Check if a string appears to be a UUID
- */
-function isUuid(id: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-}
-
-// Custom hook that provides a fallback for useAuth in development mode
-const useDevelopmentAuth = () => {
-  // In development mode, return mock auth data
-  if (isDevelopmentMode) {
-    return { 
-      userId: DEV_UUID, 
-      isLoaded: true, 
-      isSignedIn: true, 
-      getToken: async () => "mock-token-for-development" 
-    };
-  }
-  
-  // In production, use the real Clerk useAuth
-  return useAuth();
-};
-
-// Types for our hook returns
+// Types for the hook returns
 export type MasterRepertoire = Database['public']['Tables']['master_repertoire']['Row'];
 export type NewMasterRepertoire = Database['public']['Tables']['master_repertoire']['Insert'];
 export type UpdateMasterRepertoire = Database['public']['Tables']['master_repertoire']['Update'];
@@ -96,22 +72,19 @@ export function useMasterRepertoire() {
         // Cache the mock data for future use
         setCachedMockData(cacheKey, mockData);
         
-        return mockData.map(item => ({...item, _source: 'mock-fallback'}));
-      } catch (err) {
-        console.error('Unexpected error fetching master repertoire:', err);
+        // Return with source tracking
+        return mockData.map(item => ({...item, _source: 'mock'}));
+      } catch (error) {
+        console.error('Error in useMasterRepertoire:', error);
         
-        // STEP 2 (after error): Try to use cached data
+        // Try to use cached data as fallback
         const cachedData = getCachedMockData<MasterRepertoire[]>(cacheKey, []);
         if (cachedData && cachedData.length > 0) {
-          console.log(`📦 Using ${cachedData.length} cached master repertoire pieces after error`);
-          return cachedData.map(item => ({...item, _source: 'cached-fallback'}));
+          return cachedData.map(item => ({...item, _source: 'cached-error-fallback'}));
         }
         
-        // STEP 3 (after error): Use mock data as final fallback
-        console.log('🔄 Using mock master repertoire data after error');
-        const mockData = generateMockMasterRepertoire();
-        
-        return mockData.map(item => ({...item, _source: 'mock-fallback'}));
+        // Use mock data as final fallback
+        return generateMockMasterRepertoire().map(item => ({...item, _source: 'mock-error-fallback'}));
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -119,21 +92,31 @@ export function useMasterRepertoire() {
 }
 
 /**
- * Get a single master repertoire piece by ID
+ * Get a specific master repertoire piece by ID
  */
 export function useMasterRepertoirePiece(id: string | undefined) {
-  const { data: allPieces } = useMasterRepertoire();
-  const cacheKey = `masterRepertoirePiece-${id}`;
+  const queryClient = useQueryClient();
+  const cacheKey = `masterRepertoire_${id}`;
   
-  return useQuery<MasterRepertoire | null>({
+  return useQuery<(MasterRepertoire & { _source?: string }) | null>({
     queryKey: ['masterRepertoire', id],
     queryFn: async () => {
       if (!id) return null;
       
       try {
-        // CRITICAL: For UUID format IDs, try to fetch directly from Supabase first
-        if (isUuid(id)) {
-          console.log(`🔍 Attempting to fetch piece with UUID ${id} from Supabase...`);
+        // STEP 1: Try to get from cache of all pieces first
+        const allMasterRepertoire = queryClient.getQueryData<(MasterRepertoire & { _source?: string })[]>(['masterRepertoire']);
+        if (allMasterRepertoire) {
+          const piece = allMasterRepertoire.find(p => p.id === id);
+          if (piece) {
+            console.log(`📦 Found piece ${id} in existing query cache`);
+            return piece;
+          }
+        }
+        
+        // STEP 2: Try the API call if we have a valid UUID
+        if (isValidUUID(id)) {
+          console.log(`🔍 Fetching piece ${id} from Supabase...`);
           
           const { data, error } = await supabase
             .from('master_repertoire')
@@ -142,70 +125,39 @@ export function useMasterRepertoirePiece(id: string | undefined) {
             .single();
             
           if (!error && data) {
-            // Successfully found in database
-            console.log(`✅ Found piece with UUID ${id} in Supabase`);
-            
-            // Cache the successful response
-            setCachedMockData(cacheKey, data);
-            
+            console.log(`✅ Successfully fetched piece ${id} from Supabase`);
             return { ...data, _source: 'database' };
           }
           
           if (error) {
-            console.error(`Error fetching piece with UUID ${id}:`, error);
+            console.error(`Error fetching piece ${id}:`, error);
           }
+        } else {
+          console.log(`⚠️ Skipping API call for piece ${id} - not a valid UUID`);
         }
         
-        // Try to find in the existing data first
-        if (allPieces && allPieces.length > 0) {
-          const exactMatch = allPieces.find(p => p.id === id);
-          if (exactMatch) {
-            console.log(`📦 Found piece with ID ${id} in cached collection data`);
-            return { ...exactMatch, _source: exactMatch._source || 'cached' };
-          }
-        }
-        
-        // Check if we have this specific piece cached
-        const cachedPiece = getCachedMockData<MasterRepertoire | null>(cacheKey, null);
+        // STEP 3: Try individual piece cache
+        const cachedPiece = getCachedMockData<MasterRepertoire>(cacheKey, null);
         if (cachedPiece) {
-          console.log(`📦 Using cached data for piece ${id}`);
+          console.log(`📦 Using cached piece ${id}`);
           return { ...cachedPiece, _source: 'cached' };
         }
         
-        // If we're dealing with a UUID that we couldn't find, create a fallback with mock data
-        if (isUuid(id)) {
-          console.log(`⚠️ Creating fallback data for UUID ${id}`);
-          
-          // Get mock data to use as template
-          const mockData = generateMockMasterRepertoire();
-          if (mockData.length > 0) {
-            const fallbackPiece = { 
-              ...mockData[0], 
-              id, 
-              title: `Piece ${id.substr(0, 6)}...`,
-              _source: 'mock-fallback' 
-            };
-            
-            // Cache this fallback for future use
-            setCachedMockData(cacheKey, fallbackPiece);
-            
-            return fallbackPiece;
-          }
+        // STEP 4: Look in mock data
+        const mockData = generateMockMasterRepertoire();
+        const mockPiece = mockData.find(p => p.id === id);
+        
+        if (mockPiece) {
+          console.log(`🔄 Using mock piece ${id}`);
+          setCachedMockData(cacheKey, mockPiece);
+          return { ...mockPiece, _source: 'mock' };
         }
         
-        console.log(`⚠️ No piece found with ID ${id}`);
+        // Couldn't find the piece
+        console.log(`❌ Piece ${id} not found`);
         return null;
-      } catch (err) {
-        console.error(`Unexpected error fetching piece with ID ${id}:`, err);
-        
-        // Check if we have this specific piece cached after error
-        const cachedPiece = getCachedMockData<MasterRepertoire | null>(cacheKey, null);
-        if (cachedPiece) {
-          console.log(`📦 Using cached data for piece ${id} after error`);
-          return { ...cachedPiece, _source: 'cached-fallback' };
-        }
-        
-        // If nothing else works, return null
+      } catch (error) {
+        console.error(`Error in useMasterRepertoirePiece for ${id}:`, error);
         return null;
       }
     },
@@ -225,14 +177,20 @@ export function useCreateMasterRepertoire() {
       // For development, just log and return mock data
       if (isDevelopmentMode) {
         console.log('Creating master repertoire (mock):', newPiece);
-        const id = `m-${Date.now()}`;
-        const mockPiece = { ...newPiece, id, created_at: new Date().toISOString() } as MasterRepertoire;
+        
+        // Generate a new UUID for the piece if not provided
+        const pieceId = crypto.randomUUID();
+        const mockPiece = { 
+          ...newPiece, 
+          id: pieceId, 
+          created_at: new Date().toISOString() 
+        } as MasterRepertoire;
         
         // Update the cached mock data
         const existingData = getCachedMockData<MasterRepertoire[]>('masterRepertoire', []) || generateMockMasterRepertoire();
         setCachedMockData('masterRepertoire', [...existingData, mockPiece]);
         
-        return mockPiece;
+        return { ...mockPiece, _source: 'mock-created' };
       }
       
       // For production, use the real API
@@ -247,10 +205,12 @@ export function useCreateMasterRepertoire() {
         throw error;
       }
       
-      return data as MasterRepertoire;
+      return { ...data, _source: 'database-created' } as MasterRepertoire & { _source: string };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['masterRepertoire'] });
+      // Also update the individual piece cache
+      setCachedMockData(`masterRepertoire_${data.id}`, data);
     },
   });
 }
@@ -263,6 +223,11 @@ export function useUpdateMasterRepertoire() {
   
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: UpdateMasterRepertoire }) => {
+      // Check for valid UUID before attempting database operation
+      if (!isValidUUID(id) && !isDevelopmentMode) {
+        throw new Error(`Invalid UUID format for piece ID: ${id}`);
+      }
+      
       // For development, just log and return mock data
       if (isDevelopmentMode) {
         console.log(`Updating master repertoire ${id} (mock):`, updates);
@@ -274,7 +239,16 @@ export function useUpdateMasterRepertoire() {
         );
         setCachedMockData('masterRepertoire', updatedData);
         
-        return { id, ...updates } as MasterRepertoire;
+        // Find the updated piece
+        const updatedPiece = updatedData.find(p => p.id === id);
+        if (!updatedPiece) {
+          throw new Error(`Piece with ID ${id} not found`);
+        }
+        
+        // Update the individual piece cache too
+        setCachedMockData(`masterRepertoire_${id}`, updatedPiece);
+        
+        return { ...updatedPiece, _source: 'mock-updated' };
       }
       
       // For production, use the real API
@@ -290,11 +264,13 @@ export function useUpdateMasterRepertoire() {
         throw error;
       }
       
-      return data as MasterRepertoire;
+      return { ...data, _source: 'database-updated' } as MasterRepertoire & { _source: string };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['masterRepertoire'] });
       queryClient.invalidateQueries({ queryKey: ['masterRepertoire', data.id] });
+      // Also update the individual piece cache
+      setCachedMockData(`masterRepertoire_${data.id}`, data);
     },
   });
 }
@@ -307,6 +283,11 @@ export function useDeleteMasterRepertoire() {
   
   return useMutation({
     mutationFn: async (id: string) => {
+      // Check for valid UUID before attempting database operation
+      if (!isValidUUID(id) && !isDevelopmentMode) {
+        throw new Error(`Invalid UUID format for piece ID: ${id}`);
+      }
+      
       // For development, just log and update mock data
       if (isDevelopmentMode) {
         console.log(`Deleting master repertoire ${id} (mock)`);
@@ -316,7 +297,10 @@ export function useDeleteMasterRepertoire() {
         const updatedData = existingData.filter(piece => piece.id !== id);
         setCachedMockData('masterRepertoire', updatedData);
         
-        return { id };
+        // Remove the individual piece cache too
+        setCachedMockData(`masterRepertoire_${id}`, null);
+        
+        return { id, _source: 'mock-deleted' };
       }
       
       // For production, use the real API
@@ -330,10 +314,13 @@ export function useDeleteMasterRepertoire() {
         throw error;
       }
       
-      return { id };
+      return { id, _source: 'database-deleted' };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['masterRepertoire'] });
+      queryClient.invalidateQueries({ queryKey: ['masterRepertoire', data.id] });
+      // Also clear the individual piece cache
+      setCachedMockData(`masterRepertoire_${data.id}`, null);
     },
   });
 } 
