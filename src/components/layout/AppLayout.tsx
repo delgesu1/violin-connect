@@ -6,7 +6,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { UserButton } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { User, LogOut } from "lucide-react";
-import { HookHealthDashboard } from '@/components/dev/HookHealthDashboard';
 
 // Check if in development mode
 const isDevelopmentMode = import.meta.env.VITE_DEV_MODE === 'true';
@@ -51,7 +50,6 @@ const AppLayout: React.FC = () => {
       </main>
       <Toaster />
       <Sonner />
-      <HookHealthDashboard />
     </div>
   );
 };

@@ -10,6 +10,7 @@ import {
 } from '@/lib/attachment-utils';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { isDevelopment } from '@/lib/environment';
+import { isValidUUID } from '@/lib/id-utils';
 
 export { 
   AttachmentEntityType, 
@@ -37,7 +38,7 @@ export interface UseAttachmentsOptions {
 // Attachment response with data source tracking
 export interface AttachmentsResponse {
   attachments: AttachmentContent[];
-  source: 'api' | 'cache' | 'mock';
+  source: 'database' | 'cached' | 'mock'; // Updated for consistency with other hooks
 }
 
 /**
@@ -51,6 +52,21 @@ export function useAttachments(options: UseAttachmentsOptions) {
   return useQuery({
     queryKey: ['attachments', entityType, entityId],
     queryFn: async (): Promise<AttachmentsResponse> => {
+      // Validate UUID
+      if (!isValidUUID(entityId)) {
+        console.error(`Invalid UUID format for ${entityType} entity: ${entityId}`);
+        
+        // In development, we can proceed with mock data
+        if (isDevelopment()) {
+          console.warn(`Using mock data for invalid UUID in development mode`);
+        } else {
+          return {
+            attachments: [],
+            source: 'database' // Empty result from "database"
+          };
+        }
+      }
+      
       // STEP 1: Try to fetch from API first
       try {
         const response = await fetch(`/api/attachments?entityType=${entityType}&entityId=${entityId}`);
@@ -61,7 +77,7 @@ export function useAttachments(options: UseAttachmentsOptions) {
           setCachedData(apiData);
           return {
             attachments: apiData,
-            source: 'api'
+            source: 'database'
           };
         }
         
@@ -72,7 +88,7 @@ export function useAttachments(options: UseAttachmentsOptions) {
         if (cachedData && cachedData.length > 0) {
           return {
             attachments: cachedData,
-            source: 'cache'
+            source: 'cached'
           };
         }
         
@@ -94,7 +110,7 @@ export function useAttachments(options: UseAttachmentsOptions) {
         // If nothing worked, return empty array
         return {
           attachments: [],
-          source: 'api' // Empty from API
+          source: 'database' // Empty from API
         };
       } catch (error) {
         console.error('Error fetching attachments:', error);
@@ -103,7 +119,7 @@ export function useAttachments(options: UseAttachmentsOptions) {
         if (cachedData && cachedData.length > 0) {
           return {
             attachments: cachedData,
-            source: 'cache'
+            source: 'cached'
           };
         }
         
@@ -153,6 +169,16 @@ export function useAddFileAttachment() {
         description?: string;
       } 
     }) => {
+      // Validate UUID
+      if (!isValidUUID(entityId)) {
+        console.error(`Invalid UUID format for ${entityType} entity: ${entityId}`);
+        
+        // In production, we reject invalid UUIDs
+        if (!isDevelopment()) {
+          throw new Error(`Invalid UUID format: ${entityId}`);
+        }
+      }
+      
       try {
         // Try to call the API first
         const response = await fetch(`/api/attachments/file`, {
@@ -183,7 +209,7 @@ export function useAddFileAttachment() {
             size: file.size,
             url: file.url,
             description: file.description,
-            createdAt: new Date().toISOString(),
+            createdAt: new Date().toISOString()
           };
           
           // Create an association

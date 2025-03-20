@@ -70,8 +70,8 @@ interface InspirationItem {
 const mockInspirationQueue: InspirationItem[] = [
   {
     id: '1',
-    title: 'Hilary Hahn: Technical Difficulties (Music Video)',
-    description: 'An entertaining and lighthearted music video by Hilary Hahn showcasing the challenges and frustrations that even world-class violinists face.',
+    title: 'Bach - Violin Partita no. 2 in D minor BWV 1004 - Sato',
+    description: 'Shrouded in wistfulness, all the movements of this Partita no. 2, here performed by Shunske Sato for All of Bach, are in a minor key.',
     url: 'https://www.youtube.com/watch?v=44Wz92zQe04',
     type: 'video',
     submittedBy: {

@@ -29,8 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format, parseISO } from 'date-fns';
 import { Student, RepertoirePiece, LegacyRepertoirePiece } from '@/components/common/StudentCard';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ID_PREFIXES, createPrefixedId, isValidUUID } from '@/lib/id-utils';
-import { DEV_REPERTOIRE_UUIDS, DEV_STUDENT_UUIDS } from '@/lib/dev-uuids';
+import { ID_PREFIXES, createPrefixedId } from '@/lib/id-utils';
 import PieceDisplay from '@/components/common/PieceDisplay';
 import { useRepertoire } from '@/contexts/RepertoireContext';
 import StudentCard from '@/components/common/StudentCard';
@@ -42,17 +41,17 @@ import { convertToSupabaseLesson } from '@/utils/dataConverters';
 import TranscriptDialog from '@/components/dialogs/TranscriptDialog';
 import AISummaryDialog from '@/components/dialogs/AISummaryDialog';
 
-// Update the masterRepertoire array to use UUIDs
+// Mock data for master repertoire (simplified version)
 const masterRepertoire: RepertoireItemData[] = [
   {
-    id: DEV_REPERTOIRE_UUIDS.PIECE_1,
+    id: 'p-1',
     title: 'Partita No. 2 in D minor, BWV 1004',
     composer: 'J.S. Bach',
     startedDate: '2023-10-15',
     difficulty: 'advanced'
   },
   {
-    id: DEV_REPERTOIRE_UUIDS.PIECE_9,
+    id: 'p-9',
     title: 'Violin Concerto in E minor, Op. 64',
     composer: 'F. Mendelssohn',
     startedDate: '2023-04-20',
@@ -365,6 +364,7 @@ const collectRecentLessons = () => {
     transcriptUrl?: string;
     summary?: string;
     duration?: string;
+    _source?: string;
   }[] = [];
 
   // Collect lessons from all students
@@ -379,7 +379,8 @@ const collectRecentLessons = () => {
             avatarUrl: student.avatarUrl
           },
           // Add a default duration if not present
-          duration: '45 minutes'
+          duration: '45 minutes',
+          _source: 'cached'
         });
       });
     }
@@ -615,6 +616,17 @@ const Dashboard = () => {
                     <Badge variant="outline" className="bg-gray-50 font-normal">
                       {format(new Date(lesson.date), 'MMM d, yyyy')}
                     </Badge>
+                    
+                    {/* Source badge for development mode */}
+                    {import.meta.env.VITE_DEV_MODE === 'true' && lesson._source && (
+                      <Badge variant={
+                        lesson._source === 'database' ? 'default' : 
+                        lesson._source === 'cached' ? 'secondary' : 
+                        'outline'
+                      } className="text-xs">
+                        {lesson._source}
+                      </Badge>
+                    )}
                   </div>
                   
                   <div className="flex items-center gap-3 mb-3">

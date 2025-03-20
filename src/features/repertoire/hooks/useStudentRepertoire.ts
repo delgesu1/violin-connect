@@ -7,22 +7,12 @@ import { clerkIdToUuid } from '@/lib/auth-utils';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { isDevelopment } from '@/lib/environment';
 import { isValidUUID } from '@/lib/id-utils';
-import { DEV_REPERTOIRE_UUIDS, DEV_STUDENT_UUIDS } from '@/lib/dev-uuids';
-
-// For development, use a consistent UUID that works with RLS policies
-const DEV_UUID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+import { DEV_TEACHER_UUID, DEV_STUDENT_UUIDS } from '@/lib/dev-uuids';
 
 // Types for our hook returns
 export type StudentRepertoire = Database['public']['Tables']['student_repertoire']['Row'];
 export type NewStudentRepertoire = Database['public']['Tables']['student_repertoire']['Insert'];
 export type UpdateStudentRepertoire = Database['public']['Tables']['student_repertoire']['Update'];
-
-/**
- * Check if a string appears to be a UUID
- */
-function isUuid(id: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-}
 
 /**
  * Get all repertoire for a specific student
@@ -37,30 +27,36 @@ export function useStudentRepertoire(studentId: string | undefined) {
       if (!studentId) return [];
       
       try {
+        // Validate UUID
+        if (!isValidUUID(studentId)) {
+          console.error(`Invalid student UUID format: ${studentId}`);
+          
+          // In development, we can still proceed with mock data
+          if (isDevelopment()) {
+            console.warn(`Using mock data for invalid student UUID: ${studentId}`);
+          } else {
+            return [];
+          }
+        }
+        
         // STEP 1: Try to fetch from API first
         console.log(`🔍 Fetching repertoire for student ${studentId} from Supabase...`);
         
-        // For UUID student IDs, we want to query Supabase directly
-        // Skip the API call if we don't have a valid UUID
-        if (isValidUUID(studentId)) {
-          const { data, error } = await supabase
-            .from('student_repertoire')
-            .select('*')
-            .eq('student_id', studentId);
-            
-          // If we get a successful response, cache it and return with source tracking
-          if (!error && data) {
-            console.log(`✅ Supabase returned ${data.length} repertoire pieces for student ${studentId}`);
-            setCachedData(data);
-            return data.map(item => ({ ...item, _source: 'database' }));
-          }
+        const { data, error } = await supabase
+          .from('student_repertoire')
+          .select('*')
+          .eq('student_id', studentId);
           
-          // If API call failed, log the error
-          if (error) {
-            console.error(`Error fetching repertoire for student ${studentId}:`, error);
-          }
-        } else {
-          console.log(`⚠️ Skipping API call for student ${studentId} - not a valid UUID`);
+        // If we get a successful response, cache it and return with source tracking
+        if (!error && data) {
+          console.log(`✅ Supabase returned ${data.length} repertoire pieces for student ${studentId}`);
+          setCachedData(data);
+          return data.map(item => ({ ...item, _source: 'database' }));
+        }
+        
+        // If API call failed, log the error
+        if (error) {
+          console.error(`Error fetching repertoire for student ${studentId}:`, error);
         }
         
         // STEP 2: Fall back to cached data if available
@@ -93,7 +89,7 @@ export function useStudentRepertoire(studentId: string | undefined) {
           {
             id: 'sr-1',
             student_id: studentId,
-            master_piece_id: DEV_REPERTOIRE_UUIDS.PIECE_1,
+            master_piece_id: 'p-1',
             status: 'current',
             start_date: '2023-01-15',
             end_date: null,
@@ -106,7 +102,7 @@ export function useStudentRepertoire(studentId: string | undefined) {
           {
             id: 'sr-2',
             student_id: studentId,
-            master_piece_id: DEV_REPERTOIRE_UUIDS.PIECE_2,
+            master_piece_id: 'p-2',
             status: 'completed',
             start_date: '2022-10-01',
             end_date: '2022-12-15',
@@ -119,7 +115,7 @@ export function useStudentRepertoire(studentId: string | undefined) {
           {
             id: 'sr-3',
             student_id: studentId,
-            master_piece_id: DEV_REPERTOIRE_UUIDS.PIECE_3,
+            master_piece_id: 'p-3',
             status: 'current',
             start_date: '2023-02-01',
             end_date: null,
@@ -158,19 +154,30 @@ export function useAssignRepertoire() {
       studentId: string;
       masterPieceId: string;
     }) => {
+      // Validate UUIDs
+      if (!isValidUUID(studentId)) {
+        console.error(`Invalid student UUID format: ${studentId}`);
+        if (!isDevelopment()) {
+          throw new Error(`Invalid UUID format: ${studentId}`);
+        }
+      }
+      
+      if (!isValidUUID(masterPieceId)) {
+        console.error(`Invalid master piece UUID format: ${masterPieceId}`);
+        if (!isDevelopment()) {
+          throw new Error(`Invalid UUID format: ${masterPieceId}`);
+        }
+      }
+      
       // For development, use mock data
       if (isDevelopment()) {
         console.log(`Assigning piece ${masterPieceId} to student ${studentId} (mock)`);
         
-        // Handle UUID IDs
-        const studentIdForQuery = isUuid(studentId) ? studentId : studentId;
-        const pieceIdForQuery = isUuid(masterPieceId) ? masterPieceId : masterPieceId;
-        
         // Create a mock student repertoire item
         const mockData: StudentRepertoire = {
           id: `sr-${Date.now()}`,
-          student_id: studentIdForQuery,
-          master_piece_id: pieceIdForQuery,
+          student_id: studentId,
+          master_piece_id: masterPieceId,
           status: 'current',
           start_date: new Date().toISOString().split('T')[0],
           end_date: null,
@@ -189,16 +196,12 @@ export function useAssignRepertoire() {
         return mockData;
       }
       
-      // Handle UUID IDs for real API calls
-      const studentIdForQuery = isUuid(studentId) ? studentId : studentId;
-      const pieceIdForQuery = isUuid(masterPieceId) ? masterPieceId : masterPieceId;
-      
       // For production, use the real API
       const { data, error } = await supabase
         .from('student_repertoire')
         .insert({
-          student_id: studentIdForQuery,
-          master_piece_id: pieceIdForQuery,
+          student_id: studentId,
+          master_piece_id: masterPieceId,
           status: 'current',
           start_date: new Date().toISOString().split('T')[0],
           notes: ''
@@ -227,6 +230,14 @@ export function useUpdateStudentRepertoire() {
   
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: UpdateStudentRepertoire }) => {
+      // Validate UUID
+      if (!isValidUUID(id)) {
+        console.error(`Invalid repertoire piece UUID format: ${id}`);
+        if (!isDevelopment()) {
+          throw new Error(`Invalid UUID format: ${id}`);
+        }
+      }
+      
       // For development, use mock data
       if (isDevelopment()) {
         console.log(`Updating student repertoire ${id} (mock):`, updates);
@@ -282,6 +293,14 @@ export function useDeleteStudentRepertoire() {
   
   return useMutation({
     mutationFn: async (id: string) => {
+      // Validate UUID
+      if (!isValidUUID(id)) {
+        console.error(`Invalid repertoire piece UUID format: ${id}`);
+        if (!isDevelopment()) {
+          throw new Error(`Invalid UUID format: ${id}`);
+        }
+      }
+      
       // First, get the item to know the student_id for cache invalidation
       let studentId: string | null = null;
       

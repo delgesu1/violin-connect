@@ -42,6 +42,7 @@ export type CalendarEvent = {
   recurrence_rule: string | null;
   created_at: string | null;
   updated_at: string | null;
+  _source?: 'database' | 'cached' | 'mock';
 }
 
 export type LessonEvent = {

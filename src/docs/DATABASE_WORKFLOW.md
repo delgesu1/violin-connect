@@ -82,38 +82,221 @@ Toggle between modes by changing `VITE_DEV_MODE` in your `.env` file.
 
 ## Hybrid Caching System
 
-Our new hybrid approach provides a more robust development experience while maintaining schema integrity:
+Our new gold standard hybrid caching approach provides a robust development experience while maintaining schema integrity. This approach has been successfully implemented in the calendar components and should be followed for all data-fetching hooks.
 
-### Key Components:
+### Priority Flow
 
-1. **Data Caching Utilities**
-   ```typescript
-   // Cache successful API responses
-   cacheMockData(key: string, data: any): void
-   
-   // Retrieve cached data with fallback
-   getCachedMockData<T>(key: string, defaultValue: T): T
-   ```
+All data fetching hooks MUST follow this strict priority order:
 
-2. **Enhanced Error Handling**
-   - Primary: Attempt real API call
-   - Secondary: Try to use cached data
-   - Tertiary: Fall back to mock data
-   - Always maintain schema consistency
+1. **Database (Supabase)**: Always attempt to fetch real data first
+2. **Cache**: Fall back to cached data ONLY if database fetch fails
+3. **Mock Data**: Only use as a last resort in development mode
 
-3. **Source Tracking**
-   - Data objects include a `_source` property indicating origin:
-     - `'database'`: Live API response
-     - `'cached'`: Retrieved from cached data
-     - `'mock'`: Static mock data
-     - `'cached-fallback'`: Cached data used after API error
-     - `'mock-fallback'`: Mock data used after API error
+### Implementation Template
 
-4. **Cache Management During Mutations**
-   - When creating, updating, or deleting data:
-     - Perform the API operation
-     - Update all related caches on success
-     - Keep cache consistent with server state
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { isValidUUID } from '@/lib/id-utils';
+import { DEV_TEACHER_UUID } from '@/lib/dev-uuids';
+
+// Check development mode
+const isDev = import.meta.env.VITE_DEV_MODE === 'true';
+
+// Cache key constant
+const CACHE_KEY_PREFIX = 'entity_cache';
+
+// Helper to get cached data
+const getCachedData = (id: string) => {
+  try {
+    const cached = localStorage.getItem(`${CACHE_KEY_PREFIX}:${id}`);
+    return cached ? JSON.parse(cached) : null;
+  } catch (err) {
+    console.warn(`Error reading cache:`, err);
+    return null;
+  }
+};
+
+// Helper to cache data
+const setCachedData = (id: string, data: any) => {
+  try {
+    localStorage.setItem(
+      `${CACHE_KEY_PREFIX}:${id}`,
+      JSON.stringify({ ...data, _source: 'database' })
+    );
+  } catch (err) {
+    console.warn(`Error setting cache:`, err);
+  }
+};
+
+// Helper to generate mock data
+const getMockData = (id: string) => {
+  // Return mock data using DEV_* constants from dev-uuids.ts
+  // Include the _source property to track data origin
+  return {
+    id,
+    // other required fields...
+    _source: 'mock'
+  };
+};
+
+// Hook implementation
+export function useEntityById(id: string | undefined) {
+  return useQuery({
+    queryKey: ['entity', id],
+    queryFn: async () => {
+      // Early validation
+      if (!id) return null;
+      
+      // UUID validation
+      if (!isValidUUID(id)) {
+        console.error(`Invalid UUID: ${id}`);
+        
+        // Only use mock data for invalid UUIDs in development
+        return isDev ? getMockData(id) : null;
+      }
+      
+      // FIRST PRIORITY: Try database
+      try {
+        const { data, error } = await supabase
+          .from('entities')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (error) throw error;
+        
+        if (data) {
+          // Add source tracking
+          const dataWithSource = {
+            ...data,
+            _source: 'database'
+          };
+          
+          // Cache successful results
+          setCachedData(id, dataWithSource);
+          
+          return dataWithSource;
+        }
+        
+        return null;
+      } catch (err) {
+        console.error('Database fetch error:', err);
+        
+        // SECOND PRIORITY: Try cache on database error
+        const cachedData = getCachedData(id);
+        if (cachedData) {
+          console.info('Using cached data');
+          return { ...cachedData, _source: 'cached' };
+        }
+        
+        // THIRD PRIORITY: Use mock data in development
+        if (isDev) {
+          console.info('Using mock data');
+          return getMockData(id);
+        }
+        
+        return null;
+      }
+    },
+    enabled: !!id
+  });
+}
+
+### Key Requirements
+
+1. **Source Tracking**: All data MUST include an `_source` property with the value:
+   - `'database'` - Data fetched directly from Supabase
+   - `'cached'` - Data retrieved from localStorage cache
+   - `'mock'` - Generated mock data
+
+2. **UUID Validation**: All IDs must be validated with `isValidUUID()` before database operations
+
+3. **Standardized Mock Data**: Use constants from `dev-uuids.ts` for all development UUIDs
+
+4. **Cache Management**: Implement proper cache invalidation in mutation hooks
+
+5. **Error Handling**: Log meaningful error messages at each step
+
+6. **Schema Consistency**: Mock data MUST match the database schema exactly
+
+7. **Hybrid Operation**: The hook must handle both development and production modes seamlessly
+
+### Cache Invalidation
+
+Mutation hooks (create/update/delete) must invalidate relevant caches:
+
+```typescript
+// Helper to invalidate entity caches
+const invalidateEntityCaches = (id?: string) => {
+  try {
+    // Get all cache keys from localStorage
+    const allKeys = Object.keys(localStorage);
+    
+    // Find and remove relevant cache entries
+    allKeys.forEach(key => {
+      if (key.startsWith(CACHE_KEY_PREFIX) || 
+          (id && key === `${CACHE_KEY_PREFIX}:${id}`)) {
+        localStorage.removeItem(key);
+      }
+    });
+  } catch (err) {
+    console.warn('Error invalidating caches:', err);
+  }
+};
+
+// Use in mutation hooks
+export function useCreateEntity() {
+  return useMutation({
+    mutationFn: async (newEntity) => {
+      // Database operation...
+      
+      // Invalidate caches after success
+      invalidateEntityCaches();
+      
+      return result;
+    }
+  });
+}
+```
+
+### Debugging Tools
+
+Use the `HookHealthDashboard` component to visualize data sources:
+
+```tsx
+<HookHealthDashboard hook={useEntityById(id)} label="Entity Query" />
+```
+
+This will show a color-coded panel indicating:
+- Green: Database data
+- Purple: Cached data
+- Blue: Mock data
+- Red: Error state
+
+## Completed Components
+
+The following hooks have been updated to follow the gold standard hybrid caching approach:
+
+- ✅ `useCalendarEvents.ts` - For fetching multiple calendar events
+- ✅ `useCalendarEvent.ts` - For fetching a single calendar event 
+- ✅ `useCalendarMutations.ts` - Create/update/delete calendar events
+- ✅ `useLessons.ts` - Lesson data management
+
+## Remaining Components to Update
+
+The following hooks still need to be updated to follow the hybrid caching approach:
+
+- ⏳ `useStudentById.ts` - Currently in progress
+- ⏳ `useRepertoire.ts`
+- ⏳ `useAttachments.ts`
+- ⏳ `useTeacherDashboard.ts`
+- ⏳ `/features/journal` hooks
+- ⏳ `/features/repertoire` hooks
+- ⏳ `/features/user` hooks
+- ⏳ `/features/discussions` hooks
+- ⏳ `/features/messages` hooks
+- ⏳ `/features/files` hooks
 
 ## Complete Migration Workflow
 

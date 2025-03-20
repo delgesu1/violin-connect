@@ -1,148 +1,127 @@
-/**
- * Hook Health Dashboard
- * 
- * This component displays the data source of all active hooks in development mode.
- * It helps developers understand where data is coming from (database, cache, mock).
- * 
- * Only visible in development mode.
- */
+import React from 'react';
+import { UseQueryResult } from '@tanstack/react-query';
 
-import { useState, useEffect } from 'react';
-
-// Store active data sources globally to track across components
-export const activeHookSources: Record<string, string> = {};
-
-// Set a data source for display in the dashboard
-export function setActiveHookSource(hookName: string, source: string) {
-  activeHookSources[hookName] = source;
+interface HookHealthDashboardProps {
+  hook: UseQueryResult<any, unknown>;
+  label?: string;
 }
 
-// Register a hook's data source
-export function registerHookSource<T extends { _source?: string }>(
-  hookName: string, 
-  data: T | T[] | null | undefined
-): void {
-  if (!data) {
-    setActiveHookSource(hookName, 'empty');
-    return;
+/**
+ * A development component for visualizing hook data sources and status
+ * 
+ * This component helps track where data is coming from (database, mock, cached)
+ * and displays the current status of the query for debugging.
+ */
+const HookHealthDashboard: React.FC<HookHealthDashboardProps> = ({
+  hook,
+  label = 'Hook Status'
+}) => {
+  const { data, isLoading, isError, error, isFetching, isSuccess } = hook;
+  
+  // Determine the data source
+  let source = 'unknown';
+  if (data) {
+    if (Array.isArray(data)) {
+      source = data.length > 0 ? data[0]?._source || 'unknown' : 'empty array';
+    } else {
+      source = data._source || 'unknown';
+    }
   }
   
-  const source = Array.isArray(data) 
-    ? (data[0]?._source || 'unknown') 
-    : (data._source || 'unknown');
-    
-  setActiveHookSource(hookName, source);
-}
-
-export function HookHealthDashboard() {
-  const [sources, setSources] = useState<Record<string, string>>({});
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [filter, setFilter] = useState('all');
-  
-  // Only render in development mode
-  const isDevelopmentMode = import.meta.env.VITE_DEV_MODE === 'true';
-  if (!isDevelopmentMode) return null;
-  
-  // Update sources state every second
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      setSources({...activeHookSources});
-    }, 1000);
-    
-    return () => clearInterval(intervalId);
-  }, []);
-  
-  const getSourceClassName = (source: string) => {
-    if (source.includes('database')) return 'text-green-500';
-    if (source.includes('cached')) return 'text-blue-500';
-    if (source.includes('mock')) return 'text-yellow-500';
-    return 'text-gray-400';
+  // Set colors based on status
+  const getBgColor = () => {
+    if (isError) return 'bg-red-100 border-red-300';
+    if (isLoading) return 'bg-yellow-100 border-yellow-300';
+    if (isSuccess) {
+      if (source === 'database') return 'bg-green-100 border-green-300';
+      if (source === 'mock') return 'bg-blue-100 border-blue-300';
+      if (source === 'cached') return 'bg-purple-100 border-purple-300';
+      return 'bg-gray-100 border-gray-300';
+    }
+    return 'bg-gray-100 border-gray-300';
   };
   
-  const filteredSources = Object.entries(sources).filter(([_, source]) => {
-    if (filter === 'all') return true;
-    return source.includes(filter);
-  });
+  // Only show in development mode
+  if (import.meta.env.VITE_DEV_MODE !== 'true') {
+    return null;
+  }
   
   return (
-    <div className="fixed bottom-0 right-0 m-4 z-50">
-      <div 
-        className="bg-slate-900/95 text-white text-xs rounded-lg shadow-lg overflow-hidden"
-        style={{ maxHeight: isExpanded ? '70vh' : '40px' }}
-      >
-        <div 
-          className="p-2 font-mono flex items-center justify-between cursor-pointer" 
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
-          <span className="font-bold">
-            Hook Health{' '}
-            <span className="text-xs opacity-70">
-              ({Object.keys(sources).length})
+    <div className={`p-3 my-2 rounded border ${getBgColor()}`} data-testid="hook-health-dashboard">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="font-medium text-sm">{label}</h3>
+        <div className="flex gap-2">
+          {isLoading && (
+            <span className="px-2 py-1 text-xs rounded bg-yellow-200 text-yellow-800">
+              Loading
             </span>
+          )}
+          {isFetching && !isLoading && (
+            <span className="px-2 py-1 text-xs rounded bg-blue-200 text-blue-800">
+              Fetching
+            </span>
+          )}
+          {isError && (
+            <span className="px-2 py-1 text-xs rounded bg-red-200 text-red-800">
+              Error
+            </span>
+          )}
+          {isSuccess && (
+            <span className="px-2 py-1 text-xs rounded bg-green-200 text-green-800">
+              Success
+            </span>
+          )}
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-1 text-xs">
+        <div className="bg-gray-50 p-2 rounded">
+          <span className="font-medium">Source:</span>{' '}
+          <span className={
+            source === 'database' ? 'text-green-600 font-medium' : 
+            source === 'mock' ? 'text-blue-600 font-medium' : 
+            source === 'cached' ? 'text-purple-600 font-medium' : 
+            'text-gray-600'
+          }>
+            {source}
           </span>
-          <span>{isExpanded ? '▼' : '▲'}</span>
         </div>
         
-        {isExpanded && (
-          <>
-            <div className="px-2 py-1 border-t border-gray-700 flex gap-2">
-              <button 
-                className={`px-2 py-0.5 text-xs rounded ${filter === 'all' ? 'bg-gray-700' : 'bg-gray-800'}`}
-                onClick={() => setFilter('all')}
-              >
-                All
-              </button>
-              <button 
-                className={`px-2 py-0.5 text-xs rounded ${filter === 'database' ? 'bg-gray-700' : 'bg-gray-800'}`}
-                onClick={() => setFilter('database')}
-              >
-                <span className="text-green-500">●</span> Database
-              </button>
-              <button 
-                className={`px-2 py-0.5 text-xs rounded ${filter === 'cached' ? 'bg-gray-700' : 'bg-gray-800'}`}
-                onClick={() => setFilter('cached')}
-              >
-                <span className="text-blue-500">●</span> Cached
-              </button>
-              <button 
-                className={`px-2 py-0.5 text-xs rounded ${filter === 'mock' ? 'bg-gray-700' : 'bg-gray-800'}`}
-                onClick={() => setFilter('mock')}
-              >
-                <span className="text-yellow-500">●</span> Mock
-              </button>
-            </div>
-            
-            <div className="max-h-96 overflow-y-auto border-t border-gray-700">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-slate-900">
-                  <tr className="border-b border-gray-700">
-                    <th className="p-2 text-left">Hook</th>
-                    <th className="p-2 text-right">Source</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredSources.length === 0 ? (
-                    <tr>
-                      <td colSpan={2} className="p-4 text-center text-gray-500">
-                        No hooks with data sources registered
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredSources.map(([name, source]) => (
-                      <tr key={name} className="border-b border-gray-800">
-                        <td className="p-2">{name}</td>
-                        <td className={`p-2 text-right ${getSourceClassName(source)}`}>
-                          {source}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+        <div className="bg-gray-50 p-2 rounded">
+          <span className="font-medium">Data Type:</span>{' '}
+          {data ? (
+            <span>
+              {Array.isArray(data) 
+                ? `Array (${data.length})` 
+                : typeof data === 'object' 
+                  ? 'Object' 
+                  : typeof data}
+            </span>
+          ) : (
+            <span className="text-gray-600">null</span>
+          )}
+        </div>
       </div>
+      
+      {isError && error && (
+        <div className="mt-2 p-2 rounded bg-red-50 text-red-800 text-xs overflow-auto max-h-24">
+          <div className="font-medium">Error:</div>
+          <pre>{JSON.stringify(error, null, 2)}</pre>
+        </div>
+      )}
+      
+      {import.meta.env.VITE_DEV_MODE === 'true' && import.meta.env.MODE === 'development' && (
+        <div className="mt-2 text-right">
+          <button 
+            onClick={() => console.log('Hook Data:', data)} 
+            className="text-xs text-blue-600 underline"
+          >
+            Log data to console
+          </button>
+        </div>
+      )}
     </div>
   );
-} 
+};
+
+export default HookHealthDashboard; 

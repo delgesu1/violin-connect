@@ -1,289 +1,430 @@
 /**
- * Best Practice Hook Template
+ * Hook Template for Database Access
  * 
- * This file serves as a template for creating new data hooks that follow
- * the hybrid caching approach described in DATABASE_WORKFLOW.md.
+ * This template demonstrates best practices for implementing data-fetching hooks
+ * with proper UUID validation, hybrid caching, and development mode handling.
  * 
- * The pattern includes:
- * 1. Trying real API calls first
- * 2. Caching successful responses
- * 3. Falling back to cached data when API calls fail
- * 4. Using consistent mock data as final fallback
- * 5. Proper UUID validation to prevent database errors
- * 6. Data source tracking for development mode
+ * Use this as a reference when creating or updating database hooks.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-wrapper';
 import { clerkIdToUuid } from '@/lib/auth-utils';
-import { getCachedMockData, setCachedMockData } from '@/lib/mockDataCache';
 import { isValidUUID } from '@/lib/id-utils';
-import { DEV_TEACHER_UUID, DEV_STUDENT_UUIDS } from '@/lib/dev-uuids';
+import { DEV_TEACHER_UUID } from '@/lib/dev-uuids';
 
-// Check if we're in development mode
-const isDevelopmentMode = import.meta.env.VITE_DEV_MODE === 'true';
-
-// Define types for your hook return values
-export type YourEntityType = {
+// Generic type for entity with ID
+interface Entity {
   id: string;
-  name: string;
-  // Add other fields based on your database schema
-  _source?: 'database' | 'cached' | 'mock' | 'cached-fallback' | 'mock-fallback';
-};
-
-// Example mock data
-const mockData: YourEntityType[] = [
-  {
-    id: DEV_STUDENT_UUIDS.STUDENT_1, // Always use UUIDs from dev-uuids.ts
-    name: 'William Taylor',
-    // Add other fields...
-  },
-  {
-    id: DEV_STUDENT_UUIDS.STUDENT_2,
-    name: 'Sophia Chen',
-    // Add other fields...
-  }
-];
-
-/**
- * Hook to fetch data following the hybrid caching approach
- */
-export function useYourEntityData() {
-  const { userId } = useAuth();
-  const queryClient = useQueryClient();
-  
-  return useQuery<YourEntityType[]>({
-    queryKey: ['your_entity_data'],
-    queryFn: async () => {
-      // Enable in development mode without login, or in production with login
-      if (!userId && !isDevelopmentMode) return [];
-      
-      try {
-        // In development, use the dev UUID
-        const userUuid = isDevelopmentMode ? DEV_TEACHER_UUID : await clerkIdToUuid(userId!);
-        
-        console.log(`Fetching data from Supabase...`);
-        
-        // Fetch from Supabase
-        const { data, error } = await supabase
-          .from('your_table_name')
-          .select('*')
-          .eq('user_id', userUuid);
-          
-        if (error) {
-          console.error('Error fetching data from Supabase:', error);
-          throw error;
-        }
-        
-        // If successful, cache the response
-        if (data && data.length > 0) {
-          console.log(`Retrieved ${data.length} items from database`);
-          
-          // Cache for future use
-          setCachedMockData('your_entity_data', data);
-          
-          // Add source tracking for development transparency
-          return data.map(item => ({
-            ...item,
-            _source: 'database' as const
-          }));
-        }
-        
-        // If database is empty, check cache
-        console.log('No data found in database, checking cache...');
-        const cachedData = getCachedMockData<YourEntityType[] | null>('your_entity_data', null);
-        
-        if (cachedData && cachedData.length > 0) {
-          console.log('Using cached data');
-          return cachedData.map(item => ({
-            ...item,
-            _source: 'cached' as const
-          }));
-        }
-        
-        // Final fallback to mock data
-        console.log('No cached data found, using mock data');
-        return mockData.map(item => ({
-          ...item,
-          _source: 'mock' as const
-        }));
-      } catch (err) {
-        console.error('Error in useYourEntityData:', err);
-        
-        // Try to recover from cache after error
-        const cachedData = getCachedMockData<YourEntityType[] | null>('your_entity_data', null);
-        if (cachedData && cachedData.length > 0) {
-          console.log('Using cached data after error');
-          return cachedData.map(item => ({
-            ...item,
-            _source: 'cached-fallback' as const
-          }));
-        }
-        
-        // Last resort: use mock data
-        console.log('Using mock data after error');
-        return mockData.map(item => ({
-          ...item,
-          _source: 'mock-fallback' as const
-        }));
-      }
-    },
-    enabled: !!userId || isDevelopmentMode,
-  });
+  [key: string]: any;
 }
 
+// Type for different data sources
+type DataSource = 'database' | 'cached' | 'mock';
+
+// Entity with source tracking
+type EntityWithSource<T extends Entity> = T & {
+  _source: DataSource;
+};
+
 /**
- * Hook to fetch a single entity by ID
+ * Template for a query hook that fetches a single entity by ID
  */
-export function useYourEntityById(id: string | undefined) {
-  const { userId } = useAuth();
+export function useEntityById<T extends Entity>(
+  id: string | undefined,
+  options?: { 
+    enabled?: boolean;
+    tableName?: string;
+    mockData?: T;
+    cacheKey?: string;
+  }
+) {
+  const {
+    enabled = true,
+    tableName = 'entities',
+    mockData,
+    cacheKey = 'entity',
+  } = options || {};
   
-  return useQuery<YourEntityType | null>({
-    queryKey: ['your_entity', id],
-    queryFn: async () => {
-      if (!id) return null;
+  // Development mode check
+  const isDev = import.meta.env.VITE_DEV_MODE === 'true';
+  
+  return useQuery({
+    queryKey: [cacheKey, id],
+    queryFn: async (): Promise<EntityWithSource<T> | null> => {
+      // Early return if no ID provided
+      if (!id) {
+        console.warn('No ID provided to useEntityById');
+        return null;
+      }
       
-      try {
-        console.log(`Fetching entity ${id} from database...`);
+      // UUID validation
+      if (!isValidUUID(id)) {
+        console.error(`Invalid UUID format in useEntityById: ${id}`);
         
-        // Skip Supabase query for non-UUID IDs in development mode
-        if (isDevelopmentMode && !isValidUUID(id)) {
-          console.log(`Skipping database query for non-UUID id: ${id}`);
-          
-          // Try cached data first
-          const cachedData = getCachedMockData<YourEntityType | null>(`your_entity_${id}`, null);
-          if (cachedData) {
-            console.log(`Using cached data for entity ${id}`);
-            return {
-              ...cachedData,
-              _source: 'cached' as const
-            };
-          }
-          
-          // Fall back to mock data
-          console.log(`Using mock data for entity ${id}`);
-          const mockItem = mockData.find(item => item.id === id) || {
-            ...mockData[0],
-            id,
-            name: `Mock Entity ${id}`
-          };
-          
-          // Cache the mock data for future use
-          setCachedMockData(`your_entity_${id}`, mockItem);
-          
-          return {
-            ...mockItem,
-            _source: 'mock' as const
+        // In development mode, return mock data instead of failing
+        if (isDev && mockData) {
+          console.info('Using mock data due to invalid UUID in development mode');
+          return { 
+            ...mockData, 
+            id, 
+            _source: 'mock' 
           };
         }
         
-        // Make the database query
+        return null;
+      }
+      
+      try {
+        // Attempt to fetch from database
         const { data, error } = await supabase
-          .from('your_table_name')
+          .from(tableName)
           .select('*')
           .eq('id', id)
           .single();
-          
+        
         if (error) {
-          console.error(`Error fetching entity ${id}:`, error);
+          console.error(`Database error in useEntityById:`, error);
           throw error;
         }
         
-        if (data) {
-          // Cache the successful response
-          setCachedMockData(`your_entity_${id}`, data);
-          
-          return {
-            ...data,
-            _source: 'database' as const
-          };
-        }
-        
-        throw new Error(`Entity ${id} not found`);
+        // Add source tracking to the result
+        return data ? { ...data, _source: 'database' } : null;
       } catch (err) {
-        console.error(`Error fetching entity ${id}:`, err);
+        console.error(`Error in useEntityById:`, err);
         
-        // Try cached data after error
-        if (isDevelopmentMode) {
-          const cachedData = getCachedMockData<YourEntityType | null>(`your_entity_${id}`, null);
-          if (cachedData) {
-            console.log(`Using cached data for entity ${id} after error`);
-            return {
-              ...cachedData,
-              _source: 'cached-fallback' as const
-            };
-          }
-          
-          // Fall back to mock data
-          console.log(`Using mock data for entity ${id} after error`);
-          const mockItem = mockData.find(item => item.id === id) || {
-            ...mockData[0],
-            id,
-            name: `Mock Entity ${id}`
-          };
-          
-          return {
-            ...mockItem,
-            _source: 'mock-fallback' as const
+        // In development mode, fall back to mock data
+        if (isDev && mockData) {
+          console.info('Falling back to mock data after error in development mode');
+          return { 
+            ...mockData, 
+            id, 
+            _source: 'mock' 
           };
         }
         
-        throw err;
+        return null;
       }
     },
-    enabled: !!id,
+    enabled: !!id && enabled,
   });
 }
 
 /**
- * Hook to create a new entity
+ * Template for a query hook that fetches multiple entities
  */
-export function useCreateYourEntity() {
+export function useEntities<T extends Entity>(
+  options?: {
+    enabled?: boolean;
+    filters?: Record<string, any>;
+    tableName?: string;
+    mockData?: T[];
+    cacheKey?: string;
+    requireAuth?: boolean;
+  }
+) {
+  const { userId } = useAuth();
+  const {
+    enabled = true,
+    filters = {},
+    tableName = 'entities',
+    mockData = [],
+    cacheKey = 'entities',
+    requireAuth = true,
+  } = options || {};
+  
+  // Development mode check
+  const isDev = import.meta.env.VITE_DEV_MODE === 'true';
+  
+  return useQuery({
+    queryKey: [cacheKey, userId, ...Object.values(filters)],
+    queryFn: async (): Promise<EntityWithSource<T>[]> => {
+      // Check for authentication if required
+      if (requireAuth && !userId && !isDev) {
+        console.warn('No user ID available for authenticated query');
+        return [];
+      }
+      
+      // In dev mode, use the dev UUID
+      const teacherId = isDev ? DEV_TEACHER_UUID : await clerkIdToUuid(userId!);
+      
+      if (requireAuth && !teacherId) {
+        console.warn('Could not convert Clerk ID to Supabase UUID');
+        return [];
+      }
+      
+      try {
+        // Start building the query
+        let query = supabase
+          .from(tableName)
+          .select('*');
+        
+        // Add teacher_id filter if authentication is required
+        if (requireAuth && teacherId) {
+          if (!isValidUUID(teacherId)) {
+            console.error(`Invalid teacher UUID format: ${teacherId}`);
+            
+            // In development mode, return mock data
+            if (isDev && mockData.length > 0) {
+              return mockData.map(item => ({
+                ...item,
+                _source: 'mock'
+              }));
+            }
+            
+            return [];
+          }
+          
+          query = query.eq('teacher_id', teacherId);
+        }
+        
+        // Add any additional filters
+        Object.entries(filters).forEach(([key, value]) => {
+          // Skip null/undefined values
+          if (value === null || value === undefined) return;
+          
+          // Validate UUIDs in filters
+          if (key.includes('_id') && typeof value === 'string' && !isValidUUID(value)) {
+            console.error(`Invalid UUID format for filter ${key}: ${value}`);
+            throw new Error(`Invalid UUID format for filter ${key}`);
+          }
+          
+          query = query.eq(key, value);
+        });
+        
+        // Execute the query
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error(`Database error in useEntities:`, error);
+          throw error;
+        }
+        
+        // Add source tracking to all results
+        return (data || []).map(item => ({
+          ...item,
+          _source: 'database'
+        }));
+      } catch (err) {
+        console.error(`Error in useEntities:`, err);
+        
+        // In development mode, fall back to mock data
+        if (isDev && mockData.length > 0) {
+          console.info('Falling back to mock data after error in development mode');
+          return mockData.map(item => ({
+            ...item,
+            _source: 'mock'
+          }));
+        }
+        
+        return [];
+      }
+    },
+    enabled: enabled && (!!userId || isDev || !requireAuth),
+  });
+}
+
+/**
+ * Template for a mutation hook that creates a new entity
+ */
+export function useCreateEntity<T extends Omit<Entity, 'id'>>(
+  options?: {
+    tableName?: string;
+    cacheKey?: string;
+    requireAuth?: boolean;
+  }
+) {
   const queryClient = useQueryClient();
   const { userId } = useAuth();
+  const {
+    tableName = 'entities',
+    cacheKey = 'entities',
+    requireAuth = true,
+  } = options || {};
+  
+  // Development mode check
+  const isDev = import.meta.env.VITE_DEV_MODE === 'true';
   
   return useMutation({
-    mutationFn: async (newEntity: Omit<YourEntityType, 'id' | '_source'>) => {
-      if (!userId && !isDevelopmentMode) {
-        throw new Error('User not authenticated');
+    mutationFn: async (newEntity: T): Promise<EntityWithSource<Entity>> => {
+      // Check for authentication if required
+      if (requireAuth && !userId && !isDev) {
+        throw new Error('No user ID available for authenticated mutation');
       }
       
-      const userUuid = isDevelopmentMode ? DEV_TEACHER_UUID : await clerkIdToUuid(userId!);
+      // In dev mode, use the dev UUID
+      const teacherId = isDev ? DEV_TEACHER_UUID : await clerkIdToUuid(userId!);
       
-      // Add user_id to the entity
+      if (requireAuth && !teacherId) {
+        throw new Error('Could not convert Clerk ID to Supabase UUID');
+      }
+      
+      // Validate teacherId UUID format
+      if (requireAuth && !isValidUUID(teacherId)) {
+        throw new Error(`Invalid teacher UUID format: ${teacherId}`);
+      }
+      
+      // Validate any UUID fields in the entity
+      Object.entries(newEntity).forEach(([key, value]) => {
+        if (key.includes('_id') && typeof value === 'string' && !isValidUUID(value)) {
+          throw new Error(`Invalid UUID format for ${key}: ${value}`);
+        }
+      });
+      
+      // Prepare entity with standard fields
       const entityToInsert = {
         ...newEntity,
-        user_id: userUuid
+        ...(requireAuth ? { teacher_id: teacherId } : {}),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
       
-      const { data, error } = await supabase
-        .from('your_table_name')
-        .insert(entityToInsert)
-        .select()
-        .single();
+      try {
+        // Insert into database
+        const { data, error } = await supabase
+          .from(tableName)
+          .insert(entityToInsert)
+          .select('*')
+          .single();
         
-      if (error) {
-        throw error;
+        if (error) {
+          console.error(`Database error in useCreateEntity:`, error);
+          throw error;
+        }
+        
+        // Add source tracking to result
+        return { ...data, _source: 'database' };
+      } catch (err) {
+        console.error(`Error in useCreateEntity:`, err);
+        throw err;
       }
-      
-      // Update cache with new entity
-      if (data && isDevelopmentMode) {
-        // Get existing cache
-        const cachedEntities = getCachedMockData<YourEntityType[]>('your_entity_data', []);
-        // Add new entity to cache
-        const updatedCache = [...cachedEntities, data];
-        // Update cache
-        setCachedMockData('your_entity_data', updatedCache);
-        // Also cache the individual entity
-        setCachedMockData(`your_entity_${data.id}`, data);
-      }
-      
-      return data;
     },
     onSuccess: () => {
-      // Invalidate queries to refresh UI
-      queryClient.invalidateQueries({ queryKey: ['your_entity_data'] });
-    }
+      // Invalidate relevant queries to refresh data
+      queryClient.invalidateQueries({ queryKey: [cacheKey] });
+    },
+  });
+}
+
+/**
+ * Template for a mutation hook that updates an existing entity
+ */
+export function useUpdateEntity<T extends Partial<Entity>>(
+  options?: {
+    tableName?: string;
+    cacheKey?: string;
+  }
+) {
+  const queryClient = useQueryClient();
+  const {
+    tableName = 'entities',
+    cacheKey = 'entities',
+  } = options || {};
+  
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: T & { id: string }): Promise<EntityWithSource<Entity>> => {
+      // Validate entity ID
+      if (!id) {
+        throw new Error('Entity ID is required for update');
+      }
+      
+      // Validate UUID format
+      if (!isValidUUID(id)) {
+        throw new Error(`Invalid entity UUID format: ${id}`);
+      }
+      
+      // Validate any UUID fields in the updates
+      Object.entries(updates).forEach(([key, value]) => {
+        if (key.includes('_id') && typeof value === 'string' && !isValidUUID(value)) {
+          throw new Error(`Invalid UUID format for ${key}: ${value}`);
+        }
+      });
+      
+      // Prepare updates with standard fields
+      const updatedFields = {
+        ...updates,
+        updated_at: new Date().toISOString(),
+      };
+      
+      try {
+        // Update in database
+        const { data, error } = await supabase
+          .from(tableName)
+          .update(updatedFields)
+          .eq('id', id)
+          .select('*')
+          .single();
+        
+        if (error) {
+          console.error(`Database error in useUpdateEntity:`, error);
+          throw error;
+        }
+        
+        // Add source tracking to result
+        return { ...data, _source: 'database' };
+      } catch (err) {
+        console.error(`Error in useUpdateEntity:`, err);
+        throw err;
+      }
+    },
+    onSuccess: (data) => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: [cacheKey] });
+      queryClient.invalidateQueries({ queryKey: [`${cacheKey.replace(/s$/, '')}`, data.id] });
+    },
+  });
+}
+
+/**
+ * Template for a mutation hook that deletes an entity
+ */
+export function useDeleteEntity(
+  options?: {
+    tableName?: string;
+    cacheKey?: string;
+  }
+) {
+  const queryClient = useQueryClient();
+  const {
+    tableName = 'entities',
+    cacheKey = 'entities',
+  } = options || {};
+  
+  return useMutation({
+    mutationFn: async (id: string): Promise<{ id: string }> => {
+      // Validate entity ID
+      if (!id) {
+        throw new Error('Entity ID is required for deletion');
+      }
+      
+      // Validate UUID format
+      if (!isValidUUID(id)) {
+        throw new Error(`Invalid entity UUID format: ${id}`);
+      }
+      
+      try {
+        // Delete from database
+        const { error } = await supabase
+          .from(tableName)
+          .delete()
+          .eq('id', id);
+        
+        if (error) {
+          console.error(`Database error in useDeleteEntity:`, error);
+          throw error;
+        }
+        
+        return { id };
+      } catch (err) {
+        console.error(`Error in useDeleteEntity:`, err);
+        throw err;
+      }
+    },
+    onSuccess: (data) => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: [cacheKey] });
+      queryClient.invalidateQueries({ queryKey: [`${cacheKey.replace(/s$/, '')}`, data.id] });
+    },
   });
 } 
