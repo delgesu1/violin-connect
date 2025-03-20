@@ -45,9 +45,11 @@ The Violin Connect application is implementing a comprehensive UUID validation a
 | `defaultRepertoire.ts` | ✅ Complete | 2024-03-20 | Updated to use UUIDs from DEV_REPERTOIRE_UUIDS |
 | `useStudentRepertoire.ts` | ✅ Complete | 2024-03-20 | Now uses DEV_REPERTOIRE_UUIDS and has proper validation |
 | `Dashboard.tsx` | ✅ Complete | 2024-03-20 | Updated repertoire references to use UUIDs |
-| `useStudentById.ts` | 🔄 In Progress | - | - |
+| `useMasterRepertoire.ts` | ✅ Complete | 2024-03-20 | Added UUID validation and improved caching |
+| `useStudents.ts` | ✅ Complete | 2024-03-20 | Updated with proper UUID validation & conversion |
+| `useStudent.ts` | ✅ Complete | 2024-03-20 | Added UUID validation & proper UUID mapping |
+| `useStudentsDb.ts` | 🔄 In Progress | - | - |
 | `useLessons.ts` | 🔄 In Progress | - | - |
-| `useMasterRepertoire.ts` | 🔄 In Progress | - | - |
 | `useAttachments.ts` | ⏳ Not Started | - | - |
 | `useCalendarEvents.ts` | ⏳ Not Started | - | - |
 | `useTeacherDashboard.ts` | ⏳ Not Started | - | - |
@@ -92,12 +94,13 @@ The Violin Connect application is implementing a comprehensive UUID validation a
 
 - **Current Issues**: 
   - Non-UUID string IDs: 132 → 129 occurrences (-3)
-  - ID prefix usage: 167 → 113 occurrences (-54)
-  - Missing dev-uuids imports: 41 → 38 hooks (-3)
-  - isValidUUID usage: 2 → 5 occurrences (+3)
+  - ID prefix usage: 167 → 98 occurrences (-69)
+  - Missing dev-uuids imports: 41 → 36 hooks (-5)
+  - isValidUUID usage: 2 → 12 occurrences (+10)
+  - _source tracking occurrences: 217 → 226 occurrences (+9)
 
-- **Fixed Issues**: 10 components updated
-- **Completion Percentage**: ~12% (10/83 identified issues)
+- **Fixed Issues**: 13 components updated
+- **Completion Percentage**: ~16% (13/83 identified issues)
 
 ## Priority Areas
 
@@ -105,8 +108,8 @@ Based on the audit results, here are the priority areas to address:
 
 ### High Priority (In Progress)
 1. **Repertoire Component**: Using "p-" prefixed IDs (113 occurrences, down from 125)
-2. **ID Creation System**: Heavy usage of `createPrefixedId` (51 occurrences, down from 78) and `ID_PREFIXES` (58 occurrences, down from 85)
-3. **Student System**: Several hooks with missing UUID validation that access the database
+2. **ID Creation System**: Heavy usage of `createPrefixedId` (46 occurrences, down from 78) and `ID_PREFIXES` (52 occurrences, down from 85)
+3. **Student System**: ✅ Main hooks updated with UUID validation
 
 ### Medium Priority
 1. Journal features
@@ -127,11 +130,12 @@ Based on the audit results, here are the priority areas to address:
    - Add health dashboard for tracking
    - Fix initial high-priority components
    
-2. **Week 2 (Core Features)**:
+2. **Week 2 (Core Features)**: 🔄 In Progress
    - Work through high-priority components:
      - ✅ Repertoire system: fixed key components (defaultRepertoire, useStudentRepertoire, Dashboard)
-     - 🔄 Repertoire system: continue with useMasterRepertoire and other repertoire hooks
-     - Student hooks
+     - ✅ Repertoire system: implemented useMasterRepertoire with proper UUID validation
+     - ✅ Student hooks: updated useStudents and useStudent with proper UUID validation
+     - 🔄 Student hooks: continue with useStudentsDb
      - Lesson and calendar hooks
    - Update all primary user flows
    
@@ -152,14 +156,14 @@ Based on the audit results, here are the priority areas to address:
 ## Next Steps
 
 ### Immediate Tasks
-1. Fix useMasterRepertoire to use UUIDs from dev-uuids.ts
-2. Address the remaining P-prefix occurrences
-3. Begin replacing usages of createPrefixedId with UUIDs from dev-uuids.ts
+1. Fix useStudentsDb with proper UUID validation
+2. Address Calendar and Lesson hooks
+3. Continue replacing remaining usages of createPrefixedId with UUIDs
 
 ### Week 2 Tasks
-1. Create a tracking system for complex components
-2. Address Calendar and Lesson hooks
-3. Update test data to use consistent UUIDs
+1. Complete all high-priority components
+2. Create a tracking system for complex components
+3. Update remaining test data to use consistent UUIDs
 
 ## Resources
 

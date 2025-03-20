@@ -1,12 +1,12 @@
 import { Student, LegacyRepertoirePiece } from '@/components/common/StudentCard';
-import { ID_PREFIXES, createPrefixedId } from '@/lib/id-utils';
+import { DEV_STUDENT_UUIDS, DEV_LESSON_UUIDS, DEV_REPERTOIRE_UUIDS } from '@/lib/dev-uuids';
 
 /**
  * Mock student data for testing and development
  */
 export const students: Student[] = [
   {
-    id: createPrefixedId(ID_PREFIXES.STUDENT, '1'),
+    id: DEV_STUDENT_UUIDS.STUDENT_1,
     name: 'Emma Thompson',
     avatarUrl: '/images/girl1.jpg',
     level: 'Advanced',
@@ -14,7 +14,7 @@ export const students: Student[] = [
     unreadMessages: 2,
     currentRepertoire: [
       { 
-        id: '101', 
+        id: DEV_REPERTOIRE_UUIDS.PIECE_1, 
         title: 'Bach Partita No. 2',
         composer: 'J.S. Bach',
         startDate: '2023-10-01',
@@ -22,7 +22,7 @@ export const students: Student[] = [
         notes: 'Working on Chaconne section'
       } as LegacyRepertoirePiece,
       { 
-        id: '102', 
+        id: DEV_REPERTOIRE_UUIDS.PIECE_2, 
         title: 'Violin Concerto',
         composer: 'Korngold, 1st movement',
         startDate: '2023-09-15',
@@ -31,14 +31,14 @@ export const students: Student[] = [
     ],
     pastRepertoire: [
       { 
-        id: '104', 
+        id: DEV_REPERTOIRE_UUIDS.PIECE_21, 
         title: 'A Minor Scale',
         composer: 'With emphasis on arpeggios',
         startDate: '2023-08-01',
         status: 'completed'
       } as LegacyRepertoirePiece,
       { 
-        id: '105', 
+        id: DEV_REPERTOIRE_UUIDS.PIECE_11, 
         title: 'Sonata No. 2',
         composer: 'Bach',
         startDate: '2023-07-15',
@@ -47,18 +47,18 @@ export const students: Student[] = [
     ],
     lessons: [
       {
-        id: createPrefixedId(ID_PREFIXES.LESSON, '101'),
+        id: DEV_LESSON_UUIDS.LESSON_1,
         date: '2023-10-15',
         repertoire: [
           { 
-            id: '101', 
+            id: DEV_REPERTOIRE_UUIDS.PIECE_1, 
             title: 'Bach Partita No. 2',
             composer: 'J.S. Bach',
             startDate: '2023-10-01',
             status: 'current'
           } as LegacyRepertoirePiece,
           { 
-            id: '102', 
+            id: DEV_REPERTOIRE_UUIDS.PIECE_2, 
             title: 'Violin Concerto',
             composer: 'Korngold, 1st movement',
             startDate: '2023-09-15',
@@ -70,21 +70,21 @@ export const students: Student[] = [
     ]
   },
   {
-    id: createPrefixedId(ID_PREFIXES.STUDENT, '2'),
+    id: DEV_STUDENT_UUIDS.STUDENT_2,
     name: 'William Taylor',
     avatarUrl: '/images/boy3.jpg',
     level: 'Beginner',
     nextLesson: 'Wednesday, 4:00 PM',
     currentRepertoire: [
       { 
-        id: '601', 
+        id: DEV_REPERTOIRE_UUIDS.PIECE_22, 
         title: 'D Major Scale',
         composer: 'One octave',
         startDate: '2023-10-08',
         status: 'current'
       } as LegacyRepertoirePiece,
       { 
-        id: '602', 
+        id: DEV_REPERTOIRE_UUIDS.PIECE_24, 
         title: 'Spring',
         composer: 'Vivaldi, from Four Seasons',
         startDate: '2023-09-25',
@@ -93,18 +93,18 @@ export const students: Student[] = [
     ],
     lessons: [
       {
-        id: createPrefixedId(ID_PREFIXES.LESSON, '601'),
+        id: DEV_LESSON_UUIDS.LESSON_2,
         date: '2023-10-16',
         repertoire: [
           { 
-            id: '601', 
+            id: DEV_REPERTOIRE_UUIDS.PIECE_22, 
             title: 'D Major Scale',
             composer: 'One octave',
             startDate: '2023-10-08',
             status: 'current'
           } as LegacyRepertoirePiece,
           { 
-            id: '603', 
+            id: DEV_REPERTOIRE_UUIDS.PIECE_25, 
             title: 'Etude No. 3',
             composer: 'Wohlfahrt',
             startDate: '2023-10-05',

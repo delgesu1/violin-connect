@@ -6,11 +6,13 @@ import { useAuth } from '@/lib/auth-wrapper';
 import { useUserRoles } from './useUserRoles';
 import { clerkIdToUuid } from '@/lib/auth-utils';
 import { setCachedMockData, getCachedMockData } from '@/lib/mockDataCache';
+import { isValidUUID } from '@/lib/id-utils';
+import { DEV_TEACHER_UUID, DEV_STUDENT_UUIDS } from '@/lib/dev-uuids';
 
 // Define a constant for development mode based on environment variable
 const isDevelopmentMode = import.meta.env.VITE_DEV_MODE === 'true';
 // For development, use a consistent UUID that works with RLS policies
-const DEV_UUID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+const DEV_UUID = DEV_TEACHER_UUID;
 
 // Custom hook that provides a fallback for useAuth in development mode
 const useDevelopmentAuth = () => {
@@ -30,7 +32,7 @@ const useDevelopmentAuth = () => {
 
 // Types for our hook returns
 export type Student = Database['public']['Tables']['students']['Row'] & {
-  _source?: 'database' | 'cached' | 'mock' | 'cached-fallback' | 'mock-fallback';
+  _source?: 'database' | 'cached' | 'mock' | 'cached-fallback' | 'mock-fallback' | 'mock-created' | 'mock-updated' | 'mock-deleted';
 };
 export type NewStudent = Student;
 export type UpdateStudent = Partial<Student>;
@@ -80,10 +82,18 @@ export function useStudents(options: UseStudentsOptions = {}) {
           console.log('No user ID - cannot fetch students');
           return [];
         }
+        
+        // Convert Clerk ID to Supabase UUID and validate
         userUuid = await clerkIdToUuid(userId);
+        if (!isValidUUID(userUuid)) {
+          console.error('Invalid UUID format for user ID');
+          return [];
+        }
       }
       
       try {
+        console.log(`🔍 Fetching students for user ${userUuid} from database...`);
+        
         // Use the user's Supabase UUID to query data with RLS
         let query;
         
@@ -107,7 +117,7 @@ export function useStudents(options: UseStudentsOptions = {}) {
         
         // If successful data, cache it for future development use
         if (data && data.length > 0) {
-          console.log(`Found ${data.length} students from database`);
+          console.log(`✅ Found ${data.length} students from database`);
           
           // Cache the database response for offline use
           setCachedMockData('students', data);
@@ -116,30 +126,48 @@ export function useStudents(options: UseStudentsOptions = {}) {
           const studentsWithSource = data.map(student => ({
             ...student,
             _source: 'database'
-          }));
+          } as Student));
           
-          return studentsWithSource as Student[];
+          return studentsWithSource;
         }
         
         // If no data found, look for cached data first
-        console.warn('No students found in database, checking cache...');
+        console.log(`📦 No students found in database, checking cache...`);
         const cachedData = getCachedMockData<Student[] | null>('students', null);
         
         if (cachedData && cachedData.length > 0) {
-          console.log(`Using ${cachedData.length} students from cache`);
+          console.log(`📋 Using ${cachedData.length} students from cache`);
           return cachedData.map(student => ({
             ...student,
             _source: 'cached'
-          })) as Student[];
+          } as Student));
         }
         
         // If no cached data, fall back to mock data
         if (isDevelopmentMode) {
-          console.log('DEV MODE: Using mock student data as final fallback');
-          return mockStudents.map(s => ({
-            ...convertMockToStudent(s, userUuid),
-            _source: 'mock' 
-          }));
+          console.log('🔄 DEV MODE: Using mock student data as final fallback');
+          
+          // Convert mock students to proper structure with UUIDs
+          const mockStudentsWithUuids = mockStudents.map((mockStudent, index) => {
+            // Try to use UUID from DEV_STUDENT_UUIDS if available
+            const studentUuid = Object.values(DEV_STUDENT_UUIDS)[index] || 
+                               `student-${index+1}`;
+            
+            const student = {
+              ...convertMockToStudent({
+                ...mockStudent,
+                id: studentUuid
+              }, userUuid),
+              _source: 'mock' as const // Use const assertion for type safety
+            };
+            
+            return student;
+          });
+          
+          // Cache the mock data
+          setCachedMockData('students', mockStudentsWithUuids);
+          
+          return mockStudentsWithUuids;
         }
         
         return [] as Student[];
@@ -150,18 +178,33 @@ export function useStudents(options: UseStudentsOptions = {}) {
         if (isDevelopmentMode) {
           const cachedData = getCachedMockData<Student[] | null>('students', null);
           if (cachedData && cachedData.length > 0) {
-            console.log('DEV MODE: Falling back to cached student data after error');
+            console.log('📦 DEV MODE: Falling back to cached student data after error');
             return cachedData.map(student => ({
               ...student,
               _source: 'cached-fallback'
-            })) as Student[];
+            } as Student));
           }
           
-          console.log('DEV MODE: Falling back to mock student data due to error');
-          return mockStudents.map(s => ({
-            ...convertMockToStudent(s, userUuid),
-            _source: 'mock-fallback' 
-          })) as Student[];
+          console.log('🔄 DEV MODE: Falling back to mock student data due to error');
+          
+          // Convert mock students with UUIDs
+          const mockStudentsWithUuids = mockStudents.map((mockStudent, index) => {
+            // Try to use UUID from DEV_STUDENT_UUIDS if available
+            const studentUuid = Object.values(DEV_STUDENT_UUIDS)[index] || 
+                               `student-${index+1}`;
+            
+            const student = {
+              ...convertMockToStudent({
+                ...mockStudent,
+                id: studentUuid
+              }, userUuid),
+              _source: 'mock-fallback' as const // Use const assertion for type safety
+            };
+            
+            return student;
+          });
+          
+          return mockStudentsWithUuids;
         }
         
         throw err;
@@ -183,35 +226,41 @@ export function useStudent(id: string | undefined) {
       if (!id) return null;
       
       try {
-        console.log(`🔍 Fetching student details for ${id} from database...`);
-        const { data, error } = await supabase
-          .from('students')
-          .select(`
-            *,
-            next_lesson:lessons(*)
-          `)
-          .eq('id', id)
-          .single();
-        
-        if (error) throw error;
-        
-        // If successful data, cache it for future development use
-        if (data) {
-          console.log(`✅ Successfully fetched student ${id} from database`);
+        // Check if ID is a valid UUID before querying database
+        if (isValidUUID(id)) {
+          console.log(`🔍 Fetching student details for ${id} from database...`);
+          const { data, error } = await supabase
+            .from('students')
+            .select(`
+              *,
+              next_lesson:lessons(*)
+            `)
+            .eq('id', id)
+            .single();
           
-          // Cache the database response
-          const cacheKey = `student_${id}`;
-          setCachedMockData(cacheKey, data);
+          if (!error && data) {
+            console.log(`✅ Successfully fetched student ${id} from database`);
+            
+            // Cache the database response
+            const cacheKey = `student_${id}`;
+            setCachedMockData(cacheKey, data);
+            
+            // Add source info for debugging
+            return {
+              ...data,
+              _source: 'database'
+            } as Student;
+          }
           
-          // Add source info for debugging
-          return {
-            ...data,
-            _source: 'database'
-          } as Student;
+          if (error) {
+            console.error(`Error fetching student ${id} from database:`, error);
+          }
+        } else {
+          console.log(`⚠️ Skipping database query for student ${id} - not a valid UUID`);
         }
         
-        // If no data found in database, check cache
-        console.warn(`⚠️ No student found with ID ${id} in database, checking cache...`);
+        // If no data found in database or invalid UUID, check cache
+        console.log(`📦 Checking cache for student ${id}...`);
         const cacheKey = `student_${id}`;
         const cachedData = getCachedMockData<Student | null>(cacheKey, null);
         
@@ -226,9 +275,19 @@ export function useStudent(id: string | undefined) {
         // If still no data, try mock data in development mode
         if (isDevelopmentMode) {
           console.log(`📝 Using mock data for student ${id} as final fallback`);
-          const mockStudent = mockStudents.find(s => s.id === id);
+          
+          // Try to map string IDs to UUIDs if needed
+          const mappedId = id in DEV_STUDENT_UUIDS 
+            ? DEV_STUDENT_UUIDS[id as keyof typeof DEV_STUDENT_UUIDS]
+            : id;
+            
+          // First try exact match with UUID
+          const mockStudent = mockStudents.find(s => s.id === mappedId);
+          
           if (mockStudent) {
             const convertedStudent = convertMockToStudent(mockStudent, DEV_UUID);
+            // Cache the mock data for future use
+            setCachedMockData(cacheKey, convertedStudent);
             return {
               ...convertedStudent,
               _source: 'mock'
@@ -253,20 +312,19 @@ export function useStudent(id: string | undefined) {
             } as Student;
           }
           
-          // If no cached data, check mock data
-          console.warn(`📝 Falling back to mock student data for ${id} after error`);
+          // As last resort, try mock data
           const mockStudent = mockStudents.find(s => s.id === id);
           if (mockStudent) {
+            console.log(`📝 Using mock data for student ${id} after error`);
             const convertedStudent = convertMockToStudent(mockStudent, DEV_UUID);
             return {
               ...convertedStudent,
               _source: 'mock-fallback'
             } as Student;
           }
-          return null;
         }
         
-        throw err;
+        return null;
       }
     },
     enabled: !!id,
